@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import Phaser from "phaser";
-import { IsoScene } from "../game/IsoScene";
+import { IsoScene } from "./scenes/IsoScene";
 
 export default function PhaserGame() {
   const parentRef = useRef<HTMLDivElement>(null);
@@ -12,6 +12,9 @@ export default function PhaserGame() {
       type: Phaser.AUTO,
       parent: parentRef.current,
       backgroundColor: "#1a0f0a",
+      antialias: true,
+      pixelArt: false,
+      roundPixels: false,
       scale: {
         mode: Phaser.Scale.RESIZE, // canvas always fills the container
         width: "100%",
