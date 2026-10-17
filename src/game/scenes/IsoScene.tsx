@@ -192,11 +192,11 @@ export class IsoScene extends Phaser.Scene {
 
     // Test keys: 1 = block, 2 = panel (2x2), 3 = windmill (tall 1x1), 4 = greenHouse (6x6), Esc = none
     this.input.keyboard?.on("keydown-ONE", () => this.select("habitat"));
-    this.input.keyboard?.on("keydown-TWO", () => this.select("solarPanel"));
+    this.input.keyboard?.on("keydown-TWO", () => this.select("solar"));
     this.input.keyboard?.on("keydown-THREE", () =>
       this.select("communication"),
     );
-    this.input.keyboard?.on("keydown-FOUR", () => this.select("GreenHouse"));
+    this.input.keyboard?.on("keydown-FOUR", () => this.select("greenhouse"));
     this.input.keyboard?.on("keydown-FIVE", () => this.select("water"));
     this.input.keyboard?.on("keydown-SIX", () => this.select("radar"));
     this.input.keyboard?.on("keydown-SEVEN", () => this.select("storage"));
@@ -642,19 +642,49 @@ export class IsoScene extends Phaser.Scene {
     const g = this.add.graphics().setDepth(-1);
     const hw = GRID.tileW / 2;
     const hh = GRID.tileH / 2;
+
+    g.lineStyle(1, 0xffffff, 0.8);
+
     for (let c = 0; c < GRID.cols; c++) {
       for (let r = 0; r < GRID.rows; r++) {
         const { x, y } = this.tileToWorld(c, r);
+
         const pts = [
           { x, y: y - hh },
           { x: x + hw, y },
           { x, y: y + hh },
           { x: x - hw, y },
         ];
-        // this.poly(g, pts, (c + r) % 2 === 0 ? 0x8a4b32 : 0x7c4330, 1);
-        g.lineStyle(1, 0xffffff, 0.8);
-        g.strokePoints(pts, true);
+
+        g.beginPath();
+        g.moveTo(pts[0].x, pts[0].y);
+
+        for (let i = 1; i < pts.length; i++) {
+          g.lineTo(pts[i].x, pts[i].y);
+        }
+
+        g.closePath();
+        g.strokePath();
       }
     }
   }
+  // private drawGrid() {
+  //   const g = this.add.graphics().setDepth(-1);
+  //   const hw = GRID.tileW / 2;
+  //   const hh = GRID.tileH / 2;
+  //   for (let c = 0; c < GRID.cols; c++) {
+  //     for (let r = 0; r < GRID.rows; r++) {
+  //       const { x, y } = this.tileToWorld(c, r);
+  //       const pts = [
+  //         { x, y: y - hh },
+  //         { x: x + hw, y },
+  //         { x, y: y + hh },
+  //         { x: x - hw, y },
+  //       ];
+  //       // this.poly(g, pts, (c + r) % 2 === 0 ? 0x8a4b32 : 0x7c4330, 1);
+  //       g.lineStyle(1, 0xffffff, 0.8);
+  //       g.strokePoints(pts, true);
+  //     }
+  //   }
+  // }
 }

@@ -10,9 +10,9 @@ import storage from "../../assets/images/M_Storage.png";
 export const TEXTURE_IMPORTS: Record<string, string> = {
   habitat: habitat,
   water: water,
-  greenHouse: greenHouse,
+  greenhouse: greenHouse,
   marsSurface: marsSurface,
-  solarPanel: solarPanel,
+  solar: solarPanel,
   communication: communication,
   radar: radar,
   storage: storage,
