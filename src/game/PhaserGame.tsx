@@ -44,6 +44,7 @@ export default function PhaserGame() {
       // gameStateStore.buildModule(data.id, data.row, data.col);
       // console.log(gameStateStore.placedModules);
 
+<<<<<<< HEAD
       const storeActions = useGameStore.getState();
 
       // Fire building deployment mechanics logic
@@ -90,4 +91,24 @@ export default function PhaserGame() {
       }}
     />
   );
+=======
+    return (
+        <div
+            ref={parentRef}
+            style={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                overflow: "hidden",
+                padding: 0,
+                margin: 0,
+                cursor: "grab",
+                touchAction: "none",
+                overflowY: "hidden",
+                zIndex: 0,
+            }}
+        />
+    );
+>>>>>>> 4c3d519 (minor)
 }
