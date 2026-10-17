@@ -192,14 +192,17 @@ export class IsoScene extends Phaser.Scene {
 
     // Test keys: 1 = block, 2 = panel (2x2), 3 = windmill (tall 1x1), 4 = greenHouse (6x6), Esc = none
     this.input.keyboard?.on("keydown-ONE", () => this.select("habitat"));
-    this.input.keyboard?.on("keydown-TWO", () => this.select("solar"));
+    this.input.keyboard?.on("keydown-TWO", () => this.select("drill"));
     this.input.keyboard?.on("keydown-THREE", () =>
       this.select("communication"),
     );
-    this.input.keyboard?.on("keydown-FOUR", () => this.select("greenhouse"));
-    this.input.keyboard?.on("keydown-FIVE", () => this.select("water"));
+    this.input.keyboard?.on("keydown-FOUR", () => this.select("radiation_tower"));
+    this.input.keyboard?.on("keydown-FIVE", () => this.select("battery"));
     this.input.keyboard?.on("keydown-SIX", () => this.select("radar"));
-    this.input.keyboard?.on("keydown-SEVEN", () => this.select("storage"));
+    this.input.keyboard?.on("keydown-SEVEN", () => this.select("storage_large"));
+    this.input.keyboard?.on("keydown-EIGHT", () => this.select("life_support"));
+    this.input.keyboard?.on("keydown-NINE", () => this.select("workshop"));
+
     this.input.keyboard?.on("keydown-ESC", () => this.select(null));
 
     // React -> Phaser:  game.events.emit("select-module", "panel")

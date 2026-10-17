@@ -37,13 +37,13 @@ export const MODULES: Record<string, ModuleDef> = {
     category: "life_support",
     isUnlockedByDefault: true,
     w: 3,
-    h: 6,
+    h: 5,
     texture: "greenhouse",
     height: 62,
     color: 0x98fb98,
     anchor: "center",
     originY: 0.57,
-    scale: 0.5,
+    scale: 0.42,
     buildCost: [
       { resource: "iron_plate", amount: 4 },
       { resource: "glass_panel", amount: 8 },
@@ -54,8 +54,8 @@ export const MODULES: Record<string, ModuleDef> = {
     productionInputs: [{ resource: "water", amountPerTick: 2 }],
     productionOutputs: [{ resource: "food", amountPerTick: 3 }],
   },
-  rad_filter: {
-    id: "rad_filter",
+  radiation_filter: {
+    id: "radiation_filter",
     name: "Radiation Filter Array",
     description:
       "Uses electromagnetic coils and lead shielding layers to mitigate ambient background radiation.",
@@ -63,11 +63,12 @@ export const MODULES: Record<string, ModuleDef> = {
     isUnlockedByDefault: false, // Locked behind Laboratory research!
     w: 1,
     h: 1,
-    texture: "rad_filter",
+    texture: "radiation_filter",
     height: 45,
     color: 0x4b0082,
-    anchor: "bottom",
-    scale: 0.2,
+    anchor: "center",
+    originY: 0.8,
+    scale: 0.32,
     buildCost: [
       { resource: "iron_plate", amount: 6 },
       { resource: "electronics", amount: 4 },
@@ -75,6 +76,63 @@ export const MODULES: Record<string, ModuleDef> = {
     maxIntegrity: 100,
     baseDecayRate: 8, // Takes high wear protecting the base
     powerDraw: -15,
+  },
+
+  radiation_tower: {
+    id: "radiation_tower",
+    name: "Aegis Rad-Shield Tower",
+    description:
+      "Generates a localized localized magnetic bubble that sweeps solar radiation fields. Requires active Radiation Filters loaded into its operations queue.",
+    category: "power", // Categorized under grid infrastructure
+    isUnlockedByDefault: false, // Must be unlocked via Laboratory blueprints!
+    w: 2,
+    h: 2,
+    texture: "radiation_tower",
+    height: 95, // Tall asset structure on the grid map
+    color: 0x7b68ee,
+    anchor: "center",
+    originY: 0.8,
+    scale: 0.32,
+    buildCost: [
+      { resource: "iron_plate", amount: 14 },
+      { resource: "electronics", amount: 8 },
+    ],
+    maxIntegrity: 180,
+    baseDecayRate: 8, // Heavily worn down by solar particle bombardments
+    powerDraw: -25, // Demands heavy baseline electrical routing to run the magnets
+    productionInputs: [
+      // Burns 1 high-grade Radiation Filter per operational tick to negate baseline player rad damage
+      { resource: "repair_kit", amountPerTick: 1 },
+    ],
+  },
+
+  // --- CORE LIFE SUPPORT MODULE ---
+  life_support: {
+    id: "life_support",
+    name: "Atmospheric Life Support Node",
+    description:
+      "Primary environmental system. Regulates internal air pressure, scrubs carbon dioxide, and pumps vital water reserves back through the base.",
+    category: "life_support",
+    isUnlockedByDefault: true,
+    w: 2,
+    h: 2,
+    texture: "life_support",
+    height: 60,
+    color: 0x00ff7f,
+    anchor: "center",
+    originY: 0.67,
+    scale: 0.22,
+    buildCost: [
+      { resource: "iron_plate", amount: 8 },
+      { resource: "glass_panel", amount: 4 },
+      { resource: "electronics", amount: 6 },
+    ],
+    maxIntegrity: 150,
+    baseDecayRate: 4,
+    powerDraw: -12, // Critical core draw
+    productionInputs: [
+      { resource: "water", amountPerTick: 1 }, // Recycles water into structural oxygen loops
+    ],
   },
 
   // --- 2. RESOURCE GATHERING & PROCESSING ---
@@ -92,7 +150,7 @@ export const MODULES: Record<string, ModuleDef> = {
     color: 0xcccccc,
     anchor: "center",
     originY: 0.68,
-    scale: 0.3,
+    scale: 0.24,
     buildCost: [
       { resource: "iron_plate", amount: 5 },
       { resource: "electronics", amount: 2 },
@@ -116,7 +174,7 @@ export const MODULES: Record<string, ModuleDef> = {
     color: 0x8b4513,
     anchor: "center",
     originY: 0.7,
-    scale: 0.28,
+    scale: 0.232,
     buildCost: [
       { resource: "iron_plate", amount: 6 },
       { resource: "electronics", amount: 3 },
@@ -136,14 +194,14 @@ export const MODULES: Record<string, ModuleDef> = {
       "Refines raw elements into structural plates, glass panels, components, and tools.",
     category: "production",
     isUnlockedByDefault: true,
-    w: 3,
-    h: 3, // Larger spatial footprint on the grid
+    w: 2,
+    h: 2, // Larger spatial footprint on the grid
     texture: "workshop",
     height: 90,
     color: 0xffa500,
     anchor: "center",
-    originY: 0.6,
-    scale: 0.35,
+    originY: 0.65,
+    scale: 0.24,
     buildCost: [
       { resource: "iron_plate", amount: 10 },
       { resource: "electronics", amount: 5 },
@@ -161,13 +219,14 @@ export const MODULES: Record<string, ModuleDef> = {
       "Generates renewable energy. Highly vulnerable to drop-offs during dust storm events.",
     category: "power",
     isUnlockedByDefault: true,
-    w: 1,
-    h: 1,
+    w: 2,
+    h: 2,
     texture: "solar",
     height: 32,
     color: 0x0000ff,
-    anchor: "bottom",
-    scale: 0.15,
+    anchor: "center",
+    originY: 0.7,
+    scale: 0.24,
     buildCost: [
       { resource: "iron_plate", amount: 2 },
       { resource: "glass_panel", amount: 4 },
@@ -184,14 +243,14 @@ export const MODULES: Record<string, ModuleDef> = {
       "Stores power surpluses during peak generation cycles to keep life support operational overnight.",
     category: "power",
     isUnlockedByDefault: true,
-    w: 1,
+    w: 2,
     h: 2,
     texture: "battery",
     height: 50,
     color: 0x00ff00,
     anchor: "center",
-    originY: 0.6,
-    scale: 0.22,
+    originY: 0.66,
+    scale: 0.23,
     buildCost: [
       { resource: "iron_plate", amount: 6 },
       { resource: "electronics", amount: 6 },
@@ -202,21 +261,21 @@ export const MODULES: Record<string, ModuleDef> = {
   },
 
   // --- 4. TECHNOLOGY & TECH LOGS ---
-  laboratory: {
-    id: "laboratory",
+  researchLab: {
+    id: "researchLab",
     name: "Research Laboratory",
     description:
       "Processes data logs to unlock advanced base defenses and radiation filters.",
     category: "tech",
     isUnlockedByDefault: true,
     w: 2,
-    h: 3,
-    texture: "laboratory",
+    h: 2,
+    texture: "researchLab",
     height: 80,
     color: 0x00ffff,
     anchor: "center",
-    originY: 0.62,
-    scale: 0.32,
+    originY: 0.7,
+    scale: 0.24,
     buildCost: [
       { resource: "iron_plate", amount: 6 },
       { resource: "glass_panel", amount: 6 },
@@ -239,8 +298,8 @@ export const MODULES: Record<string, ModuleDef> = {
     height: 75,
     color: 0xff00ff,
     anchor: "center",
-    originY: 0.66,
-    scale: 0.25,
+    originY: 0.76,
+    scale: 0.29,
     buildCost: [
       { resource: "iron_plate", amount: 4 },
       { resource: "electronics", amount: 8 },
@@ -249,8 +308,76 @@ export const MODULES: Record<string, ModuleDef> = {
     baseDecayRate: 5,
     powerDraw: -15,
   },
-};
+  storage_small: {
+    id: "storage_small",
+    name: "Supply Depot (S)",
+    description:
+      "A compact secure locker. Increases your maximum resource inventory limits.",
+    category: "storage",
+    isUnlockedByDefault: true,
+    w: 2,
+    h: 2, // Compact footprint on the isometric grid
+    texture: "storage",
+    height: 40,
+    color: 0xdeb887,
+    anchor: "center",
+    originY: 0.68,
+    scale: 0.24,
+    buildCost: [{ resource: "iron_plate", amount: 4 }],
+    maxIntegrity: 100,
+    baseDecayRate: 2, // Low maintenance required
+    powerDraw: 0, // Passively adds inventory capacity without consuming power
+  },
+  storage_large: {
+    id: "storage_large",
+    name: "Automated Logistics Hub (L)",
+    description:
+      "Advanced heavy vault equipped with climate-controlled tracking for vast stockpiles.",
+    category: "storage",
+    isUnlockedByDefault: false, // Must be researched in the Laboratory first!
+    w: 2,
+    h: 3,
+    texture: "storage_large",
+    height: 75,
+    color: 0xcd853f,
+    anchor: "center",
+    originY: 0.62,
+    scale: 0.32,
+    buildCost: [
+      { resource: "iron_plate", amount: 12 },
+      { resource: "electronics", amount: 4 },
+    ],
+    maxIntegrity: 250, // Highly durable against winds
+    baseDecayRate: 3,
+    powerDraw: -2, // Uses minimal power to run its internal automated conveyor systems
+  },
 
+  // --- COMMUNICATION MODULE ---
+  communication: {
+    id: "communication",
+    name: "Mission Control Uplink",
+    description:
+      "Houses deep-space transmitter nodes. Essential for checking in with Earth and coordinating your Sol 30 rescue itinerary.",
+    category: "tech",
+    isUnlockedByDefault: true,
+    w: 2,
+    h: 2,
+    texture: "communication",
+    height: 68,
+    color: 0x4682b4,
+    anchor: "center",
+    originY: 0.75,
+    scale: 0.27,
+    buildCost: [
+      { resource: "iron_plate", amount: 6 },
+      { resource: "glass_panel", amount: 2 },
+      { resource: "electronics", amount: 8 },
+    ],
+    maxIntegrity: 120,
+    baseDecayRate: 4,
+    powerDraw: -15, // Demands heavy baseline electrical infrastructure to punch through Martian storms
+  },
+};
 
 // export const MODULES: Record<string, ModuleDef> = {
 //   block: {
@@ -365,4 +492,3 @@ export const MODULES: Record<string, ModuleDef> = {
 //     scale: WINDMILL_SCALE,
 //   },
 // };
-
