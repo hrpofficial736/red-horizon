@@ -3,7 +3,7 @@ import { useGameStore } from "../store/useGameStore";
 import { MODULES } from "../game/modules/moduleDefinitions";
 import type { ModuleDef } from "../game/modules/module.types";
 
-export const BuildComponent: React.FC = () => {
+export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
   const [selectedModule, setSelectedModule] = useState<ModuleDef>(
     MODULES.habitat,
   );
@@ -16,6 +16,7 @@ export const BuildComponent: React.FC = () => {
   });
 
   const handleTransmitBlueprint = () => {
+    if (closeTab) closeTab();
     if (!canAffordModule) return;
     const runningGame = (window as any).phaserGameInstance;
     if (runningGame) {
@@ -28,11 +29,15 @@ export const BuildComponent: React.FC = () => {
     }
   };
 
+  const unlockedModules = Object.values(MODULES).filter(
+    (mod) => mod.isUnlockedByDefault === true,
+  );
+
   return (
     <div className="flex h-full gap-4 overflow-hidden">
       {/* 📋 SIDEBAR MENU */}
       <div className="w-1/3 border-r border-neutral-800 pr-3 overflow-y-auto flex flex-col gap-2">
-        {Object.values(MODULES).map((mod) => (
+        {unlockedModules.map((mod) => (
           <button
             key={mod.id}
             onClick={() => setSelectedModule(mod)}

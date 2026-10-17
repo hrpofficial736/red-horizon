@@ -51,6 +51,16 @@ export const useGameStore = create<GameState>((set, get) => ({
     water: 10,
     food: 5,
   },
+  unlockedModuleIds: [
+    "habitat",
+    "greenhouse",
+    "water",
+    "drill",
+    "workshop",
+    "solar",
+    "battery",
+    "radar",
+  ],
   placedModules: [],
   astronautHealth: 100,
   currentDay: 1,
@@ -63,6 +73,19 @@ export const useGameStore = create<GameState>((set, get) => ({
   gameLogs: [
     "Sol 01: System online. Establish base foundations before environmental anomalies manifest.",
   ],
+
+  unlockModuleBlueprint: (moduleId: string) =>
+    set((state: any) => {
+      if (state.unlockedModuleIds.includes(moduleId)) return {};
+
+      return {
+        unlockedModuleIds: [...state.unlockedModuleIds, moduleId],
+        gameLogs: [
+          ...state.gameLogs,
+          `🔬 RESEARCH SUCCESS: New blueprint pattern unlocked: Unlocked structural authorization for ${moduleId.replace("_", " ")}.`,
+        ],
+      };
+    }),
 
   // 2. Add resources (Called when mining finishes or processing completes)
   addResource: (resource, amount) =>

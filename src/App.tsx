@@ -90,7 +90,7 @@ function App() {
 
             {/* Active component frame body content */}
             <div className="flex-1 overflow-hidden p-4">
-              {activeTab === "build" && <BuildComponent />}
+              {activeTab === "build" && <BuildComponent closeTab={closeTab} />}
               {activeTab === "inventory" && <InventoryComponent />}
               {activeTab === "research" && (
                 <div className="h-full flex items-center justify-center text-neutral-500 italic text-xs">
