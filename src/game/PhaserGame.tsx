@@ -5,7 +5,6 @@ import { useGameStore } from "../store/useGameStore";
 
 export default function PhaserGame() {
   const parentRef = useRef<HTMLDivElement>(null);
-  const gameStateStore = useGameStore();
 
   useEffect(() => {
     if (!parentRef.current) return;
@@ -44,7 +43,6 @@ export default function PhaserGame() {
       // gameStateStore.buildModule(data.id, data.row, data.col);
       // console.log(gameStateStore.placedModules);
 
-<<<<<<< HEAD
       const storeActions = useGameStore.getState();
 
       // Fire building deployment mechanics logic
@@ -64,9 +62,23 @@ export default function PhaserGame() {
     };
 
     game.events.on("module-placed", handleModulePlaced);
+
+    const handleModuleClicked = (data: {
+      uid: number;
+      id: string;
+      name: string;
+      col: number;
+      row: number;
+    }) => {
+      console.log("Module clicked:", data);
+    };
+
+    game.events.on("module-clicked", handleModuleClicked);
+
     // Cleanup also makes React StrictMode (double-mount in dev) safe
     return () => {
       game.events.off("module-placed", handleModulePlaced);
+      game.events.off("module-clicked", handleModuleClicked);
       game.events.off("tile-click", onTile);
       (window as any).phaserGameInstance = null;
       game.destroy(true);
@@ -91,24 +103,4 @@ export default function PhaserGame() {
       }}
     />
   );
-=======
-    return (
-        <div
-            ref={parentRef}
-            style={{
-                position: "absolute",
-                inset: 0,
-                width: "100%",
-                height: "100%",
-                overflow: "hidden",
-                padding: 0,
-                margin: 0,
-                cursor: "grab",
-                touchAction: "none",
-                overflowY: "hidden",
-                zIndex: 0,
-            }}
-        />
-    );
->>>>>>> 4c3d519 (minor)
 }

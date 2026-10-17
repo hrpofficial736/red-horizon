@@ -38,6 +38,8 @@ export class IsoScene extends Phaser.Scene {
   private occ: number[][] = []; // occ[col][row] = uid of module covering that tile (0 = free)
   private placed = new Map<number, Placed>();
   private nextUid = 1;
+  private hoveredModuleUid: number | null = null;
+  private selectedModuleUid: number | null = null;
 
   private gridOffsetX = 24;
   private gridOffsetY = -52;
@@ -465,13 +467,19 @@ export class IsoScene extends Phaser.Scene {
     for (let c = col; c < col + def.w; c++)
       for (let r = row; r < row + def.h; r++) this.occ[c][r] = uid;
 
-    this.placed.set(uid, {
+    const created = this.createView(def, col, row);
+    const placedEntry: Placed = {
       uid,
       def,
       col,
       row,
-      view: this.createView(def, col, row),
-    });
+      view: created.view,
+      label: created.label,
+      ring: created.ring,
+    };
+
+    this.placed.set(uid, placedEntry);
+    this.attachModuleInteraction(placedEntry);
 
     // console.log(this.selected, this.nextUid);
     if (this.selected?.id !== "habitat") {
@@ -506,10 +514,36 @@ export class IsoScene extends Phaser.Scene {
       // Sprite's bottom-centre sits on the footprint's bottom corner; the image can rise as high as it likes.
       const s = this.spriteAnchor(def, col, row, fp);
       const sprite = this.add
-        .sprite(s.x, s.y, def.texture)
+        .sprite(0, 0, def.texture)
         .setOrigin(0.5, s.oy)
         .setScale(def.scale ?? SCALE)
         .setDepth(depth);
+
+      const label = this.add
+        .text(0, -Math.max(48, sprite.displayHeight * 0.65 + 32), def.name, {
+          fontFamily: "Arial",
+          fontSize: "12px",
+          color: "#f8fafc",
+          backgroundColor: "rgba(15, 23, 42, 0.8)",
+          padding: { x: 6, y: 3 },
+          stroke: "#020617",
+          strokeThickness: 2,
+        })
+        .setOrigin(0.5, 1)
+        .setVisible(false)
+        .setDepth(depth + 1);
+
+      const ring = this.add
+        .graphics()
+        .setVisible(false)
+        .setDepth(depth - 0.5);
+      this.drawSelectionRing(ring, fp, def);
+
+      const container = this.add
+        .container(s.x, s.y)
+        .setDepth(depth)
+        .add([sprite, label]);
+
       if (def.anim && this.anims.exists(def.anim)) {
         // random start frame so several windmills don't spin in lock-step
         sprite.play({
@@ -517,11 +551,116 @@ export class IsoScene extends Phaser.Scene {
           startFrame: Phaser.Math.Between(0, (def.frames ?? 1) - 1),
         });
       }
-      return sprite;
+
+      return { view: container, label, ring };
     }
     const g = this.add.graphics().setDepth(depth);
     this.drawBox(g, fp, def.height, def.color, 1);
-    return g;
+
+    const label = this.add
+      .text(fp.top.x, fp.top.y - 42, def.name, {
+        fontFamily: "Arial",
+        fontSize: "12px",
+        color: "#f8fafc",
+        backgroundColor: "rgba(15, 23, 42, 0.8)",
+        padding: { x: 6, y: 3 },
+        stroke: "#020617",
+        strokeThickness: 2,
+      })
+      .setOrigin(0.5, 1)
+      .setVisible(false)
+      .setDepth(depth + 1);
+
+    const ring = this.add
+      .graphics()
+      .setVisible(false)
+      .setDepth(depth - 0.5);
+    this.drawSelectionRing(ring, fp);
+
+    return { view: g, label, ring };
+  }
+
+  private drawSelectionRing(
+    ring: Phaser.GameObjects.Graphics,
+    fp: Footprint,
+    def?: ModuleDef,
+  ) {
+    const cx = (fp.top.x + fp.right.x + fp.bottom.x + fp.left.x) / 4;
+    const cy = (fp.top.y + fp.right.y + fp.bottom.y + fp.left.y) / 4;
+
+    const baseRx = Math.max(54, (fp.right.x - fp.left.x) * 0.7);
+    const baseRy = Math.max(34, (fp.bottom.y - fp.top.y) * 0.6);
+    const isRadiationTower = def?.id === "radiation_tower";
+
+    const rx = isRadiationTower ? baseRx * 9 : baseRx;
+    const ry = isRadiationTower ? baseRy * 9 : baseRy;
+    const color = isRadiationTower ? 0xff4d4d : 0xffffff;
+
+    ring.clear();
+
+    ring.lineStyle(3, color, isRadiationTower ? 1 : 0.95);
+    ring.strokeEllipse(cx, cy, rx * 2, ry * 2);
+  }
+
+  private updateRingState(module: Placed) {
+    const shouldShow =
+      module.uid === this.hoveredModuleUid ||
+      module.uid === this.selectedModuleUid;
+
+    if (module.ring) {
+      module.ring.setVisible(shouldShow);
+      if (shouldShow) {
+        const fp = this.footprint(module.col, module.row, module.def.w, module.def.h);
+        this.drawSelectionRing(module.ring, fp, module.def);
+      }
+    }
+  }
+
+  private attachModuleInteraction(module: Placed) {
+    const target =
+      module.view instanceof Phaser.GameObjects.Container
+        ? module.view.list.find(
+            (child) =>
+              child instanceof Phaser.GameObjects.Sprite ||
+              child instanceof Phaser.GameObjects.Graphics,
+          ) ?? module.view
+        : module.view;
+
+    if (!(target instanceof Phaser.GameObjects.GameObject)) return;
+
+    target.setInteractive({ useHandCursor: true });
+    target.on("pointerover", () => {
+      this.hoveredModuleUid = module.uid;
+      if (module.label) module.label.setVisible(true);
+      this.placed.forEach((placed) => this.updateRingState(placed));
+    });
+    target.on("pointerout", () => {
+      if (this.hoveredModuleUid === module.uid) {
+        this.hoveredModuleUid = null;
+      }
+      if (this.selectedModuleUid === module.uid) {
+        this.selectedModuleUid = null;
+      }
+      if (module.label) module.label.setVisible(false);
+      this.placed.forEach((placed) => this.updateRingState(placed));
+    });
+    target.on("pointerdown", () => {
+      this.selectedModuleUid = module.uid;
+      this.placed.forEach((placed) => this.updateRingState(placed));
+      this.game.events.emit("module-clicked", {
+        uid: module.uid,
+        id: module.def.id,
+        name: module.def.name,
+        col: module.col,
+        row: module.row,
+      });
+      console.log("Module clicked:", module.def.name, {
+        uid: module.uid,
+        id: module.def.id,
+        col: module.col,
+        row: module.row,
+      });
+    });
   }
 
   /**----------------------------------------------------------------------------------------------------------------
@@ -610,6 +749,29 @@ export class IsoScene extends Phaser.Scene {
     this.poly(g, [up(top), up(right), up(bottom), up(left)], color, alpha);
   }
 
+  private drawGhostGridBoundary(g: Phaser.GameObjects.Graphics) {
+    const top = this.tileToWorld(0, 0);
+    const right = this.tileToWorld(GRID.cols, 0);
+    const bottom = this.tileToWorld(GRID.cols, GRID.rows);
+    const left = this.tileToWorld(0, GRID.rows);
+
+    const pts = [
+      { x: top.x, y: top.y - GRID.tileH / 2 },
+      { x: right.x + GRID.tileW / 2, y: right.y },
+      { x: bottom.x, y: bottom.y + GRID.tileH / 2 },
+      { x: left.x - GRID.tileW / 2, y: left.y },
+    ];
+
+    g.lineStyle(2, 0xffffff, 0.9);
+    g.beginPath();
+    pts.forEach((pt, index) => {
+      if (index === 0) g.moveTo(pt.x, pt.y);
+      else g.lineTo(pt.x, pt.y);
+    });
+    g.closePath();
+    g.strokePath();
+  }
+
   /**----------------------------------------------------------------------------------------------------------------
       Renders the selected module's placement preview at the hovered tile.
       Highlights the footprint according to placement validity and displays
@@ -620,14 +782,18 @@ export class IsoScene extends Phaser.Scene {
     const g = this.ghost;
     g.clear();
     this.ghostImg.setVisible(false);
-    if (!this.hoverTile) return;
 
-    // Nothing selected -> just highlight the hovered tile
     if (!this.selected) {
-      const fp = this.footprint(this.hoverTile.col, this.hoverTile.row, 1, 1);
-      this.poly(g, [fp.top, fp.right, fp.bottom, fp.left], 0xffd166, 0.45);
+      if (this.hoverTile) {
+        const fp = this.footprint(this.hoverTile.col, this.hoverTile.row, 1, 1);
+        this.poly(g, [fp.top, fp.right, fp.bottom, fp.left], 0xffd166, 0.45);
+      }
       return;
     }
+
+    this.drawGhostGridBoundary(g);
+
+    if (!this.hoverTile) return;
 
     const a = this.anchor();
     if (!a) return;
@@ -663,7 +829,7 @@ export class IsoScene extends Phaser.Scene {
     const hw = GRID.tileW / 2;
     const hh = GRID.tileH / 2;
 
-    g.lineStyle(1, 0xffffff, 0.8);
+    g.lineStyle(1, 0xffffff, 0);
 
     for (let c = 0; c < GRID.cols; c++) {
       for (let r = 0; r < GRID.rows; r++) {

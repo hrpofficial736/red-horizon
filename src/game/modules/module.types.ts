@@ -85,4 +85,6 @@ export interface Placed {
   col: number;
   row: number;
   view: Phaser.GameObjects.GameObject;
+  label?: Phaser.GameObjects.Text;
+  ring?: Phaser.GameObjects.Graphics;
 }

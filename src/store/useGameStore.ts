@@ -211,7 +211,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     advanceHour(shiftLength);
 
     // Sleep block follows work window: instantly returns fatigue tracking back to zero parameters
-    set((state) => ({
+    set(() => ({
       fatigueLevel: 0,
       currentHour: 8, // reset clock back to normal morning shift hour configuration
     }));

@@ -7,7 +7,6 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
   const [selectedModule, setSelectedModule] = useState<ModuleDef>(
     MODULES.habitat,
   );
-  const buildModule = useGameStore((state) => state.buildModule);
   const inventory = useGameStore((state) => state.inventory);
 
   const canAffordModule = selectedModule.buildCost.every((cost) => {
