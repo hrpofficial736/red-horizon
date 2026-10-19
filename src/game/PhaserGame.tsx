@@ -35,7 +35,7 @@ export default function PhaserGame() {
       col: number;
       row: number;
     }) => {
-      console.log("Module placed:", data);
+      // console.log("Module placed:", data);
       // console.log("UID:", data.uid);
       // console.log("Module ID:", data.id);
       // console.log("Grid position:", data.col, data.row);
@@ -50,10 +50,10 @@ export default function PhaserGame() {
 
       if (wasBuilt) {
         // Read the absolute freshest array to confirm the change took effect
-        console.log(
-          "📋 Updated Zustand Placed Modules:",
-          useGameStore.getState().placedModules,
-        );
+        // console.log(
+        //   "📋 Updated Zustand Placed Modules:",
+        //   useGameStore.getState().placedModules,
+        // );
       } else {
         console.warn(
           "⚠️ Hackathon Validation: React rejected building deployment (insufficient resources).",
@@ -66,11 +66,39 @@ export default function PhaserGame() {
     const handleModuleClicked = (data: {
       uid: number;
       id: string;
-      name: string;
       col: number;
       row: number;
     }) => {
-      console.log("Module clicked:", data);
+      if (
+        (window as Window & { __tharsisOverlayOpen?: boolean })
+          .__tharsisOverlayOpen
+      ) {
+        return;
+      }
+      // console.log(
+      //   "🛸 Phaser engine reports module node context select target click:",
+      //   data,
+      // );
+
+      // Fetch the full list from store to capture the instanceId matching these grid tiles
+      const liveMod = useGameStore
+        .getState()
+        .placedModules.find((m: any) => m.x === data.row && m.y === data.col);
+
+      // console.log(
+      //   "🛸 React store lookup for module instanceId matching these grid tiles:",
+      //   liveMod,
+      // );
+
+      // Forward everything safely up to the React modal box
+      window.dispatchEvent(
+        new CustomEvent("PHASER_POPUP_MODAL_SIGNAL", {
+          detail: {
+            ...data,
+            instanceId: liveMod ? liveMod.instanceId : `${data.id}-fallback`,
+          },
+        }),
+      );
     };
 
     game.events.on("module-clicked", handleModuleClicked);

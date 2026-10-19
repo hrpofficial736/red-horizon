@@ -21,17 +21,18 @@ export const MODULES: Record<string, ModuleDef> = {
       { resource: "iron_plate", amount: 8 },
       { resource: "glass_panel", amount: 4 },
     ],
-    maxIntegrity: 150,
+    maxIntegrity: 100,
     baseDecayRate: 2,
     powerDraw: -5, // Passive background drain
     productionInputs: [
       { resource: "water", amountPerTick: 1 },
-      { resource: "food", amountPerTick: 1 },
+      { resource: "raw_food", amountPerTick: 1 },
     ],
+    maxModules: 1, // Only one habitat can be built at a time
   },
   greenhouse: {
     id: "greenhouse",
-    name: "Hydroponic Greenhouse",
+    name: "Greenhouse",
     description:
       "Cultivates Martian crops using water and intensive artificial light configurations.",
     category: "life_support",
@@ -51,8 +52,7 @@ export const MODULES: Record<string, ModuleDef> = {
     maxIntegrity: 100,
     baseDecayRate: 5, // High wind vulnerability
     powerDraw: -12,
-    productionInputs: [{ resource: "water", amountPerTick: 2 }],
-    productionOutputs: [{ resource: "food", amountPerTick: 3 }],
+    maxModules: 1, // Only one greenhouse can be built at a time
   },
   // radiation_filter: {
   //   id: "radiation_filter",
@@ -80,7 +80,7 @@ export const MODULES: Record<string, ModuleDef> = {
 
   radiation_tower: {
     id: "radiation_tower",
-    name: "Aegis Rad-Shield Tower",
+    name: "Rad-Shield Tower",
     description:
       "Generates a localized localized magnetic bubble that sweeps solar radiation fields. Requires active Radiation Filters loaded into its operations queue.",
     category: "power", // Categorized under grid infrastructure
@@ -102,14 +102,15 @@ export const MODULES: Record<string, ModuleDef> = {
     powerDraw: -25, // Demands heavy baseline electrical routing to run the magnets
     productionInputs: [
       // Burns 1 high-grade Radiation Filter per operational tick to negate baseline player rad damage
-      { resource: "repair_kit", amountPerTick: 1 },
+      { resource: "radiation_filter", amountPerTick: 1 },
     ],
+    maxModules: 1, // Only one radiation tower can be built at a time
   },
 
   // --- CORE LIFE SUPPORT MODULE ---
   life_support: {
     id: "life_support",
-    name: "Atmospheric Life Support Node",
+    name: "Life Support",
     description:
       "Primary environmental system. Regulates internal air pressure, scrubs carbon dioxide, and pumps vital water reserves back through the base.",
     category: "life_support",
@@ -127,12 +128,13 @@ export const MODULES: Record<string, ModuleDef> = {
       { resource: "glass_panel", amount: 4 },
       { resource: "electronics", amount: 6 },
     ],
-    maxIntegrity: 150,
+    maxIntegrity: 100,
     baseDecayRate: 4,
     powerDraw: -12, // Critical core draw
     productionInputs: [
       { resource: "water", amountPerTick: 1 }, // Recycles water into structural oxygen loops
     ],
+    maxModules: 1, // Only one life support node can be built at a time
   },
 
   // --- 2. RESOURCE GATHERING & PROCESSING ---
@@ -155,10 +157,11 @@ export const MODULES: Record<string, ModuleDef> = {
       { resource: "iron_plate", amount: 5 },
       { resource: "electronics", amount: 2 },
     ],
-    maxIntegrity: 120,
+    maxIntegrity: 100,
     baseDecayRate: 4,
     powerDraw: -10,
     productionOutputs: [{ resource: "water", amountPerTick: 2 }],
+    maxModules: 4, // Only one water extractor can be built at a time
   },
   drill: {
     id: "drill",
@@ -186,10 +189,11 @@ export const MODULES: Record<string, ModuleDef> = {
       { resource: "iron_ore", amountPerTick: 3 },
       { resource: "silicates", amountPerTick: 2 },
     ],
+    maxModules: 2, // Only two drills can be built at a time
   },
   workshop: {
     id: "workshop",
-    name: "Automated Workshop",
+    name: "Workshop",
     description:
       "Refines raw elements into structural plates, glass panels, components, and tools.",
     category: "production",
@@ -206,9 +210,10 @@ export const MODULES: Record<string, ModuleDef> = {
       { resource: "iron_plate", amount: 10 },
       { resource: "electronics", amount: 5 },
     ],
-    maxIntegrity: 200,
+    maxIntegrity: 100,
     baseDecayRate: 3,
     powerDraw: -8, // Low background power, high when actively crafting items
+    maxModules: 1, // Only one workshop can be built at a time
   },
 
   // --- 3. POWER GENERATION & STORAGE ---
@@ -232,9 +237,10 @@ export const MODULES: Record<string, ModuleDef> = {
       { resource: "glass_panel", amount: 4 },
       { resource: "electronics", amount: 2 },
     ],
-    maxIntegrity: 80,
+    maxIntegrity: 100,
     baseDecayRate: 4,
     powerDraw: 25, // Positive value: generates 25 units of energy during standard daylight
+    maxModules: 4, // Only four solar arrays can be built at a time
   },
   battery: {
     id: "battery",
@@ -255,15 +261,16 @@ export const MODULES: Record<string, ModuleDef> = {
       { resource: "iron_plate", amount: 6 },
       { resource: "electronics", amount: 6 },
     ],
-    maxIntegrity: 120,
+    maxIntegrity: 100,
     baseDecayRate: 2,
     powerDraw: 0, // Handles storage capacity changes through game context logic
+    maxModules: 2, // Only two battery banks can be built at a time
   },
 
   // --- 4. TECHNOLOGY & TECH LOGS ---
   researchLab: {
     id: "researchLab",
-    name: "Research Laboratory",
+    name: "Research Lab",
     description:
       "Processes data logs to unlock advanced base defenses and radiation filters.",
     category: "tech",
@@ -281,13 +288,14 @@ export const MODULES: Record<string, ModuleDef> = {
       { resource: "glass_panel", amount: 6 },
       { resource: "electronics", amount: 8 },
     ],
-    maxIntegrity: 150,
+    maxIntegrity: 100,
     baseDecayRate: 3,
     powerDraw: -20,
+    maxModules: 1, // Only one research lab can be built at a time
   },
   radar: {
     id: "radar",
-    name: "Long-Range Comms Radar",
+    name: "Comms Radar",
     description:
       "Establishes structural signals back to Earth and scans adjacent Martian sectors for rescue assets.",
     category: "tech",
@@ -307,6 +315,7 @@ export const MODULES: Record<string, ModuleDef> = {
     maxIntegrity: 100,
     baseDecayRate: 5,
     powerDraw: -15,
+    maxModules: 2, // Only one radar can be built at a time
   },
   storage_small: {
     id: "storage_small",
@@ -317,7 +326,7 @@ export const MODULES: Record<string, ModuleDef> = {
     isUnlockedByDefault: true,
     w: 2,
     h: 2, // Compact footprint on the isometric grid
-    texture: "storage",
+    texture: "storage_small",
     height: 40,
     color: 0xdeb887,
     anchor: "center",
@@ -327,10 +336,12 @@ export const MODULES: Record<string, ModuleDef> = {
     maxIntegrity: 100,
     baseDecayRate: 2, // Low maintenance required
     powerDraw: 0, // Passively adds inventory capacity without consuming power
+    maxModules: 4, // Only four supply depots can be built at a time
+    moduleCapacity: 50, // Each small storage module can hold 50 units of resources
   },
   storage_large: {
     id: "storage_large",
-    name: "Automated Logistics Hub (L)",
+    name: "Supply Depot (L)",
     description:
       "Advanced heavy vault equipped with climate-controlled tracking for vast stockpiles.",
     category: "storage",
@@ -347,9 +358,11 @@ export const MODULES: Record<string, ModuleDef> = {
       { resource: "iron_plate", amount: 12 },
       { resource: "electronics", amount: 4 },
     ],
-    maxIntegrity: 250, // Highly durable against winds
+    maxIntegrity: 100, // Highly durable against winds
     baseDecayRate: 3,
     powerDraw: -2, // Uses minimal power to run its internal automated conveyor systems
+    maxModules: 2, // Only two large storage hubs can be built at a time
+    moduleCapacity: 200, // Each large storage module can hold 200 units of resources
   },
 
   // --- COMMUNICATION MODULE ---
@@ -373,9 +386,10 @@ export const MODULES: Record<string, ModuleDef> = {
       { resource: "glass_panel", amount: 2 },
       { resource: "electronics", amount: 8 },
     ],
-    maxIntegrity: 120,
+    maxIntegrity: 100,
     baseDecayRate: 4,
     powerDraw: -15, // Demands heavy baseline electrical infrastructure to punch through Martian storms
+    maxModules: 1, // Only one communication module can be built at a time
   },
 };
 

@@ -304,11 +304,18 @@ export class IsoScene extends Phaser.Scene {
 
   // ------------------------------------------ Input ---------------------------------------------------------------
 
+  private isOverlayOpen() {
+    return (
+      window as Window & { __tharsisOverlayOpen?: boolean }
+    ).__tharsisOverlayOpen === true;
+  }
+
   /**----------------------------------------------------------------------------------------------------------------
      * Records the pointer's starting position and updates the hovered grid tile.
      * Prepares the scene to distinguish a click from a camera drag.
      ----------------------------------------------------------------------------------------------------------------*/
   private onDown(p: Phaser.Input.Pointer) {
+    if (this.isOverlayOpen()) return;
     this.downX = p.x;
     this.downY = p.y;
     this.dragged = false;
@@ -320,6 +327,7 @@ export class IsoScene extends Phaser.Scene {
      * Updates the hovered tile and placement preview as the pointer moves.
      ----------------------------------------------------------------------------------------------------------------*/
   private onMove(p: Phaser.Input.Pointer) {
+    if (this.isOverlayOpen()) return;
     const cam = this.cameras.main;
     const { pointer1, pointer2 } = this.input;
 
@@ -364,6 +372,7 @@ export class IsoScene extends Phaser.Scene {
      * deselect the current module, or finish a camera gesture.
      ----------------------------------------------------------------------------------------------------------------*/
   private onUp(p: Phaser.Input.Pointer) {
+    if (this.isOverlayOpen()) return;
     if (!this.dragged && !this.pinching) {
       if (p.button === 2) {
         this.select(null);
@@ -390,6 +399,7 @@ export class IsoScene extends Phaser.Scene {
     _dx: number,
     dy: number,
   ) {
+    if (this.isOverlayOpen()) return;
     this.zoomAt(p.x, p.y, this.cameras.main.zoom * Math.exp(-dy * 0.001));
     this.updateHover(p);
   }
@@ -476,15 +486,16 @@ export class IsoScene extends Phaser.Scene {
       view: created.view,
       label: created.label,
       ring: created.ring,
+      // instanceId
     };
 
     this.placed.set(uid, placedEntry);
     this.attachModuleInteraction(placedEntry);
 
     // console.log(this.selected, this.nextUid);
-    if (this.selected?.id !== "habitat") {
-      this.game.events.emit("module-placed", { uid, id: def.id, col, row });
-    }
+    // if (this.selected?.id !== "habitat") {
+    this.game.events.emit("module-placed", { uid, id: def.id, col, row });
+    // }
 
     this.select(null);
     return true;
@@ -610,7 +621,12 @@ export class IsoScene extends Phaser.Scene {
     if (module.ring) {
       module.ring.setVisible(shouldShow);
       if (shouldShow) {
-        const fp = this.footprint(module.col, module.row, module.def.w, module.def.h);
+        const fp = this.footprint(
+          module.col,
+          module.row,
+          module.def.w,
+          module.def.h,
+        );
         this.drawSelectionRing(module.ring, fp, module.def);
       }
     }
@@ -619,11 +635,11 @@ export class IsoScene extends Phaser.Scene {
   private attachModuleInteraction(module: Placed) {
     const target =
       module.view instanceof Phaser.GameObjects.Container
-        ? module.view.list.find(
+        ? (module.view.list.find(
             (child) =>
               child instanceof Phaser.GameObjects.Sprite ||
               child instanceof Phaser.GameObjects.Graphics,
-          ) ?? module.view
+          ) ?? module.view)
         : module.view;
 
     if (!(target instanceof Phaser.GameObjects.GameObject)) return;
@@ -645,6 +661,7 @@ export class IsoScene extends Phaser.Scene {
       this.placed.forEach((placed) => this.updateRingState(placed));
     });
     target.on("pointerdown", () => {
+      if (this.isOverlayOpen()) return;
       this.selectedModuleUid = module.uid;
       this.placed.forEach((placed) => this.updateRingState(placed));
       this.game.events.emit("module-clicked", {

@@ -1,10 +1,22 @@
-import React from "react";
+import React, { useState } from "react";
 import { useGameStore } from "../store/useGameStore";
+import { MAT_IMPORTS } from "../game/utils/materialsTexture";
 import type { ResourceType } from "../game/modules/module.types";
+import { CirclePile } from "lucide-react";
+import borders from "../assets/Border.png";
+import bigBorder from "../assets/BigBorder.png";
+import type { CraftingRecipe } from "../game/modules/data/recipesConfig";
+import { INVENTORY_RECIPES } from "../game/modules/data/recipesConfig";
+import { MAT_ICONS } from "../game/utils/matetialsIcons";
 
 export const InventoryComponent: React.FC = () => {
   const inventory = useGameStore((state) => state.inventory);
   const craftItem = useGameStore((state) => state.craftItem);
+  const [selectedRecipe, setSelectedRecipe] = useState<CraftingRecipe | null>(
+    null,
+  );
+
+  console.log("InventoryComponent rendered with inventory:", inventory);
 
   const recipes: Array<{
     output: ResourceType;
@@ -32,31 +44,117 @@ export const InventoryComponent: React.FC = () => {
   ];
 
   return (
-    <div className="grid grid-cols-2 h-full gap-4 overflow-hidden">
+    <div className="flex flex-row h-full gap-4 overflow-hidden">
       {/* STOCKPILE ITEM GRID DISPLAY */}
-      <div className="border border-neutral-800 rounded bg-neutral-900/20 p-3 overflow-y-auto">
-        <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-widest mb-3 border-b border-neutral-800 pb-2">
-          📦 Stockpile Inventories
-        </h3>
-        <div className="grid grid-cols-2 gap-2 text-xs">
+      <section className="rounded-xl w-4/6 overflow-y-auto scrollbar-none">
+        {/* <h3 className="text-md font-bold text-white uppercase tracking-widest mb-3 flex flex-row items-center gap-2">
+          <CirclePile size={16} /> Stockpile Inventories
+        </h3> */}
+        <div className="flex flex-wrap gap-2 text-xs">
           {Object.entries(inventory).map(([resourceKey, amount]) => (
             <div
+              onMouseEnter={() => {
+                const recipe = INVENTORY_RECIPES.find(
+                  (r) => r.output === resourceKey,
+                );
+                setSelectedRecipe(recipe || null);
+              }}
+              onMouseLeave={() => setSelectedRecipe(null)}
               key={resourceKey}
-              className="bg-neutral-900 border border-neutral-800 p-2 rounded flex justify-between items-center"
+              className="w-[calc(25%-0.4rem)] hover:text-black hover:bg-white aspect-5/4 bg-neutral-900 border border-neutral-800 p-2 rounded-xl flex flex-col gap-1 justify-between items-center"
             >
-              <span className="capitalize text-neutral-400">
+              <span className="capitalize font-medium">
                 {resourceKey.replace("_", " ")}
               </span>
-              <strong className="text-white text-sm bg-black px-2 py-0.5 rounded border border-neutral-800">
-                {amount}
-              </strong>
+              <img
+                src={MAT_IMPORTS[resourceKey]}
+                alt={resourceKey.replace("_", " ")}
+                className={`w-[calc(80%-1rem)] aspect-square object-contain pointer-events-none`}
+              />
+              <strong className=" text-sm w-full text-right">x{amount}</strong>
             </div>
           ))}
         </div>
-      </div>
+      </section>
+
+      <section className="flex w-2/6 rounded-2xl bg-black/55 overflow-hidden">
+        {selectedRecipe ? (
+          <div className="w-full flex flex-col items-center justify-between gap-5 p-4">
+            <div className="w-full flex flex-col gap-4 items-center">
+              <div
+                style={{ backgroundImage: `url(${borders})` }}
+                className="w-[90%] aspect-square bg-no-repeat object-contain bg-center flex items-center justify-center"
+              >
+                <img
+                  src={MAT_IMPORTS[selectedRecipe.output]}
+                  alt=""
+                  className="pointer-events-none aspect-square w-[calc(60%-1rem)] object-contain"
+                />
+              </div>
+              <div className="w-full flex flex-col gap-2">
+                <span className=" text-xl font-bold leading-none">
+                  {selectedRecipe.name.toUpperCase()}
+                </span>
+                <span className=" text-md font-medium leading-4.5 text-sec">
+                  {selectedRecipe.description}
+                </span>
+              </div>
+            </div>
+            {/* <div className="w-full flex flex-row gap-2">
+              <div className="w-full flex flex-col gap-1">
+                <strong className="text-sm text-stone-400 uppercase tracking-wide">
+                  RESOURCES
+                </strong>
+                <div className="w-full flex flex-row gap-3">
+                  {selectedRecipe.cost.map((cost, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-1 text-[10px]"
+                    >
+                      <img
+                        src={MAT_ICONS[cost.resource]}
+                        alt=""
+                        className="pointer-events-none w-7 aspect-square object-contain"
+                      />
+                      <span className="text-sm font-bold">{cost.amount}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="w-full flex flex-col gap-1">
+                <strong className="text-sm text-stone-400 uppercase tracking-wide text-right">
+                  EST. TIME
+                </strong>
+                <strong className="text-sm text-white text-right">
+                  {`${selectedRecipe.craftHours}h`}
+                </strong>
+              </div>
+            </div> */}
+            <div className="flex flex-row gap-2 w-full items-center">
+              <div className="flex flex-col -space-y-1">
+                <strong className="text-sm text-stone-400 uppercase tracking-wide">
+                  AMOUNT IN
+                </strong>
+                <strong className="text-sm text-stone-400 uppercase tracking-wide text-right">
+                  STORAGE
+                </strong>
+              </div>
+              <strong className="bg-stone-700 text-xs h-6 w-6 text-white rounded-full flex items-center justify-center ">
+                {inventory[selectedRecipe.output] || 0}
+              </strong>
+            </div>
+          </div>
+        ) : (
+          <img
+            src={bigBorder}
+            alt=""
+            className="w-full h-full pointer-events-none"
+          />
+        )}
+      </section>
 
       {/* WORKSHOP REFINING SUB-ACTIONS */}
-      <div className="border border-neutral-800 rounded bg-neutral-900/20 p-3 overflow-y-auto flex flex-col gap-3">
+      {/* <div className="hidden w-1/2 border border-neutral-800 rounded bg-neutral-900/20 p-3 overflow-y-auto flex flex-col gap-3">
         <h3 className="text-xs font-bold text-neutral-400 uppercase tracking-widest border-b border-neutral-800 pb-2">
           🏭 Fabricator Unit Processes
         </h3>
@@ -81,7 +179,7 @@ export const InventoryComponent: React.FC = () => {
             </span>
           </button>
         ))}
-      </div>
+      </div> */}
     </div>
   );
 };
