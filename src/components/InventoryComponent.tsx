@@ -1,47 +1,21 @@
 import React, { useState } from "react";
 import { useGameStore } from "../store/useGameStore";
 import { MAT_IMPORTS } from "../game/utils/materialsTexture";
-import type { ResourceType } from "../game/modules/module.types";
-import { CirclePile } from "lucide-react";
 import borders from "../assets/Border.png";
 import bigBorder from "../assets/BigBorder.png";
 import type { CraftingRecipe } from "../game/modules/data/recipesConfig";
 import { INVENTORY_RECIPES } from "../game/modules/data/recipesConfig";
-import { MAT_ICONS } from "../game/utils/matetialsIcons";
 
 export const InventoryComponent: React.FC = () => {
   const inventory = useGameStore((state) => state.inventory);
-  const craftItem = useGameStore((state) => state.craftItem);
+  const discoveredResourceTypes = useGameStore(
+    (state) => state.discoveredResourceTypes,
+  );
   const [selectedRecipe, setSelectedRecipe] = useState<CraftingRecipe | null>(
     null,
   );
 
-  console.log("InventoryComponent rendered with inventory:", inventory);
-
-  const recipes: Array<{
-    output: ResourceType;
-    cost: Array<{ resource: ResourceType; amount: number }>;
-    label: string;
-  }> = [
-    {
-      output: "iron_plate",
-      cost: [{ resource: "iron_ore", amount: 3 }],
-      label: "⚙️ Forge Iron Plate (3x Ore)",
-    },
-    {
-      output: "glass_panel",
-      cost: [{ resource: "silicates", amount: 3 }],
-      label: "🪟 Fuse Glass Panel (3x Silicate)",
-    },
-    {
-      output: "repair_kit",
-      cost: [
-        { resource: "iron_plate", amount: 1 },
-        { resource: "electronics", amount: 1 },
-      ],
-      label: "🔧 Assembly Maintenance Kit",
-    },
-  ];
+  // console.log("InventoryComponent rendered with inventory:", inventory);
 
   return (
     <div className="flex flex-row h-full gap-4 overflow-hidden">
@@ -51,7 +25,7 @@ export const InventoryComponent: React.FC = () => {
           <CirclePile size={16} /> Stockpile Inventories
         </h3> */}
         <div className="flex flex-wrap gap-2 text-xs">
-          {Object.entries(inventory).map(([resourceKey, amount]) => (
+          {discoveredResourceTypes.map((resourceKey) => (
             <div
               onMouseEnter={() => {
                 const recipe = INVENTORY_RECIPES.find(
@@ -71,7 +45,9 @@ export const InventoryComponent: React.FC = () => {
                 alt={resourceKey.replace("_", " ")}
                 className={`w-[calc(80%-1rem)] aspect-square object-contain pointer-events-none`}
               />
-              <strong className=" text-sm w-full text-right">x{amount}</strong>
+              <strong className=" text-sm w-full text-right">
+                x{inventory[resourceKey] ?? 0}
+              </strong>
             </div>
           ))}
         </div>

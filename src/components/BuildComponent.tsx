@@ -13,6 +13,7 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
   );
   const inventory = useGameStore((state) => state.inventory);
   const placedModules = useGameStore((state) => state.placedModules);
+  const unlockedModuleIds = useGameStore((state) => state.unlockedModuleIds);
 
   const canAffordModule = selectedModule.buildCost.every((cost) => {
     const stockAvailable = inventory[cost.resource] ?? 0;
@@ -34,7 +35,9 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
   };
 
   const unlockedModules = Object.values(MODULES).filter(
-    (mod) => mod.isUnlockedByDefault === true && mod.id !== "habitat",
+    (mod) =>
+      (mod.isUnlockedByDefault || unlockedModuleIds.includes(mod.id)) &&
+      mod.id !== "habitat",
   );
 
   const getModulesLeft = (mod: ModuleDef) => {

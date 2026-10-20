@@ -1,5 +1,6 @@
 import { X } from "lucide-react";
 import {
+  KITCHEN_RECIPES,
   WORKSHOP_RECIPES,
   type CraftingRecipe,
 } from "../game/modules/data/recipesConfig";
@@ -24,15 +25,44 @@ const formatRemainingTime = (minutes: number) => {
   return `${String(hours).padStart(2, "0")}:${String(remainingMinutes).padStart(2, "0")}`;
 };
 
-export function WorkshopComponent() {
+export function WorkshopComponent({ isKitchen = false }: { isKitchen?: boolean }) {
   const inventory = useGameStore((state) => state.inventory);
+  const discoveredResourceTypes = useGameStore(
+    (state) => state.discoveredResourceTypes,
+  );
+  const researchedNodeIds = useGameStore((state) => state.researchedNodeIds);
   const workshopQueue = useGameStore((state) => state.workshopQueue);
+  const kitchenQueue = useGameStore((state) => state.kitchenQueue);
   const queueCrafting = useGameStore((state) => state.queueCrafting);
+  const queueKitchenCrafting = useGameStore(
+    (state) => state.queueKitchenCrafting,
+  );
   const cancelCrafting = useGameStore((state) => state.cancelCrafting);
+  const cancelKitchenCrafting = useGameStore(
+    (state) => state.cancelKitchenCrafting,
+  );
   const currentHour = useGameStore((state) => state.currentHour);
   const currentMinute = useGameStore((state) => state.currentMinute);
   const currentDay = useGameStore((state) => state.currentDay);
   const now = currentDay * 24 * 60 + currentHour * 60 + currentMinute;
+  const recipes = isKitchen ? KITCHEN_RECIPES : WORKSHOP_RECIPES;
+  const queue = isKitchen ? kitchenQueue : workshopQueue;
+  const queueRecipe = isKitchen ? queueKitchenCrafting : queueCrafting;
+  const cancelQueue = isKitchen ? cancelKitchenCrafting : cancelCrafting;
+  const researchedKitchenRecipes = new Set(
+    [
+      "soup",
+      ...researchedNodeIds
+        .map((nodeId) => {
+          if (nodeId === "food_meal") return "meal";
+          if (nodeId === "food_good_meal") return "good_meal";
+          return null;
+        })
+        .filter(
+          (resource): resource is CraftingRecipe["output"] => resource !== null,
+        ),
+    ],
+  );
 
   const [selectedRecipe, setSelectedRecipe] = useState<CraftingRecipe | null>(
     null,
@@ -45,7 +75,14 @@ export function WorkshopComponent() {
           Available Recipes
         </h3>
         <div className="flex flex-wrap gap-2 overflow-y-auto scrollbar-none">
-          {WORKSHOP_RECIPES.map((recipe) => {
+          {recipes
+            .filter(
+              (recipe) =>
+                isKitchen
+                  ? researchedKitchenRecipes.has(recipe.output)
+                  : discoveredResourceTypes.includes(recipe.output),
+            )
+            .map((recipe) => {
             const canAfford = recipe.cost.every(
               (cost) => (inventory[cost.resource] || 0) >= cost.amount,
             );
@@ -55,7 +92,7 @@ export function WorkshopComponent() {
                 disabled={!canAfford}
                 onMouseEnter={() => setSelectedRecipe(recipe)}
                 onMouseLeave={() => setSelectedRecipe(null)}
-                onClick={() => queueCrafting(recipe)}
+                onClick={() => queueRecipe(recipe)}
                 className="flex flex-col w-[calc(33.3%-0.35rem)] aspect-3/4 justify-between items-center gap-3 rounded-2xl border border-neutral-800 bg-neutral-950 p-4 text-left transition text-white hover:border-white hover:bg-white hover:text-black disabled:cursor-not-allowed disabled:opacity-45"
               >
                 <span className="text-sm w-full text-left  font-bold leading-none">
@@ -93,7 +130,7 @@ export function WorkshopComponent() {
                 </span> */}
               </button>
             );
-          })}
+            })}
         </div>
       </section>
 
@@ -174,23 +211,23 @@ export function WorkshopComponent() {
       <section className="flex w-2/7 flex-1 flex-col overflow-hidden rounded-b-xl p-0">
         <div className="mb-3 flex items-center justify-between ">
           <h3 className="text-md font-bold uppercase tracking-widest text-white">
-            Fabrication Queue
+            {isKitchen ? "Kitchen Queue" : "Fabrication Queue"}
           </h3>
           <span className="text-[10px] text-sec">
-            {workshopQueue.length} item{workshopQueue.length === 1 ? "" : "s"}
+            {queue.length} item{queue.length === 1 ? "" : "s"}
           </span>
         </div>
         <div className="min-h-0 space-y-2 overflow-y-auto scrollbar-none">
-          {workshopQueue.length === 0 && (
+          {queue.length === 0 && (
             <p className="py-8 text-center text-xs italic text-neutral-600">
               Queue is idle. Select a recipe to reserve materials.
             </p>
           )}
-          {workshopQueue.map((item, index) => {
+          {queue.map((item, index) => {
             const isFinished = item.completed || item.completesAt * 60 <= now;
             const isActive =
               !isFinished &&
-              !workshopQueue
+              !queue
                 .slice(0, index)
                 .some(
                   (queued) =>
@@ -244,7 +281,7 @@ export function WorkshopComponent() {
                     </span>
                   </div>
                   <button
-                    onClick={() => cancelCrafting(item.id)}
+                    onClick={() => cancelQueue(item.id)}
                     aria-label={`Cancel ${item.recipe.name}`}
                     className="cursor-pointer rounded p-1 text-neutral-500 hover:bg-red-950 hover:text-red-300"
                   >

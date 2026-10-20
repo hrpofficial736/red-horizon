@@ -22,13 +22,14 @@ export const MODULES: Record<string, ModuleDef> = {
       { resource: "glass_panel", amount: 4 },
     ],
     maxIntegrity: 100,
-    baseDecayRate: 2,
+    baseDecayRate: 4,
     powerDraw: -5, // Passive background drain
     productionInputs: [
       { resource: "water", amountPerTick: 1 },
       { resource: "raw_food", amountPerTick: 1 },
     ],
     maxModules: 1, // Only one habitat can be built at a time
+    moduleCapacity: 100,
   },
   greenhouse: {
     id: "greenhouse",
@@ -53,6 +54,31 @@ export const MODULES: Record<string, ModuleDef> = {
     baseDecayRate: 5, // High wind vulnerability
     powerDraw: -12,
     maxModules: 1, // Only one greenhouse can be built at a time
+  },
+  kitchen: {
+    id: "kitchen",
+    name: "Kitchen",
+    description:
+      "Prepares harvested ingredients into nutritious meals for the astronaut.",
+    category: "life_support",
+    isUnlockedByDefault: true,
+    w: 2,
+    h: 3,
+    texture: "kitchen",
+    height: 62,
+    color: 0xffd7a0,
+    anchor: "center",
+    originY: 0.64,
+    scale: 0.21,
+    buildCost: [
+      { resource: "iron_plate", amount: 6 },
+      { resource: "glass_panel", amount: 2 },
+      { resource: "electronics", amount: 2 },
+    ],
+    maxIntegrity: 100,
+    baseDecayRate: 3,
+    powerDraw: -8,
+    maxModules: 1,
   },
   // radiation_filter: {
   //   id: "radiation_filter",
@@ -347,13 +373,14 @@ export const MODULES: Record<string, ModuleDef> = {
     category: "storage",
     isUnlockedByDefault: false, // Must be researched in the Laboratory first!
     w: 2,
-    h: 3,
+    h: 2,
     texture: "storage_large",
     height: 75,
     color: 0xcd853f,
     anchor: "center",
-    originY: 0.62,
-    scale: 0.32,
+    originY: 0.65,
+    scale: 0.19,
+    // scale: 0.25,
     buildCost: [
       { resource: "iron_plate", amount: 12 },
       { resource: "electronics", amount: 4 },

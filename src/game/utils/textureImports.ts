@@ -13,6 +13,7 @@ import researchLab from "../../assets/images/M_ResearchLab.png";
 import radiation_tower from "../../assets/images/M_RadiationTower.png";
 import drill from "../../assets/images/M_MaterialExtractor.png";
 import battery from "../../assets/images/M_PowerStation.png";
+import kitchen from "../../assets/images/M_Kitchen.png";
 
 export const TEXTURE_IMPORTS: Record<string, string> = {
   habitat: habitat,
@@ -30,4 +31,5 @@ export const TEXTURE_IMPORTS: Record<string, string> = {
   radiation_tower: radiation_tower,
   drill: drill,
   battery: battery,
+  kitchen: kitchen,
 };

@@ -82,7 +82,7 @@ export const WORKSHOP_RECIPES: CraftingRecipe[] = [
   },
 ];
 
-export const FOOD_RECIPES: CraftingRecipe[] = [
+export const KITCHEN_RECIPES: CraftingRecipe[] = [
   {
     output: "soup",
     name: "Soup",
@@ -159,7 +159,7 @@ export const FOOD_PACK_RECIPES: CraftingRecipe[] = [
 
 export const INVENTORY_RECIPES: CraftingRecipe[] = [
   ...WORKSHOP_RECIPES,
-  ...FOOD_RECIPES,
+  ...KITCHEN_RECIPES,
   ...RESOURCES,
   ...FOOD_PACK_RECIPES,
 ];

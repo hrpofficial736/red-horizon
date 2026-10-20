@@ -206,7 +206,7 @@ export class IsoScene extends Phaser.Scene {
 
     // Test keys: 1 = block, 2 = panel (2x2), 3 = windmill (tall 1x1), 4 = greenHouse (6x6), Esc = none
     this.input.keyboard?.on("keydown-ONE", () => this.select("habitat"));
-    this.input.keyboard?.on("keydown-TWO", () => this.select("solar"));
+    this.input.keyboard?.on("keydown-TWO", () => this.select("storage_large"));
     this.input.keyboard?.on("keydown-THREE", () =>
       this.select("communication"),
     );
@@ -846,7 +846,7 @@ export class IsoScene extends Phaser.Scene {
     const hw = GRID.tileW / 2;
     const hh = GRID.tileH / 2;
 
-    g.lineStyle(1, 0xffffff, 0);
+    g.lineStyle(1, 0xffffff, 0.5);
 
     for (let c = 0; c < GRID.cols; c++) {
       for (let r = 0; r < GRID.rows; r++) {

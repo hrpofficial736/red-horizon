@@ -2,27 +2,37 @@ import { create } from "zustand";
 import type { ResourceType } from "../game/modules/module.types";
 import { MODULES } from "../game/modules/moduleDefinitions";
 import type { CraftingRecipe } from "../game/modules/data/recipesConfig";
+import type { ResearchNode } from "../game/modules/data/researchConfig";
 
 const IDEAL_WAKE_HOUR = 7;
 const IDEAL_SLEEP_HOUR = 21;
 const FAINT_HOUR = 23;
 
 const FOOD_FATIGUE_RECOVERY = {
-  raw_food: 5,
   soup: 5,
   meal: 15,
   good_meal: 25,
 } as const;
 
 const FOOD_HEALTH_RECOVERY = {
-  raw_food: 0,
   soup: 0,
   meal: 0,
   good_meal: 10,
 } as const;
-const FOOD_PRIORITY = ["good_meal", "meal", "soup", "raw_food"] as const;
+const FOOD_PRIORITY = ["good_meal", "meal", "soup"] as const;
 const OVERTIME_FATIGUE_PER_HOUR = 10;
 const NO_FOOD_HEALTH_LOSS = 10;
+const STARTING_DISCOVERED_RESOURCES: ResourceType[] = [
+  "iron_ore",
+  "silicates",
+  "water",
+  "raw_food",
+  "soup",
+  "repair_kit",
+  "iron_plate",
+  "glass_panel",
+  "electronics",
+];
 
 export interface CraftQueueItem {
   id: string;
@@ -33,12 +43,39 @@ export interface CraftQueueItem {
   completed: boolean;
 }
 
+export interface ResearchQueueItem {
+  id: string;
+  node: ResearchNode;
+  queuedAt: number;
+  startedAt: number;
+  completesAt: number;
+}
+
+interface RepairJob {
+  elapsedMinutes: number;
+  startedAt: number | null;
+}
+
 const getGameHour = (day: number, hour: number, minute = 0) =>
   day * 24 + hour + minute / 60;
+
+export const getInventoryTotal = (
+  inventory: Record<ResourceType, number>,
+) => Object.values(inventory).reduce((total, amount) => total + amount, 0);
+
+export const getStorageCapacity = (
+  placedModules: Array<{ id: string }>,
+) =>
+  placedModules.reduce(
+    (capacity, module) =>
+      capacity + (MODULES[module.id]?.moduleCapacity ?? 0),
+    0,
+  );
 
 interface GameState {
   // --- STATE VARIABLES ---
   inventory: Record<ResourceType, number>;
+  discoveredResourceTypes: ResourceType[];
   placedModules: Array<{
     id: string;
     instanceId: string;
@@ -56,9 +93,18 @@ interface GameState {
   overtimeHours: number;
   timerIntervalId: null | ReturnType<typeof setInterval>;
   workshopQueue: CraftQueueItem[];
+  kitchenQueue: CraftQueueItem[];
   greenhouseQueue: CraftQueueItem[];
+  researchQueue: ResearchQueueItem[];
+  researchedNodeIds: string[];
+  filterEfficiency: Record<string, number>;
+  unlockedModuleIds: string[];
 
   activeRepairInstanceId: string | null; // Tracks which module is currently being wrenched
+  repairJobs: Record<string, RepairJob>;
+  startRepair: (instanceId: string) => boolean;
+  pauseRepair: (instanceId: string) => void;
+  getRepairElapsedMinutes: (instanceId: string) => number;
   startActiveRepairLoop: (instanceId: string) => void;
   stopActiveRepairLoop: () => void;
 
@@ -68,6 +114,7 @@ interface GameState {
   gameLogs: string[]; // Narration strings push here for UI console
 
   // --- ACTIONS (MUTATORS) ---
+  unlockResource: (resource: ResourceType) => void;
   addResource: (resource: ResourceType, amount: number) => void;
   consumeResource: (resource: ResourceType, amount: number) => boolean;
   craftItem: (
@@ -77,9 +124,16 @@ interface GameState {
   queueCrafting: (recipe: CraftingRecipe) => boolean;
   cancelCrafting: (queueItemId: string) => boolean;
   processWorkshopQueue: () => void;
+  queueKitchenCrafting: (recipe: CraftingRecipe) => boolean;
+  cancelKitchenCrafting: (queueItemId: string) => boolean;
+  processKitchenQueue: () => void;
   queueGreenhouseCrafting: (recipe: CraftingRecipe) => boolean;
   cancelGreenhouseCrafting: (queueItemId: string) => boolean;
   processGreenhouseQueue: () => void;
+  queueResearch: (node: ResearchNode) => boolean;
+  cancelResearch: (queueItemId: string) => boolean;
+  processResearchQueue: () => void;
+  unlockModuleBlueprint: (moduleId: string) => void;
   buildModule: (moduleId: string, gridX: number, gridY: number) => boolean;
 
   // // EXTENDED SYSTEM ACTIONS
@@ -87,6 +141,7 @@ interface GameState {
   sleepUntilMorning: () => boolean;
   workOvertime: () => boolean;
   repairModule: (instanceId: string) => boolean;
+  completeRepair: (instanceId: string) => boolean;
   establishComms: () => boolean;
   advanceHour: (hours: number) => void;
   startPassiveTimer: () => void;
@@ -96,21 +151,22 @@ interface GameState {
 export const useGameStore = create<GameState>((set, get) => ({
   // 1. Initial State Definitions
   inventory: {
-    iron_ore: 20,
-    silicates: 5,
+    iron_ore: 15,
+    silicates: 15,
     iron_plate: 25,
     glass_panel: 20,
     electronics: 10,
-    repair_kit: 1,
+    repair_kit: 2,
     radiation_filter: 0,
     water_filter: 0,
     air_filter: 0,
     water: 10,
     raw_food: 5,
     soup: 1,
-    meal: 2,
+    meal: 0,
     good_meal: 0,
   },
+  discoveredResourceTypes: STARTING_DISCOVERED_RESOURCES,
 
   queueGreenhouseCrafting: (recipe) => {
     const { inventory, greenhouseQueue } = get();
@@ -236,6 +292,13 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       return {
         inventory: nextInventory,
+        discoveredResourceTypes: completedItems.reduce(
+          (resources, item) =>
+            resources.includes(item.recipe.output)
+              ? resources
+              : [...resources, item.recipe.output],
+          state.discoveredResourceTypes,
+        ),
         gameLogs: nextLogs,
         greenhouseQueue: state.greenhouseQueue.map((item) =>
           completedIds.has(item.id) ? { ...item, completed: true } : item,
@@ -251,7 +314,6 @@ export const useGameStore = create<GameState>((set, get) => ({
     "workshop",
     "solar",
     "battery",
-    "radar",
   ],
   placedModules: [],
   astronautHealth: 100,
@@ -264,8 +326,13 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   timerIntervalId: null,
   workshopQueue: [],
+  kitchenQueue: [],
   greenhouseQueue: [],
+  researchQueue: [],
+  researchedNodeIds: [],
+  filterEfficiency: {},
   activeRepairInstanceId: null,
+  repairJobs: {},
 
   // // NEW MECHANICS STATE
   radiationTowerQueues: {},
@@ -288,6 +355,146 @@ export const useGameStore = create<GameState>((set, get) => ({
       };
     }),
 
+  unlockResource: (resource) =>
+    set((state) =>
+      state.discoveredResourceTypes.includes(resource)
+        ? state
+        : {
+            discoveredResourceTypes: [
+              ...state.discoveredResourceTypes,
+              resource,
+            ],
+          },
+    ),
+
+  queueResearch: (node) => {
+    const { researchQueue, inventory, researchedNodeIds } = get();
+    if (
+      researchQueue.length >= 2 ||
+      researchedNodeIds.includes(node.id) ||
+      researchQueue.some((item) => item.node.id === node.id) ||
+      (node.requires ?? []).some(
+        (requiredId) => !researchedNodeIds.includes(requiredId),
+      ) ||
+      inventory.silicates < node.silicateCost
+    ) {
+      return false;
+    }
+
+    const now = getGameHour(
+      get().currentDay,
+      get().currentHour,
+      get().currentMinute,
+    );
+    const lastItem = researchQueue[researchQueue.length - 1];
+    const startsAt = lastItem ? lastItem.completesAt : now;
+    const item: ResearchQueueItem = {
+      id: `research-${node.id}-${Date.now()}`,
+      node,
+      queuedAt: now,
+      startedAt: startsAt,
+      completesAt: startsAt + node.researchHours,
+    };
+
+    set((state) => ({
+      inventory: {
+          ...state.inventory,
+          silicates: state.inventory.silicates - node.silicateCost,
+      },
+      researchQueue: [...state.researchQueue, item],
+    }));
+    return true;
+  },
+
+  cancelResearch: (queueItemId) => {
+    const item = get().researchQueue.find((queued) => queued.id === queueItemId);
+    if (!item) return false;
+
+    set((state) => {
+      const index = state.researchQueue.findIndex(
+          (queued) => queued.id === queueItemId,
+      );
+      const nextQueue = state.researchQueue.filter(
+          (queued) => queued.id !== queueItemId,
+      );
+      const now = getGameHour(
+          state.currentDay,
+          state.currentHour,
+          state.currentMinute,
+      );
+      let cursor = index === 0 ? now : null;
+      const reflowedQueue = nextQueue.map((queued, queueIndex) => {
+          if (queueIndex < index && index !== 0) return queued;
+          const startedAt = cursor ?? queued.startedAt;
+          const reflowed = {
+            ...queued,
+            startedAt,
+            completesAt: startedAt + queued.node.researchHours,
+          };
+          cursor = reflowed.completesAt;
+          return reflowed;
+      });
+
+      return {
+          inventory: {
+            ...state.inventory,
+            silicates: state.inventory.silicates + item.node.silicateCost,
+          },
+          researchQueue: reflowedQueue,
+      };
+    });
+    return true;
+  },
+
+  processResearchQueue: () => {
+    const now = getGameHour(
+      get().currentDay,
+      get().currentHour,
+      get().currentMinute,
+    );
+    set((state) => {
+      const completed = state.researchQueue.find(
+          (item) => item.completesAt <= now,
+      );
+      if (!completed) return state;
+
+      const nextDiscovered = completed.node.unlocks?.resource
+          ? state.discoveredResourceTypes.includes(completed.node.unlocks.resource)
+            ? state.discoveredResourceTypes
+            : [
+                ...state.discoveredResourceTypes,
+                completed.node.unlocks.resource,
+              ]
+          : state.discoveredResourceTypes;
+      const nextModules = completed.node.unlocks?.moduleId
+          ? state.unlockedModuleIds.includes(completed.node.unlocks.moduleId)
+            ? state.unlockedModuleIds
+            : [...state.unlockedModuleIds, completed.node.unlocks.moduleId]
+          : state.unlockedModuleIds;
+      const efficiencyKey = completed.node.unlocks?.efficiencyKey;
+
+      return {
+          researchQueue: state.researchQueue.filter(
+            (item) => item.id !== completed.id,
+          ),
+          researchedNodeIds: [...state.researchedNodeIds, completed.node.id],
+          discoveredResourceTypes: nextDiscovered,
+          unlockedModuleIds: nextModules,
+          filterEfficiency: efficiencyKey
+            ? {
+                ...state.filterEfficiency,
+                [efficiencyKey]:
+                  (state.filterEfficiency[efficiencyKey] ?? 0) + 1,
+              }
+            : state.filterEfficiency,
+          gameLogs: [
+            ...state.gameLogs,
+            `🔬 RESEARCH COMPLETE: ${completed.node.name} unlocked.`,
+          ],
+      };
+    });
+  },
+
   // 2. Add resources (Called when mining finishes or processing completes)
   addResource: (resource, amount) =>
     set((state) => ({
@@ -295,6 +502,9 @@ export const useGameStore = create<GameState>((set, get) => ({
         ...state.inventory,
         [resource]: (state.inventory[resource] || 0) + amount,
       },
+      discoveredResourceTypes: state.discoveredResourceTypes.includes(resource)
+        ? state.discoveredResourceTypes
+        : [...state.discoveredResourceTypes, resource],
     })),
 
   // 3. Consume resources safely (Returns false if player doesn't have enough)
@@ -447,8 +657,154 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       return {
         inventory: nextInventory,
+        discoveredResourceTypes: completedItems.reduce(
+          (resources, item) =>
+            resources.includes(item.recipe.output)
+              ? resources
+              : [...resources, item.recipe.output],
+          state.discoveredResourceTypes,
+        ),
         gameLogs: nextLogs,
         workshopQueue: state.workshopQueue.map((item) =>
+          completedIds.has(item.id) ? { ...item, completed: true } : item,
+        ),
+      };
+    });
+  },
+
+  queueKitchenCrafting: (recipe) => {
+    const { inventory, kitchenQueue } = get();
+    const hasMaterials = recipe.cost.every(
+      (req) => (inventory[req.resource] || 0) >= req.amount,
+    );
+    if (!hasMaterials) return false;
+
+    const now = getGameHour(
+      get().currentDay,
+      get().currentHour,
+      get().currentMinute,
+    );
+    const lastItem = [...kitchenQueue]
+      .reverse()
+      .find((queued) => !queued.completed);
+    const startsAt = lastItem ? lastItem.completesAt : now;
+    const item: CraftQueueItem = {
+      id: `kitchen-${recipe.output}-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2)}`,
+      recipe,
+      queuedAt: now,
+      startedAt: startsAt,
+      completesAt: startsAt + recipe.craftHours,
+      completed: false,
+    };
+
+    set((state) => {
+      const nextInventory = { ...state.inventory };
+      recipe.cost.forEach((req) => {
+        nextInventory[req.resource] -= req.amount;
+      });
+      return {
+        inventory: nextInventory,
+        kitchenQueue: [...state.kitchenQueue, item],
+      };
+    });
+    return true;
+  },
+
+  cancelKitchenCrafting: (queueItemId) => {
+    const item = get().kitchenQueue.find(
+      (queued) => queued.id === queueItemId,
+    );
+    if (!item) return false;
+
+    set((state) => {
+      const cancelledIndex = state.kitchenQueue.findIndex(
+        (queued) => queued.id === queueItemId,
+      );
+      if (cancelledIndex < 0) return state;
+
+      const nextQueue = state.kitchenQueue.filter(
+        (queued) => queued.id !== queueItemId,
+      );
+      const now = getGameHour(
+        state.currentDay,
+        state.currentHour,
+        state.currentMinute,
+      );
+      const activeIndex = state.kitchenQueue.findIndex(
+        (queued) => !queued.completed,
+      );
+      const shouldStartNextImmediately = cancelledIndex === activeIndex;
+      let cursor = shouldStartNextImmediately ? now : null;
+      const reflowedQueue = nextQueue.map((queued) => {
+        if (queued.completed) return queued;
+
+        const originalIndex = state.kitchenQueue.findIndex(
+          (original) => original.id === queued.id,
+        );
+        if (!shouldStartNextImmediately && originalIndex < cancelledIndex) {
+          cursor = queued.completesAt;
+          return queued;
+        }
+
+        const startsAt = cursor ?? queued.startedAt;
+        const reflowed = {
+          ...queued,
+          startedAt: startsAt,
+          completesAt: startsAt + queued.recipe.craftHours,
+        };
+        cursor = reflowed.completesAt;
+        return reflowed;
+      });
+      const nextInventory = { ...state.inventory };
+      if (!item.completed) {
+        item.recipe.cost.forEach((req) => {
+          nextInventory[req.resource] =
+            (nextInventory[req.resource] || 0) + req.amount;
+        });
+      }
+      return { inventory: nextInventory, kitchenQueue: reflowedQueue };
+    });
+    return true;
+  },
+
+  processKitchenQueue: () => {
+    const now = getGameHour(
+      get().currentDay,
+      get().currentHour,
+      get().currentMinute,
+    );
+
+    set((state) => {
+      const completedItems = state.kitchenQueue.filter(
+        (item) => !item.completed && item.completesAt <= now,
+      );
+      if (completedItems.length === 0) return state;
+
+      const completedIds = new Set(completedItems.map((item) => item.id));
+      const nextInventory = { ...state.inventory };
+      const nextLogs = [...state.gameLogs];
+      completedItems.forEach((item) => {
+        nextInventory[item.recipe.output] =
+          (nextInventory[item.recipe.output] || 0) +
+          (item.recipe.outputAmount ?? 1);
+        nextLogs.push(
+          `🍽️ MEAL COMPLETE: ${item.recipe.name} added to inventory.`,
+        );
+      });
+
+      return {
+        inventory: nextInventory,
+        discoveredResourceTypes: completedItems.reduce(
+          (resources, item) =>
+            resources.includes(item.recipe.output)
+              ? resources
+              : [...resources, item.recipe.output],
+          state.discoveredResourceTypes,
+        ),
+        gameLogs: nextLogs,
+        kitchenQueue: state.kitchenQueue.map((item) =>
           completedIds.has(item.id) ? { ...item, completed: true } : item,
         ),
       };
@@ -694,6 +1050,106 @@ export const useGameStore = create<GameState>((set, get) => ({
     return true;
   },
 
+  startRepair: (instanceId) => {
+    const state = get();
+    const existingJob = state.repairJobs[instanceId];
+    if (existingJob?.elapsedMinutes >= 60) return false;
+
+    if (
+      state.activeRepairInstanceId &&
+      state.activeRepairInstanceId !== instanceId
+    ) {
+      state.pauseRepair(state.activeRepairInstanceId);
+    }
+
+    if (!existingJob) {
+      if (!state.consumeResource("repair_kit", 1)) return false;
+    }
+
+    const now =
+      state.currentDay * 24 * 60 +
+      state.currentHour * 60 +
+      state.currentMinute;
+    set((currentState) => ({
+      repairJobs: {
+        ...currentState.repairJobs,
+        [instanceId]: {
+          elapsedMinutes: existingJob?.elapsedMinutes ?? 0,
+          startedAt: now,
+        },
+      },
+      activeRepairInstanceId: instanceId,
+    }));
+    return true;
+  },
+
+  pauseRepair: (instanceId) => {
+    const job = get().repairJobs[instanceId];
+    if (!job || job.startedAt === null) return;
+
+    const now =
+      get().currentDay * 24 * 60 +
+      get().currentHour * 60 +
+      get().currentMinute;
+    const elapsedMinutes = Math.min(
+      60,
+      job.elapsedMinutes + Math.max(0, now - job.startedAt),
+    );
+    set((state) => ({
+      repairJobs: {
+        ...state.repairJobs,
+        [instanceId]: { elapsedMinutes, startedAt: null },
+      },
+      activeRepairInstanceId:
+        state.activeRepairInstanceId === instanceId
+          ? null
+          : state.activeRepairInstanceId,
+    }));
+  },
+
+  getRepairElapsedMinutes: (instanceId) => {
+    const job = get().repairJobs[instanceId];
+    if (!job) return 0;
+    if (job.startedAt === null) return job.elapsedMinutes;
+
+    const now =
+      get().currentDay * 24 * 60 +
+      get().currentHour * 60 +
+      get().currentMinute;
+    return Math.min(
+      60,
+      job.elapsedMinutes + Math.max(0, now - job.startedAt),
+    );
+  },
+
+  completeRepair: (instanceId) => {
+    const moduleObj = get().placedModules.find(
+      (module) => module.instanceId === instanceId,
+    );
+    if (!moduleObj) return false;
+
+    const config = MODULES[moduleObj.id];
+    if (!config) return false;
+
+    set((state) => ({
+      placedModules: state.placedModules.map((module) =>
+        module.instanceId === instanceId
+          ? { ...module, hp: config.maxIntegrity }
+          : module,
+      ),
+      repairJobs: Object.fromEntries(
+        Object.entries(state.repairJobs).filter(
+          ([jobInstanceId]) => jobInstanceId !== instanceId,
+        ),
+      ),
+      gameLogs: [
+        ...state.gameLogs,
+        `✅ SUCCESS: ${config.name} fully restored to nominal specs.`,
+      ],
+    }));
+    return true;
+  },
+
   // --- APPEND THESE TWO NEW METHODS AT THE VERY BOTTOM OF THE STORE OBJECT ---
   startPassiveTimer: () => {
     if ((get() as any).timerIntervalId) return;
@@ -712,12 +1168,16 @@ export const useGameStore = create<GameState>((set, get) => ({
         }
         set({ currentMinute: 0 });
         store.processWorkshopQueue();
+        store.processKitchenQueue();
         store.processGreenhouseQueue();
+        store.processResearchQueue();
       } else {
         // Just increment the active clock minutes
         set({ currentMinute: nextMinute });
         store.processWorkshopQueue();
+        store.processKitchenQueue();
         store.processGreenhouseQueue();
+        store.processResearchQueue();
       }
     }, 1000); // 100ms = ultra-fast fluid clock simulation update rate
 
@@ -786,8 +1246,8 @@ export const useGameStore = create<GameState>((set, get) => ({
         return;
       }
 
-      // Transformation logic per 50ms tick: Consume material fragments and heal structural cells
-      let nextMinute = store.currentMinute + 10; // Fast forward 10 game minutes per tick
+      // Advance ten visible game minutes per real second while the repair is held.
+      let nextMinute = store.currentMinute + 10;
       // Every 30 game minutes of work, consume 1 material kit repair item count
       if (nextMinute % 30 === 0) {
         store.consumeResource("repair_kit", 1);
@@ -797,7 +1257,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       const updatedModules = store.placedModules.map((m: any) => {
         if (m.instanceId === instanceId) {
           // Incrementally restore health points dynamically
-          return { ...m, hp: Math.min(maxHp, m.hp + 5) };
+          return { ...m, hp: Math.min(maxHp, m.hp + maxHp / 6) };
         }
         return m;
       });
@@ -809,7 +1269,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       } else {
         set({ currentMinute: nextMinute, placedModules: updatedModules });
       }
-    }, 50);
+    }, 1000);
 
     set({ timerIntervalId: repairInterval });
   },
@@ -985,10 +1445,21 @@ export const useGameStore = create<GameState>((set, get) => ({
 
             // Step 3: Run output generations if grid has power and dependencies were met
             if (inputsSatisfied && config.productionOutputs) {
-              config.productionOutputs.forEach((out) => {
-                updatedInventory[out.resource] =
-                  (updatedInventory[out.resource] || 0) + out.amountPerTick;
-              });
+              const storageCapacity = getStorageCapacity(updatedModules);
+              const currentInventoryTotal = getInventoryTotal(updatedInventory);
+              const outputTotal = config.productionOutputs.reduce(
+                (total, output) => total + output.amountPerTick,
+                0,
+              );
+              const hasStorageSpace =
+                currentInventoryTotal + outputTotal <= storageCapacity;
+
+              if (hasStorageSpace) {
+                config.productionOutputs.forEach((out) => {
+                  updatedInventory[out.resource] =
+                    (updatedInventory[out.resource] || 0) + out.amountPerTick;
+                });
+              }
             }
           }
         });

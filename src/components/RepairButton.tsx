@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useGameStore } from "../store/useGameStore";
 import { MODULES } from "../game/modules/moduleDefinitions";
 
@@ -10,73 +10,96 @@ export const RepairButton: React.FC<RepairButtonProps> = ({
   moduleInstance,
 }) => {
   // 1. Grab your existing store variables and methods
-  const repairModule = useGameStore((state) => state.repairModule);
-  const advanceHour = useGameStore((state) => state.advanceHour);
+  const startRepair = useGameStore((state) => state.startRepair);
+  const pauseRepair = useGameStore((state) => state.pauseRepair);
+  const getRepairElapsedMinutes = useGameStore(
+    (state) => state.getRepairElapsedMinutes,
+  );
+  const completeRepair = useGameStore((state) => state.completeRepair);
   const repairKitCount = useGameStore(
     (state) => state.inventory.repair_kit || 0,
   );
 
   // Local interaction tracking variables
   const [isPressing, setIsPressing] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const initialElapsedMinutes = getRepairElapsedMinutes(moduleInstance.instanceId);
+  const [progress, setProgress] = useState(
+    Math.min(100, (initialElapsedMinutes / 60) * 100),
+  );
+  const [remainingMinutes, setRemainingMinutes] = useState(
+    Math.max(0, 60 - initialElapsedMinutes),
+  );
+  const repairJob = useGameStore((state) => state.repairJobs[moduleInstance.instanceId]);
+  const activeRepairInstanceId = useGameStore(
+    (state) => state.activeRepairInstanceId,
+  );
 
-  const timerRef = useRef<ReturnType<typeof setTimeout>>(null);
-  const intervalRef = useRef<ReturnType<typeof setTimeout>>(null);
+  const intervalRef = useRef<ReturnType<typeof setInterval>>(null);
 
   const config = MODULES[moduleInstance.id];
   const maxHp = config ? config.maxIntegrity : 100;
   const isFullyRepaired = moduleInstance.hp >= maxHp;
 
-  // Triggers the exact moment the user presses down on the button grid item
   const startRepairHold = () => {
-    if (isFullyRepaired || repairKitCount < 1) return;
+    if (
+      isFullyRepaired ||
+      isPressing ||
+      activeRepairInstanceId === moduleInstance.instanceId ||
+      !startRepair(moduleInstance.instanceId)
+    )
+      return;
 
     setIsPressing(true);
-    setProgress(0);
-
-    // Loop A: The Visual Progress Bar Tick (Updates every 20ms to fill over 1 Second)
-    const tickIntervalTime = 20;
-    let currentProgress = 0;
 
     intervalRef.current = setInterval(() => {
-      currentProgress += (tickIntervalTime / 1000) * 100;
-      if (currentProgress >= 100) {
-        setProgress(100);
-        clearInterval(intervalRef.current!);
-      } else {
-        setProgress(currentProgress);
-      }
-    }, tickIntervalTime);
-
-    // Loop B: The Action Trigger Execution (Fires once user holds for a solid 1000ms)
-    timerRef.current = setTimeout(() => {
-      // 1. Execute your existing repair action loop!
-      const wasRepaired = repairModule(moduleInstance.instanceId);
-
-      if (wasRepaired) {
-        // 2. 🕒 RUN TIME FAST-FORWARD: Progresses your core environment systems by 1 hour!
-        // This forces production loops and midnight decay math checks to compute naturally
-        advanceHour(1);
-
-        console.log(
-          `🔧 Maintenance complete. 1 Game Hour spent patching ${moduleInstance.id}.`,
-        );
+      if (
+        useGameStore.getState().activeRepairInstanceId !==
+        moduleInstance.instanceId
+      ) {
+        pauseRepairHold();
+        return;
       }
 
-      cancelRepairHold();
-    }, 1000);
+      const elapsedMinutes = getRepairElapsedMinutes(moduleInstance.instanceId);
+      const remaining = Math.max(0, 60 - elapsedMinutes);
+      setProgress(Math.min(100, (elapsedMinutes / 60) * 100));
+      setRemainingMinutes(remaining);
+
+      if (elapsedMinutes >= 60) {
+        completeRepair(moduleInstance.instanceId);
+        finishRepair();
+      }
+    }, 100);
   };
 
-  // Safely stops and clears timers if the user releases the mouse or drags away early
-  const cancelRepairHold = () => {
+  const pauseRepairHold = () => {
+    pauseRepair(moduleInstance.instanceId);
+    const elapsedMinutes = getRepairElapsedMinutes(moduleInstance.instanceId);
+    setRemainingMinutes(Math.max(0, 60 - elapsedMinutes));
+    setProgress(Math.min(100, (elapsedMinutes / 60) * 100));
     setIsPressing(false);
-    setProgress(0);
-    if (timerRef.current) clearTimeout(timerRef.current);
     if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = null;
   };
+
+  const finishRepair = () => {
+    setIsPressing(false);
+    setProgress(100);
+    setRemainingMinutes(0);
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    intervalRef.current = null;
+  };
+
+  useEffect(
+    () => () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      pauseRepair(moduleInstance.instanceId);
+    },
+    [moduleInstance.instanceId, pauseRepair],
+  );
 
   return (
-    <div className="flex items-center justify-between p-3 bg-neutral-900/90 border border-neutral-800 rounded-lg select-none font-mono">
+    <div className="flex flex-col items-center justify-between bg-neutral-900/90 border border-neutral-800 rounded-lg select-none">
       <div>
         <h4 className="text-sm font-bold text-white">
           {config?.name || moduleInstance.id}
@@ -94,19 +117,26 @@ export const RepairButton: React.FC<RepairButtonProps> = ({
           </span>
         </p>
       </div>
+      <div className="text-center text-xs font-bold text-orange-300">
+        {isPressing
+          ? `${String(Math.floor(remainingMinutes / 60)).padStart(2, "0")}:${String(
+              remainingMinutes % 60,
+            ).padStart(2, "0")} REMAINING`
+          : "REPAIR TIME 01:00"}
+      </div>
 
       {/* INTERACTIVE HOLD TO WRENCH FIX CONTROLLER BUTTON */}
       <button
-        disabled={isFullyRepaired || repairKitCount < 1}
+        disabled={isFullyRepaired || (!repairJob && repairKitCount < 1)}
         onMouseDown={startRepairHold}
-        onMouseUp={cancelRepairHold}
-        onMouseLeave={cancelRepairHold}
+        onMouseUp={pauseRepairHold}
+        onMouseLeave={pauseRepairHold}
         onTouchStart={startRepairHold} // Native touch gesture mappings for mobile devices
-        onTouchEnd={cancelRepairHold}
+        onTouchEnd={pauseRepairHold}
         className={`relative overflow-hidden px-4 py-2.5 text-[11px] uppercase tracking-wider font-bold rounded min-w-[150px] transition-all duration-100 ${
           isFullyRepaired
             ? "bg-neutral-800 text-neutral-500 cursor-not-allowed border border-neutral-700"
-            : repairKitCount < 1
+            : repairKitCount < 1 && !repairJob
               ? "bg-red-950/20 text-red-500 border border-red-900/40 cursor-not-allowed"
               : "bg-orange-500 text-black active:scale-95 cursor-pointer"
         }`}

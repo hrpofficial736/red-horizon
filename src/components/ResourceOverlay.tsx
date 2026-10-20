@@ -1,10 +1,55 @@
 import { MAT_IMPORTS } from "../game/utils/materialsTexture";
-import { useGameStore } from "../store/useGameStore";
+import {
+  getInventoryTotal,
+  getStorageCapacity,
+  useGameStore,
+} from "../store/useGameStore";
 
 export default function ResourceOverlay() {
   const inventory = useGameStore((state) => state.inventory);
+  const placedModules = useGameStore((state) => state.placedModules);
+  const currentCapacity = getInventoryTotal(inventory);
+  const totalCapacity = getStorageCapacity(placedModules);
+  const isStorageFull =
+    totalCapacity > 0 && currentCapacity >= totalCapacity;
+  const isStorageNearFull =
+    totalCapacity > 0 && currentCapacity / totalCapacity >= 0.8;
   return (
-    <div className="absolute top-4 left-1/2 -translate-x-1/2 flex gap-6 bg-neutral-900/95 border border-neutral-700 px-6 py-3 rounded-full backdrop-blur shadow-2xl pointer-events-auto">
+    <div className="absolute top-4 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-neutral-900/95 border border-neutral-700 px-6 py-3 rounded-full backdrop-blur shadow-2xl pointer-events-auto">
+      <div
+        className={`flex flex-col items-center border-r pr-6 ${
+          isStorageFull
+            ? "border-red-500"
+            : isStorageNearFull
+              ? "border-amber-500"
+              : "border-neutral-700"
+        }`}
+      >
+        <span className="text-[10px] text-neutral-400 tracking-wider">
+          STORAGE
+        </span>
+        <strong
+          className={`text-sm ${
+            isStorageFull
+              ? "text-red-400"
+              : isStorageNearFull
+                ? "text-amber-300"
+                : "text-white"
+          }`}
+        >
+          {currentCapacity}/{totalCapacity}
+        </strong>
+        {/* {isStorageFull && (
+          <span className="text-[9px] font-bold text-red-400">
+            STORAGE FULL
+          </span>
+        )}
+        {!isStorageFull && isStorageNearFull && (
+          <span className="text-[9px] font-bold text-amber-300">
+            STORAGE NEAR FULL
+          </span>
+        )} */}
+      </div>
       <div className="flex items-center gap-2">
         <img
           src={MAT_IMPORTS["iron_ore"]}

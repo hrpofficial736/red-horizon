@@ -11,9 +11,11 @@ import ResourceOverlay from "./components/ResourceOverlay";
 import { OverlayLayout } from "./components/OverlayLayout";
 import { WorkshopComponent } from "./components/WorkshopComponent";
 import { GreenhouseComponent } from "./components/GreenhouseComponent";
+import { ResearchComponent } from "./components/ResearchComponent";
+import { HabitatComponent } from "./components/HabitatComponent";
 
 type ActiveTab = "none" | "build" | "inventory" | "research" | "logs";
-type CraftingModuleId = "workshop" | "greenhouse";
+type CraftingModuleId = "workshop" | "kitchen" | "greenhouse";
 
 function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("none");
@@ -24,11 +26,18 @@ function App() {
     id: string;
     instanceId: string;
   } | null>(null);
+  const [habitatModule, setHabitatModule] = useState<{
+    instanceId: string;
+  } | null>(null);
   const placedModules = useGameStore((state) => state.placedModules);
+  const hasResearchLab = placedModules.some(
+    (module) => module.id === "researchLab",
+  );
   const isOverlayOpen =
     activeTab !== "none" ||
     showStatusModal !== null ||
-    craftingModule !== null;
+    craftingModule !== null ||
+    habitatModule !== null;
 
   useEffect(() => {
     (window as Window & { __tharsisOverlayOpen?: boolean }).__tharsisOverlayOpen =
@@ -48,6 +57,7 @@ function App() {
   const selectTab = (tab: ActiveTab) => {
     setShowStatusModal(null);
     setCraftingModule(null);
+    setHabitatModule(null);
     setActiveTab(activeTab === tab ? "none" : tab);
   };
 
@@ -60,6 +70,13 @@ function App() {
 
   useEffect(() => {
     const triggerPopupOverlay = (e: any) => {
+      if (e.detail.id === "habitat") {
+        setShowStatusModal(null);
+        setCraftingModule(null);
+        setHabitatModule({ instanceId: e.detail.instanceId });
+        setActiveTab("none");
+        return;
+      }
       if (e.detail.id === "workshop") {
         setShowStatusModal(null);
         setActiveTab("none");
@@ -70,6 +87,18 @@ function App() {
         setShowStatusModal(null);
         setActiveTab("none");
         setCraftingModule(e.detail);
+        return;
+      }
+      if (e.detail.id === "kitchen") {
+        setShowStatusModal(null);
+        setActiveTab("none");
+        setCraftingModule(e.detail);
+        return;
+      }
+      if (e.detail.id === "researchLab") {
+        setShowStatusModal(null);
+        setCraftingModule(null);
+        setActiveTab("research");
         return;
       }
       setShowStatusModal(e.detail); // Saves the clicked module information
@@ -308,12 +337,7 @@ function App() {
           >
             {activeTab === "build" && <BuildComponent closeTab={closeTab} />}
             {activeTab === "inventory" && <InventoryComponent />}
-            {activeTab === "research" && (
-              <div className="h-full flex items-center justify-center text-neutral-500 italic text-xs">
-                📡 CORE LINK WARNING: Blueprint research subtrees down until
-                Laboratory module is deployed.
-              </div>
-            )}
+            {activeTab === "research" && <ResearchComponent />}
             {activeTab === "logs" && (
               <div className="h-full overflow-y-auto space-y-2 bg-black/50 p-3 rounded border border-neutral-900 text-xs text-green-400 font-mono">
                 {gameLogs
@@ -332,6 +356,16 @@ function App() {
           </OverlayLayout>
         )}
 
+        {habitatModule && (
+          <OverlayLayout
+            title="HABITAT"
+            moduleType="TERMINAL"
+            onClose={() => setHabitatModule(null)}
+          >
+            <HabitatComponent instanceId={habitatModule.instanceId} />
+          </OverlayLayout>
+        )}
+
         {craftingModule && (
           <OverlayLayout
             title={`MODULE ${craftingModule.id.toUpperCase()} // ${craftingModule.id.toUpperCase()}`}
@@ -341,7 +375,9 @@ function App() {
             moduleTabs={placedModules
               .filter(
                 (module, index, modules) =>
-                  (module.id === "workshop" || module.id === "greenhouse") &&
+                  (module.id === "workshop" ||
+                    module.id === "kitchen" ||
+                    module.id === "greenhouse") &&
                   modules.findIndex(
                     (candidate) => candidate.id === module.id,
                   ) === index,
@@ -356,9 +392,11 @@ function App() {
                   }),
               }))}
           >
-            {craftingModule.id === "workshop" ? (
-              <WorkshopComponent />
-            ) : (
+            {craftingModule.id === "workshop" && <WorkshopComponent />}
+            {craftingModule.id === "kitchen" && (
+              <WorkshopComponent isKitchen />
+            )}
+            {craftingModule.id === "greenhouse" && (
               <GreenhouseComponent />
             )}
           </OverlayLayout>
@@ -366,7 +404,7 @@ function App() {
 
         {/* 🧭 HUD BOTTOM-CENTER: TABS DIRECTORY BAR MENU NAVIGATION */}
         <div className="absolute bottom-6 left-1/2 z-[60] -translate-x-1/2 bg-neutral-950/90 border border-neutral-800 p-2 rounded-full flex gap-2 backdrop-blur shadow-xl pointer-events-auto">
-          {(["build", "inventory", "research", "logs"] as const).map(
+          {(["build", "inventory", ...(hasResearchLab ? ["research"] : []), "logs"] as const).map(
             (tab) => (
               <button
                 key={tab}
