@@ -134,10 +134,10 @@ export function HabitatComponent({
             </div>
             <div className="rounded-lg border border-neutral-800 bg-neutral-950 p-3">
               <span className="block text-[10px] uppercase text-neutral-500">
-                Base decay
+                Radiation exposure
               </span>
               <strong className="text-amber-300">
-                -{config.baseDecayRate} HP/Sol
+                Day/night rates + waves
               </strong>
             </div>
           </div>

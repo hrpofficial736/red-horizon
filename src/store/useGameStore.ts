@@ -23,6 +23,14 @@ const FOOD_PRIORITY = ["good_meal", "meal", "soup"] as const;
 const OVERTIME_FATIGUE_PER_HOUR = 10;
 const NO_FOOD_HEALTH_LOSS = 10;
 export const REPAIR_TIME_SPEED = 15;
+// Difficulty tuning: percentages are decimal fractions of a module's max HP.
+export const RADIATION_DAY_DECAY_PER_SOL = 0.0050;
+export const RADIATION_NIGHT_DECAY_PER_SOL = 0.0075;
+export const RADIATION_WAVE_DAMAGE = 0.075;
+export const RADIATION_WAVE_INTERVAL_DAYS = 3;
+export const RADIATION_TOWER_DAY_REDUCTION = 0.65;
+export const RADIATION_TOWER_NIGHT_REDUCTION = 0.65;
+export const RADIATION_TOWER_COVERAGE_RADIUS = 4;
 const STARTING_DISCOVERED_RESOURCES: ResourceType[] = [
   "iron_ore",
   "silicates",
@@ -86,6 +94,7 @@ interface GameState {
   }>;
   astronautHealth: number;
   currentDay: number;
+  lastRadiationWaveDay: number;
   currentHour: number;
   currentMinute: number;
   fatigueLevel: number;
@@ -98,7 +107,6 @@ interface GameState {
   greenhouseQueue: CraftQueueItem[];
   researchQueue: ResearchQueueItem[];
   researchedNodeIds: string[];
-  filterEfficiency: Record<string, number>;
   unlockedModuleIds: string[];
 
   activeRepairInstanceId: string | null; // Tracks which module is currently being wrenched
@@ -110,8 +118,6 @@ interface GameState {
   stopActiveRepairLoop: () => void;
 
   // // NEW MECHANICS STATE
-  radiationTowerQueues: Record<string, number>; // Maps tower instanceId -> count of active filters loaded
-  radiationTowerAutoFill: Record<string, boolean>;
   isCommsEstablished: boolean; // Unlocks Sol 15 mission step
   gameLogs: string[]; // Narration strings push here for UI console
 
@@ -139,14 +145,15 @@ interface GameState {
   buildModule: (moduleId: string, gridX: number, gridY: number) => boolean;
 
   // // EXTENDED SYSTEM ACTIONS
-  loadFilterToTower: (instanceId: string) => boolean;
-  setRadiationTowerAutoFill: (instanceId: string, enabled: boolean) => void;
   sleepUntilMorning: () => boolean;
   workOvertime: () => boolean;
   repairModule: (instanceId: string) => boolean;
   completeRepair: (instanceId: string) => boolean;
   establishComms: () => boolean;
-  advanceHour: (hours: number) => void;
+  advanceHour: (
+    hours: number,
+    options?: { pauseWorkshop?: boolean },
+  ) => void;
   startPassiveTimer: () => void;
   stopPassiveTimer: () => void;
 }
@@ -160,7 +167,6 @@ export const useGameStore = create<GameState>((set, get) => ({
     glass_panel: 30,
     electronics: 40,
     repair_kit: 2,
-    radiation_filter: 10,
     water_filter: 0,
     air_filter: 0,
     water: 10,
@@ -321,6 +327,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   placedModules: [],
   astronautHealth: 100,
   currentDay: 1,
+  lastRadiationWaveDay: 1,
   currentHour: 7, // The ideal work day starts at 07:00
   currentMinute: 0,
   isFainted: false,
@@ -333,13 +340,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   greenhouseQueue: [],
   researchQueue: [],
   researchedNodeIds: [],
-  filterEfficiency: {},
   activeRepairInstanceId: null,
   repairJobs: {},
 
   // // NEW MECHANICS STATE
-  radiationTowerQueues: {},
-  radiationTowerAutoFill: {},
   fatigueLevel: 0,
   isCommsEstablished: false,
   gameLogs: [
@@ -475,8 +479,6 @@ export const useGameStore = create<GameState>((set, get) => ({
             ? state.unlockedModuleIds
             : [...state.unlockedModuleIds, completed.node.unlocks.moduleId]
           : state.unlockedModuleIds;
-      const efficiencyKey = completed.node.unlocks?.efficiencyKey;
-
       return {
           researchQueue: state.researchQueue.filter(
             (item) => item.id !== completed.id,
@@ -484,13 +486,6 @@ export const useGameStore = create<GameState>((set, get) => ({
           researchedNodeIds: [...state.researchedNodeIds, completed.node.id],
           discoveredResourceTypes: nextDiscovered,
           unlockedModuleIds: nextModules,
-          filterEfficiency: efficiencyKey
-            ? {
-                ...state.filterEfficiency,
-                [efficiencyKey]:
-                  (state.filterEfficiency[efficiencyKey] ?? 0) + 1,
-              }
-            : state.filterEfficiency,
           gameLogs: [
             ...state.gameLogs,
             `🔬 RESEARCH COMPLETE: ${completed.node.name} unlocked.`,
@@ -856,42 +851,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     return true;
   },
 
-  // 6. Radiation Tower Filter Queue Logic
-  loadFilterToTower: (instanceId) => {
-    const { inventory, consumeResource, radiationTowerQueues } = get();
-    const tower = get().placedModules.find(
-      (module) => module.instanceId === instanceId,
-    );
-    if (!tower || tower.id !== "radiation_tower") return false;
-    if ((radiationTowerQueues[instanceId] || 0) >= 3) return false;
-    if ((inventory["radiation_filter"] || 0) < 1) return false;
-
-    consumeResource("radiation_filter", 1);
-    set((state) => ({
-      radiationTowerQueues: {
-        ...state.radiationTowerQueues,
-        [instanceId]: (state.radiationTowerQueues[instanceId] || 0) + 1,
-      },
-    }));
-    return true;
-  },
-
-  setRadiationTowerAutoFill: (instanceId, enabled) => {
-    set((state) => ({
-      radiationTowerAutoFill: {
-        ...state.radiationTowerAutoFill,
-        [instanceId]: enabled,
-      },
-    }));
-
-    if (enabled) {
-      while (get().loadFilterToTower(instanceId)) {
-        if ((get().radiationTowerQueues[instanceId] || 0) >= 3) break;
-      }
-    }
-  },
-
-  // 7. Core Work Shifts Loop
+  // 6. Core Work Shifts Loop
   // executeShift: (shiftLength) => {
   //   const { advanceHour, consumeResource } = get();
 
@@ -939,7 +899,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     stopPassiveTimer();
     const overtimeHours = currentHour - IDEAL_SLEEP_HOUR;
-    get().advanceHour(10);
+    get().advanceHour(10, { pauseWorkshop: true });
 
     set((state) => {
       const selectedFood = FOOD_PRIORITY.find(
@@ -1291,60 +1251,122 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   // 6. Shift Time Progression Handling
-  advanceHour: (hours) =>
+  advanceHour: (hours, options) =>
     set((state) => {
       let nextHour = state.currentHour;
       let nextDay = state.currentDay;
       let updatedModules = [...state.placedModules];
-      let updatedInventory = { ...state.inventory };
-      let logs = [...state.gameLogs];
-      let newTowerQueues = { ...state.radiationTowerQueues };
+      const updatedInventory = { ...state.inventory };
+      const logs = [...state.gameLogs];
       let workshopQueue = [...state.workshopQueue];
-      let healthModifier = 0;
+      const healthModifier = 0;
+      let lastRadiationWaveDay = state.lastRadiationWaveDay;
+
+      if (options?.pauseWorkshop) {
+        workshopQueue = workshopQueue.map((item) =>
+          item.completed
+            ? item
+            : {
+                ...item,
+                startedAt: item.startedAt + hours,
+                completesAt: item.completesAt + hours,
+              },
+        );
+      }
 
       // Active environmental modifiers based on timeline narrative context rules
       const isStormActive = nextDay >= 10 && nextDay <= 18;
-      const isExtremeRadiationActive = nextDay === 29;
 
       // Loop hourly to process state changes sequentially
       for (let i = 0; i < hours; i++) {
         nextHour += 1;
 
+        const radiationDay = nextHour >= 24 ? nextDay + 1 : nextDay;
+        const radiationHour = nextHour >= 24 ? 0 : nextHour;
+        const isRadiationDay =
+          radiationHour >= IDEAL_WAKE_HOUR &&
+          radiationHour < IDEAL_SLEEP_HOUR;
+        const continuousDecayPerSol = isRadiationDay
+          ? RADIATION_DAY_DECAY_PER_SOL
+          : RADIATION_NIGHT_DECAY_PER_SOL;
+        const towerReduction = isRadiationDay
+          ? RADIATION_TOWER_DAY_REDUCTION
+          : RADIATION_TOWER_NIGHT_REDUCTION;
+        const radiationWaveDue =
+          radiationDay - lastRadiationWaveDay >= RADIATION_WAVE_INTERVAL_DAYS;
+        if (radiationWaveDue) {
+          lastRadiationWaveDay = radiationDay;
+        }
+
+        const radiationTower = updatedModules.find(
+          (mod) => mod.id === "radiation_tower" && mod.hp > 0,
+        );
+        const towerConfig = MODULES.radiation_tower;
+        const towerCenter = radiationTower
+          ? {
+              x: radiationTower.x + (towerConfig.w - 1) / 2,
+              y: radiationTower.y + (towerConfig.h - 1) / 2,
+            }
+          : null;
+
+        const isCoveredByRadiationTower = (mod: (typeof updatedModules)[number]) => {
+          if (!towerCenter || mod.id === "radiation_tower") return false;
+          const config = MODULES[mod.id];
+          if (!config) return false;
+          const moduleCenter = {
+            x: mod.x + (config.w - 1) / 2,
+            y: mod.y + (config.h - 1) / 2,
+          };
+          return (
+            Math.hypot(
+              moduleCenter.x - towerCenter.x,
+              moduleCenter.y - towerCenter.y,
+            ) <= RADIATION_TOWER_COVERAGE_RADIUS
+          );
+        };
+
+        const applyRadiationDamage = (
+          mod: (typeof updatedModules)[number],
+          percentage: number,
+        ) => {
+          const config = MODULES[mod.id];
+          if (!config || mod.hp <= 0) return mod;
+          const reduction = isCoveredByRadiationTower(mod)
+            ? towerReduction
+            : 0;
+          const damage =
+            config.maxIntegrity * percentage * (1 - reduction);
+          return { ...mod, hp: Math.max(0, mod.hp - damage) };
+        };
+
+        updatedModules = updatedModules.map((mod) =>
+          applyRadiationDamage(
+            mod,
+            continuousDecayPerSol / 24,
+          ),
+        );
+
+        if (radiationWaveDue) {
+          updatedModules = updatedModules.map((mod) =>
+            applyRadiationDamage(mod, RADIATION_WAVE_DAMAGE),
+          );
+          logs.push(
+            `☢️ RADIATION WAVE: A solar radiation surge damaged exposed modules. Tower coverage reduced the damage by ${Math.round(towerReduction * 100)}%.`,
+          );
+        }
+
         // Handle Day/Night transition thresholds at Midnight
         if (nextHour >= 24) {
           nextHour = 0;
           nextDay += 1;
-
-          // Midnight Structural Decay Tick Loop
-          const radiationShieldActive = updatedModules.some(
-            (mod) =>
-              mod.id === "radiation_tower" &&
-              mod.hp > 0 &&
-              (newTowerQueues[mod.instanceId] || 0) > 0,
-          );
-          updatedModules = updatedModules.map((mod) => {
-            const config = MODULES[mod.id];
-            let decay = config ? config.baseDecayRate : 2;
-
-            // Environmental Amplifiers: Storm strains greenhouses and filters heavily
-            if (isStormActive && config?.category === "life_support")
-              decay *= 2;
-            if (isExtremeRadiationActive) {
-              if (radiationShieldActive) {
-                decay = 0;
-              } else if (mod.id === "radiation_tower") {
-                decay *= 3;
-              }
-            }
-
-            return { ...mod, hp: Math.max(0, mod.hp - decay) };
-          });
         }
 
         const elapsedHour = getGameHour(nextDay, nextHour);
-        const completedItems = workshopQueue.filter(
-          (item) => !item.completed && item.completesAt <= elapsedHour,
-        );
+        const completedItems = options?.pauseWorkshop
+          ? []
+          : workshopQueue.filter(
+              (item) => !item.completed && item.completesAt <= elapsedHour,
+            );
         if (completedItems.length > 0) {
           completedItems.forEach((item) => {
             updatedInventory[item.recipe.output] =
@@ -1380,7 +1402,6 @@ export const useGameStore = create<GameState>((set, get) => ({
         // --- PHASE 1: POWER AUDIT BALANCE VALIDATION ---
         let totalPowerGenerated = 0;
         let totalPowerConsumed = 0;
-        let activeRadTowersCount = 0;
 
         updatedModules.forEach((mod) => {
           if (mod.hp <= 0) return; // Broken modules draw/generate no grid power
@@ -1407,30 +1428,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           const config = MODULES[mod.id];
           if (!config) return;
 
-          // A. Process Rad Shields (Aegis Towers require power + loaded filters)
-          if (config.id === "radiation_tower" && hasPowerSurplus) {
-            if (state.radiationTowerAutoFill[mod.instanceId]) {
-              while (
-                (newTowerQueues[mod.instanceId] || 0) < 3 &&
-                (updatedInventory.radiation_filter || 0) > 0
-              ) {
-                updatedInventory.radiation_filter -= 1;
-                newTowerQueues[mod.instanceId] =
-                  (newTowerQueues[mod.instanceId] || 0) + 1;
-              }
-            }
-
-            const currentQueue = newTowerQueues[mod.instanceId] || 0;
-            if (currentQueue > 0) {
-              activeRadTowersCount += 1;
-              // Tower burns 1 queued filter every 4 operational hours
-              if (nextHour % 4 === 0) {
-                newTowerQueues[mod.instanceId] = currentQueue - 1;
-              }
-            }
-          }
-
-          // B. Process Module Operational Transformations (Inputs -> Outputs)
+          // Process Module Operational Transformations (Inputs -> Outputs)
           if (hasPowerSurplus) {
             let inputsSatisfied = true;
 
@@ -1472,12 +1470,6 @@ export const useGameStore = create<GameState>((set, get) => ({
         });
 
         // --- PHASE 3: ASTRONAUT ENVIRONMENTAL EXPOSURE DAMAGE MATRIX ---
-        if (isExtremeRadiationActive) {
-          // If no radiation shield towers are actively burning filters during Sol 29, health decays rapidly
-          if (activeRadTowersCount === 0) {
-            healthModifier -= 4; // Astronaut loses 4 HP every unshielded hour
-          }
-        }
       }
 
       // --- PHASE 4: TIMELINE NARRATIVE EVENT TRACKER LOGS ---
@@ -1501,9 +1493,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       return {
         currentHour: nextHour,
         currentDay: nextDay,
+        lastRadiationWaveDay,
         placedModules: updatedModules,
         inventory: updatedInventory,
-        radiationTowerQueues: newTowerQueues,
         workshopQueue,
         astronautHealth: Math.max(
           0,

@@ -80,35 +80,11 @@ export const MODULES: Record<string, ModuleDef> = {
     powerDraw: -8,
     maxModules: 1,
   },
-  // radiation_filter: {
-  //   id: "radiation_filter",
-  //   name: "Radiation Filter Array",
-  //   description:
-  //     "Uses electromagnetic coils and lead shielding layers to mitigate ambient background radiation.",
-  //   category: "life_support",
-  //   isUnlockedByDefault: false, // Locked behind Laboratory research!
-  //   w: 1,
-  //   h: 1,
-  //   texture: "radiation_filter",
-  //   height: 45,
-  //   color: 0x4b0082,
-  //   anchor: "center",
-  //   originY: 0.8,
-  //   scale: 0.32,
-  //   buildCost: [
-  //     { resource: "iron_plate", amount: 6 },
-  //     { resource: "electronics", amount: 4 },
-  //   ],
-  //   maxIntegrity: 100,
-  //   baseDecayRate: 8, // Takes high wear protecting the base
-  //   powerDraw: -15,
-  // },
-
   radiation_tower: {
     id: "radiation_tower",
     name: "Rad-Shield Tower",
     description:
-      "Generates a localized localized magnetic bubble that sweeps solar radiation fields. Requires active Radiation Filters loaded into its operations queue.",
+      "Generates a localized magnetic bubble that reduces continuous and wave radiation damage in the surrounding area.",
     category: "power", // Categorized under grid infrastructure
     isUnlockedByDefault: false, // Must be unlocked via Laboratory blueprints!
     w: 2,

@@ -49,16 +49,6 @@ export const WORKSHOP_RECIPES: CraftingRecipe[] = [
     cost: [{ resource: "silicates", amount: 3 }],
   },
   {
-    output: "radiation_filter",
-    name: "Radiation Filter",
-    description: "A high-density filter cartridge for the Rad-Shield Tower.",
-    craftHours: 1,
-    cost: [
-      { resource: "iron_plate", amount: 2 },
-      { resource: "electronics", amount: 1 },
-    ],
-  },
-  {
     output: "water_filter",
     name: "Water Filter",
     description:

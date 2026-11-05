@@ -1,7 +1,11 @@
 import React from "react";
-import { useGameStore } from "../store/useGameStore";
-import { MAT_IMPORTS } from "../game/utils/materialsTexture";
 import { MODULES } from "../game/modules/moduleDefinitions";
+import {
+  RADIATION_DAY_DECAY_PER_SOL,
+  RADIATION_NIGHT_DECAY_PER_SOL,
+  RADIATION_TOWER_DAY_REDUCTION,
+  RADIATION_TOWER_NIGHT_REDUCTION,
+} from "../store/useGameStore";
 
 interface RadiationTowerPanelProps {
   instanceId: string;
@@ -9,22 +13,8 @@ interface RadiationTowerPanelProps {
 }
 
 export const RadiationTowerPanel: React.FC<RadiationTowerPanelProps> = ({
-  instanceId,
   onClose,
 }) => {
-  const queue = useGameStore(
-    (state) => state.radiationTowerQueues[instanceId] || 0,
-  );
-  const inventoryFilters = useGameStore(
-    (state) => state.inventory.radiation_filter || 0,
-  );
-  const autoFill = useGameStore(
-    (state) => state.radiationTowerAutoFill[instanceId] || false,
-  );
-  const loadFilterToTower = useGameStore((state) => state.loadFilterToTower);
-  const setAutoFill = useGameStore(
-    (state) => state.setRadiationTowerAutoFill,
-  );
   const config = MODULES.radiation_tower;
 
   return (
@@ -49,62 +39,18 @@ export const RadiationTowerPanel: React.FC<RadiationTowerPanelProps> = ({
           </p>
         </div>
 
-        <div className="border-t border-neutral-800 pt-3">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-neutral-400 uppercase text-[10px]">
-              Filter Slots
-            </span>
-            <span className="text-white font-bold">{queue} / 3 loaded</span>
-          </div>
-          <div className="flex gap-2">
-            {[0, 1, 2].map((slot) => (
-              <button
-                key={slot}
-                disabled={queue >= 3 || inventoryFilters < 1}
-                onClick={() => loadFilterToTower(instanceId)}
-                className={`flex-1 h-14 rounded border flex flex-col items-center justify-center ${
-                  slot < queue
-                    ? "border-red-400 bg-red-950/50"
-                    : "border-neutral-700 bg-neutral-900"
-                } disabled:cursor-not-allowed`}
-              >
-                {slot < queue ? (
-                  <img
-                    src={MAT_IMPORTS.radiation_filter}
-                    alt="Loaded radiation filter"
-                    className="w-7 h-7 object-contain"
-                  />
-                ) : (
-                  <span className="text-neutral-600 text-lg">+</span>
-                )}
-              </button>
-            ))}
-          </div>
-          <div className="flex justify-between text-[10px] mt-2 text-neutral-500">
-            <span>Inventory: {inventoryFilters}</span>
-            <span>Drain time: {String(queue * 4).padStart(2, "0")}:00</span>
-          </div>
-        </div>
-
-        <button
-          onClick={() => setAutoFill(instanceId, !autoFill)}
-          className={`w-full rounded border px-3 py-2 text-left text-[10px] font-bold uppercase ${
-            autoFill
-              ? "border-green-500/60 bg-green-950/40 text-green-300"
-              : "border-neutral-700 bg-neutral-900 text-neutral-400"
-          }`}
-        >
-          Automatic filter adder: {autoFill ? "ON" : "OFF"}
-        </button>
-
         <div
-          className={`rounded border px-3 py-2 text-center text-[10px] font-bold uppercase ${
-            queue > 0
-              ? "border-green-500/40 bg-green-950/30 text-green-300"
-              : "border-amber-500/40 bg-amber-950/30 text-amber-300"
-          }`}
+          className="rounded border border-green-500/40 bg-green-950/30 px-3 py-2 text-center text-[10px] font-bold uppercase text-green-300"
         >
-          {queue > 0 ? "BASE SHIELD ACTIVE" : "LOAD FILTERS TO ACTIVATE"}
+          RADIATION COVERAGE ACTIVE
+        </div>
+        <div className="rounded border border-blue-500/30 bg-blue-950/20 px-3 py-2 text-center text-[10px] text-blue-200">
+          Decay: day {RADIATION_DAY_DECAY_PER_SOL * 100}%/Sol | night{" "}
+          {RADIATION_NIGHT_DECAY_PER_SOL * 100}%/Sol.
+          <br />
+          Day prevention: {Math.round(RADIATION_TOWER_DAY_REDUCTION * 100)}% |
+          Night prevention:{" "}
+          {Math.round(RADIATION_TOWER_NIGHT_REDUCTION * 100)}%
         </div>
       </div>
     </div>

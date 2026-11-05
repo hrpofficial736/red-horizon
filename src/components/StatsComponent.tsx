@@ -98,7 +98,7 @@ export function StatsComponent() {
                   {config.powerDraw > 0 ? "+" : ""}
                   {config.powerDraw} EU/h
                   <span className="mt-1 block text-[10px] text-neutral-500">
-                    Decay -{config.baseDecayRate}/Sol
+                    Radiation day/night rates + waves
                   </span>
                 </div>
                 <div className="flex w-30 flex-wrap items-center gap-2">

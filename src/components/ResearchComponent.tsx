@@ -11,12 +11,6 @@ import { ALL_TEXTURES } from "../game/utils/allTextures";
 import unexplored from "../assets/unexplored.png";
 
 const CATEGORIES: ResearchCategory[] = ["FOOD", "TECH", "BASE"];
-const TECH_LANES = [
-  ["tech_radiation_filter", "tech_radiation_filter_efficiency"],
-  ["tech_water_filter", "tech_water_filter_efficiency"],
-  ["tech_air_filter", "tech_air_filter_efficiency"],
-] as const;
-
 const formatRemainingTime = (hours: number) => {
   const totalMinutes = Math.max(0, Math.ceil(hours * 60));
   return `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}:${String(
@@ -91,19 +85,6 @@ export function ResearchComponent() {
           </span>
         ) : null}
 
-        {/* <span className="block text-xs font-bold text-white">{node.name}</span>
-        <span className="mt-1 block text-[10px] leading-tight text-neutral-400">
-          {node.description}
-        </span> */}
-        {/* <span className="mt-2 block text-[10px] font-bold text-orange-300">
-          {researched
-            ? node.unlocks?.efficiencyKey
-              ? `RESEARCHED // EFFICIENCY LEVEL ${filterEfficiency[node.unlocks.efficiencyKey] ?? 0}`
-              : "RESEARCHED"
-            : queued
-              ? "QUEUED"
-              : `${node.silicateCost} SILICATES // ${node.researchHours}H`}
-        </span> */}
       </button>
     );
   };
@@ -117,26 +98,11 @@ export function ResearchComponent() {
               <h3 className="border-b border-neutral-700 pb-2 text-sm font-bold tracking-widest text-white">
                 {category}
               </h3>
-              {category === "TECH" ? (
-                <div className="flex flex-row gap-2">
-                  {TECH_LANES.map((lane) => (
-                    <div key={lane[0]} className="flex flex-col gap-2">
-                      {lane.map((nodeId) => {
-                        const node = RESEARCH_TREE.find(
-                          (candidate) => candidate.id === nodeId,
-                        );
-                        return node ? renderNode(node) : null;
-                      })}
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="flex flex-col gap-2">
-                  {RESEARCH_TREE.filter(
-                    (node) => node.category === category,
-                  ).map(renderNode)}
-                </div>
-              )}
+              <div className="flex flex-col gap-2">
+                {RESEARCH_TREE.filter(
+                  (node) => node.category === category,
+                ).map(renderNode)}
+              </div>
             </div>
           ))}
         </div>

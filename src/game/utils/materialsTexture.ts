@@ -9,7 +9,6 @@ import soup from "../../assets/materials/Soup.png";
 import meal from "../../assets/materials/Meal.png";
 import good_meal from "../../assets/materials/GoodMeal.png";
 import repair_kit from "../../assets/materials/RepairKit.png";
-import radiation_filter from "../../assets/materials/RadiationFilter.png";
 import water_filter from "../../assets/materials/WaterFilter.png";
 import air_filter from "../../assets/materials/AirFilter.png";
 
@@ -25,7 +24,6 @@ export const MAT_IMPORTS: Record<string, string> = {
   meal: meal,
   good_meal: good_meal,
   repair_kit: repair_kit,
-  radiation_filter: radiation_filter,
   water_filter: water_filter,
   air_filter: air_filter,
 };

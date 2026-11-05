@@ -20,7 +20,6 @@ export type ResourceType =
   | "glass_panel" // Refined materials
   | "electronics"
   | "repair_kit" // Advanced items/Tools
-  | "radiation_filter"
   | "water_filter"
   | "air_filter"
   | "water"
@@ -74,7 +73,7 @@ export interface ModuleDef {
 
   // Gameplay parameters
   maxIntegrity: number; // Max HP of the module (e.g., 100)
-  baseDecayRate: number; // HP lost per nightly cycle due to dust/storms
+  baseDecayRate: number; // Legacy environmental wear value retained for module data compatibility
 
   // Power consumption or generation per operational hour
   // Positive = Generates power (Solar Panel), Negative = Consumes power (Drill)

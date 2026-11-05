@@ -124,9 +124,9 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
               </span>
             </div>
             <div className="flex items-center justify-between gap-1 font-bold">
-              ⚠️ Environmental Decay:{" "}
+              ☢️ Radiation Exposure:{" "}
               <span className="text-tertiary font-bold">
-                -{selectedModule.baseDecayRate} HP/Sol
+                Day/night rates + wave events
               </span>
             </div>
           </div>
