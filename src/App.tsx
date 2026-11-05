@@ -13,6 +13,7 @@ import { WorkshopComponent } from "./components/WorkshopComponent";
 import { GreenhouseComponent } from "./components/GreenhouseComponent";
 import { ResearchComponent } from "./components/ResearchComponent";
 import { HabitatComponent } from "./components/HabitatComponent";
+import { RadiationTowerPanel } from "./components/RadiationTowerPanel";
 
 type ActiveTab = "none" | "build" | "inventory" | "research" | "logs";
 type CraftingModuleId = "workshop" | "kitchen" | "greenhouse";
@@ -52,6 +53,12 @@ function App() {
 
   const startPassiveTimer = useGameStore((state) => state.startPassiveTimer);
   const stopPassiveTimer = useGameStore((state) => state.stopPassiveTimer);
+  const startActiveRepairLoop = useGameStore(
+    (state) => state.startActiveRepairLoop,
+  );
+  const stopActiveRepairLoop = useGameStore(
+    (state) => state.stopActiveRepairLoop,
+  );
 
   const closeTab = () => setActiveTab("none");
   const selectTab = (tab: ActiveTab) => {
@@ -170,6 +177,15 @@ function App() {
                 ? Math.round((currentHP / maxIntegrity) * 100)
                 : 0;
 
+            if (showStatusModal.id === "radiation_tower") {
+              return (
+                <RadiationTowerPanel
+                  instanceId={showStatusModal.instanceId}
+                  onClose={() => setShowStatusModal(null)}
+                />
+              );
+            }
+
             let healthTextColor = "text-green-400";
             let healthBarColor = "bg-green-500";
             if (hpPercentage < 65) {
@@ -190,8 +206,7 @@ function App() {
                   <button
                     onClick={() => {
                       setShowStatusModal(null);
-                      clearInterval((window as any).repairFastForwardId);
-                      useGameStore.getState().startPassiveTimer();
+                      stopActiveRepairLoop();
                     }}
                     className="text-neutral-500 hover:text-white cursor-pointer text-xs"
                   >
@@ -233,87 +248,17 @@ function App() {
 
                 <button
                   disabled={currentHP >= maxIntegrity}
-                  onMouseDown={() => {
-                    if (!liveModuleData) return;
-
-                    const store = useGameStore.getState();
-                    const sessionKey = `kit_locked_${liveModuleData.instanceId}`;
-                    const isKitAlreadyAllocated =
-                      (window as any)[sessionKey] === true;
-
-                    if (!isKitAlreadyAllocated) {
-                      const hasKit = store.consumeResource("repair_kit", 1);
-                      if (!hasKit) {
-                        alert(
-                          "❌ MAINTENANCE REFUSED: Out of functional Multi-Tool Repair Kits!",
-                        );
-                        return;
-                      }
-                      (window as any)[sessionKey] = true;
-                      console.log(
-                        `🔧 Repair Kit locked and dedicated to module: ${liveModuleData.instanceId}`,
-                      );
-                    }
-
-                    store.stopPassiveTimer();
-
-                    (window as any).repairFastForwardId = setInterval(() => {
-                      const innerStore = useGameStore.getState();
-
-                      const currentModuleState = innerStore.placedModules.find(
-                        (m: any) => m.instanceId === liveModuleData.instanceId,
-                      );
-
-                      if (
-                        !currentModuleState ||
-                        currentModuleState.hp >= maxIntegrity
-                      ) {
-                        clearInterval((window as any).repairFastForwardId);
-                        innerStore.startPassiveTimer();
-
-                        (window as any)[sessionKey] = false;
-                        console.log(
-                          "🔒 Repair complete. Dedicated kit released.",
-                        );
-                        return;
-                      }
-
-                      let nextMin = innerStore.currentMinute + 5;
-
-                      const updatedModules = innerStore.placedModules.map(
-                        (m: any) => {
-                          if (m.instanceId === liveModuleData.instanceId) {
-                            return {
-                              ...m,
-                              hp: Math.min(maxIntegrity, m.hp + 1),
-                            };
-                          }
-                          return m;
-                        },
-                      );
-
-                      if (nextMin >= 60) {
-                        innerStore.advanceHour(1);
-                        useGameStore.setState({
-                          currentMinute: 0,
-                          placedModules: updatedModules,
-                        });
-                      } else {
-                        useGameStore.setState({
-                          currentMinute: nextMin,
-                          placedModules: updatedModules,
-                        });
-                      }
-                    }, 50);
-                  }}
-                  onMouseUp={() => {
-                    clearInterval((window as any).repairFastForwardId);
-                    useGameStore.getState().startPassiveTimer();
-                  }}
-                  onMouseLeave={() => {
-                    clearInterval((window as any).repairFastForwardId);
-                    useGameStore.getState().startPassiveTimer();
-                  }}
+                  onMouseDown={() =>
+                    liveModuleData &&
+                    startActiveRepairLoop(liveModuleData.instanceId)
+                  }
+                  onMouseUp={stopActiveRepairLoop}
+                  onMouseLeave={stopActiveRepairLoop}
+                  onTouchStart={() =>
+                    liveModuleData &&
+                    startActiveRepairLoop(liveModuleData.instanceId)
+                  }
+                  onTouchEnd={stopActiveRepairLoop}
                   className={`w-full font-bold py-3 px-3 rounded text-center text-xs uppercase tracking-wider select-none transition-all duration-150 ${
                     currentHP >= maxIntegrity
                       ? "bg-neutral-800 text-neutral-500 border border-neutral-700 cursor-not-allowed"

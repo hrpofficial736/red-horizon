@@ -10,12 +10,15 @@ export const RepairButton: React.FC<RepairButtonProps> = ({
   moduleInstance,
 }) => {
   // 1. Grab your existing store variables and methods
-  const startRepair = useGameStore((state) => state.startRepair);
-  const pauseRepair = useGameStore((state) => state.pauseRepair);
+  const startActiveRepairLoop = useGameStore(
+    (state) => state.startActiveRepairLoop,
+  );
+  const stopActiveRepairLoop = useGameStore(
+    (state) => state.stopActiveRepairLoop,
+  );
   const getRepairElapsedMinutes = useGameStore(
     (state) => state.getRepairElapsedMinutes,
   );
-  const completeRepair = useGameStore((state) => state.completeRepair);
   const repairKitCount = useGameStore(
     (state) => state.inventory.repair_kit || 0,
   );
@@ -44,11 +47,16 @@ export const RepairButton: React.FC<RepairButtonProps> = ({
     if (
       isFullyRepaired ||
       isPressing ||
-      activeRepairInstanceId === moduleInstance.instanceId ||
-      !startRepair(moduleInstance.instanceId)
+      activeRepairInstanceId === moduleInstance.instanceId
     )
       return;
 
+    startActiveRepairLoop(moduleInstance.instanceId);
+    if (
+      useGameStore.getState().activeRepairInstanceId !==
+      moduleInstance.instanceId
+    )
+      return;
     setIsPressing(true);
 
     intervalRef.current = setInterval(() => {
@@ -56,7 +64,16 @@ export const RepairButton: React.FC<RepairButtonProps> = ({
         useGameStore.getState().activeRepairInstanceId !==
         moduleInstance.instanceId
       ) {
-        pauseRepairHold();
+        const currentModule = useGameStore
+          .getState()
+          .placedModules.find(
+            (module) => module.instanceId === moduleInstance.instanceId,
+          );
+        if (currentModule && currentModule.hp >= maxHp) {
+          finishRepair();
+        } else {
+          pauseRepairHold();
+        }
         return;
       }
 
@@ -66,14 +83,13 @@ export const RepairButton: React.FC<RepairButtonProps> = ({
       setRemainingMinutes(remaining);
 
       if (elapsedMinutes >= 60) {
-        completeRepair(moduleInstance.instanceId);
         finishRepair();
       }
     }, 100);
   };
 
   const pauseRepairHold = () => {
-    pauseRepair(moduleInstance.instanceId);
+    stopActiveRepairLoop();
     const elapsedMinutes = getRepairElapsedMinutes(moduleInstance.instanceId);
     setRemainingMinutes(Math.max(0, 60 - elapsedMinutes));
     setProgress(Math.min(100, (elapsedMinutes / 60) * 100));
@@ -93,9 +109,9 @@ export const RepairButton: React.FC<RepairButtonProps> = ({
   useEffect(
     () => () => {
       if (intervalRef.current) clearInterval(intervalRef.current);
-      pauseRepair(moduleInstance.instanceId);
+      stopActiveRepairLoop();
     },
-    [moduleInstance.instanceId, pauseRepair],
+    [moduleInstance.instanceId, stopActiveRepairLoop],
   );
 
   return (

@@ -126,10 +126,6 @@ export const MODULES: Record<string, ModuleDef> = {
     maxIntegrity: 180,
     baseDecayRate: 8, // Heavily worn down by solar particle bombardments
     powerDraw: -25, // Demands heavy baseline electrical routing to run the magnets
-    productionInputs: [
-      // Burns 1 high-grade Radiation Filter per operational tick to negate baseline player rad damage
-      { resource: "radiation_filter", amountPerTick: 1 },
-    ],
     maxModules: 1, // Only one radiation tower can be built at a time
   },
 

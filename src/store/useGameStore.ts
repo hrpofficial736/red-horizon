@@ -22,6 +22,7 @@ const FOOD_HEALTH_RECOVERY = {
 const FOOD_PRIORITY = ["good_meal", "meal", "soup"] as const;
 const OVERTIME_FATIGUE_PER_HOUR = 10;
 const NO_FOOD_HEALTH_LOSS = 10;
+export const REPAIR_TIME_SPEED = 15;
 const STARTING_DISCOVERED_RESOURCES: ResourceType[] = [
   "iron_ore",
   "silicates",
@@ -110,6 +111,7 @@ interface GameState {
 
   // // NEW MECHANICS STATE
   radiationTowerQueues: Record<string, number>; // Maps tower instanceId -> count of active filters loaded
+  radiationTowerAutoFill: Record<string, boolean>;
   isCommsEstablished: boolean; // Unlocks Sol 15 mission step
   gameLogs: string[]; // Narration strings push here for UI console
 
@@ -138,6 +140,7 @@ interface GameState {
 
   // // EXTENDED SYSTEM ACTIONS
   loadFilterToTower: (instanceId: string) => boolean;
+  setRadiationTowerAutoFill: (instanceId: string, enabled: boolean) => void;
   sleepUntilMorning: () => boolean;
   workOvertime: () => boolean;
   repairModule: (instanceId: string) => boolean;
@@ -152,12 +155,12 @@ export const useGameStore = create<GameState>((set, get) => ({
   // 1. Initial State Definitions
   inventory: {
     iron_ore: 15,
-    silicates: 15,
-    iron_plate: 25,
-    glass_panel: 20,
-    electronics: 10,
+    silicates: 25,
+    iron_plate: 55,
+    glass_panel: 30,
+    electronics: 40,
     repair_kit: 2,
-    radiation_filter: 0,
+    radiation_filter: 10,
     water_filter: 0,
     air_filter: 0,
     water: 10,
@@ -336,6 +339,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   // // NEW MECHANICS STATE
   radiationTowerQueues: {},
+  radiationTowerAutoFill: {},
   fatigueLevel: 0,
   isCommsEstablished: false,
   gameLogs: [
@@ -854,7 +858,12 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   // 6. Radiation Tower Filter Queue Logic
   loadFilterToTower: (instanceId) => {
-    const { inventory, consumeResource } = get();
+    const { inventory, consumeResource, radiationTowerQueues } = get();
+    const tower = get().placedModules.find(
+      (module) => module.instanceId === instanceId,
+    );
+    if (!tower || tower.id !== "radiation_tower") return false;
+    if ((radiationTowerQueues[instanceId] || 0) >= 3) return false;
     if ((inventory["radiation_filter"] || 0) < 1) return false;
 
     consumeResource("radiation_filter", 1);
@@ -865,6 +874,21 @@ export const useGameStore = create<GameState>((set, get) => ({
       },
     }));
     return true;
+  },
+
+  setRadiationTowerAutoFill: (instanceId, enabled) => {
+    set((state) => ({
+      radiationTowerAutoFill: {
+        ...state.radiationTowerAutoFill,
+        [instanceId]: enabled,
+      },
+    }));
+
+    if (enabled) {
+      while (get().loadFilterToTower(instanceId)) {
+        if ((get().radiationTowerQueues[instanceId] || 0) >= 3) break;
+      }
+    }
   },
 
   // 7. Core Work Shifts Loop
@@ -1154,7 +1178,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   startPassiveTimer: () => {
     if ((get() as any).timerIntervalId) return;
 
-    // 💥 Ticks every 100ms. 60 game minutes will pass over 6 real-world seconds
+    // Normal time advances one visible game minute per real-world second.
     const interval = setInterval(() => {
       const store = get() as any;
       let nextMinute = store.currentMinute + 1;
@@ -1179,7 +1203,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         store.processGreenhouseQueue();
         store.processResearchQueue();
       }
-    }, 1000); // 100ms = ultra-fast fluid clock simulation update rate
+    }, 1000);
 
     set({ timerIntervalId: interval });
   },
@@ -1188,30 +1212,26 @@ export const useGameStore = create<GameState>((set, get) => ({
     const id = (get() as any).timerIntervalId;
     if (id) {
       clearInterval(id);
-      set({ timerIntervalId: null, currentMinute: 0 }); // Clean minute offsets on pause
+      set({ timerIntervalId: null });
     }
   },
 
   startActiveRepairLoop: (instanceId: string) => {
-    const { stopPassiveTimer, timerIntervalId } = get() as any;
+    const { stopPassiveTimer, timerIntervalId, startRepair } = get();
 
     // 1. Guard check: Avoid duplicating intervals if already actively repairing
     if (timerIntervalId && get().activeRepairInstanceId === instanceId) return;
 
+    if (!startRepair(instanceId)) return;
+
     // 2. Clear out the passive slow ticking interval loop instantly
     stopPassiveTimer();
 
-    // 3. Mark this module instance as the active repair target
-    set({ activeRepairInstanceId: instanceId });
-
-    console.log(`🔧 High-speed repair initialized for instance: ${instanceId}`);
-
-    // 4. 🚀 FAST-FORWARD INTERVAL: Ticks every 50ms (Ultra-fast time progression!)
-    // Every 50ms advances the game clock by 10 minutes and restores structural HP
+    // Tick one visible game minute at a time so the clock fast-forwards smoothly.
     const repairInterval = setInterval(() => {
-      const store = get() as any;
+      const store = get();
       const targetInstance = store.placedModules.find(
-        (m: any) => m.instanceId === instanceId,
+        (module) => module.instanceId === instanceId,
       );
 
       if (!targetInstance) {
@@ -1219,71 +1239,36 @@ export const useGameStore = create<GameState>((set, get) => ({
         return;
       }
 
-      const config = MODULES[targetInstance.id];
-      const maxHp = config ? config.maxIntegrity : 100;
-
-      // Check if player ran out of repair materials during the fast-forward ticks
-      if ((store.inventory.repair_kit || 0) <= 0 && targetInstance.hp < maxHp) {
-        set((state) => ({
-          gameLogs: [
-            ...state.gameLogs,
-            "🚨 REPAIR HALTED: Out of functional Multi-Tool Maintenance Kits!",
-          ],
-        }));
-        store.stopActiveRepairLoop();
-        return;
-      }
-
-      // If fully restored, automatically terminate the high-speed loop
-      if (targetInstance.hp >= maxHp) {
-        set((state) => ({
-          gameLogs: [
-            ...state.gameLogs,
-            `✅ SUCCESS: ${config?.name || "Module"} fully restored to nominal specs.`,
-          ],
-        }));
-        store.stopActiveRepairLoop();
-        return;
-      }
-
-      // Advance ten visible game minutes per real second while the repair is held.
-      let nextMinute = store.currentMinute + 10;
-      // Every 30 game minutes of work, consume 1 material kit repair item count
-      if (nextMinute % 30 === 0) {
-        store.consumeResource("repair_kit", 1);
-      }
-
-      // Step up structural HP health pools
-      const updatedModules = store.placedModules.map((m: any) => {
-        if (m.instanceId === instanceId) {
-          // Incrementally restore health points dynamically
-          return { ...m, hp: Math.min(maxHp, m.hp + maxHp / 6) };
-        }
-        return m;
-      });
-
+      const nextMinute = store.currentMinute + 1;
       if (nextMinute >= 60) {
-        // A full game hour passed in fast-forward! Run base auto extractions/power audits
         store.advanceHour(1);
-        set({ currentMinute: 0, placedModules: updatedModules });
+        set({ currentMinute: 0 });
       } else {
-        set({ currentMinute: nextMinute, placedModules: updatedModules });
+        set({ currentMinute: nextMinute });
       }
-    }, 1000);
+
+      const elapsedMinutes = store.getRepairElapsedMinutes(instanceId);
+
+      if (elapsedMinutes >= 60) {
+        store.completeRepair(instanceId);
+        store.stopActiveRepairLoop();
+      }
+    }, 1000 / REPAIR_TIME_SPEED);
 
     set({ timerIntervalId: repairInterval });
   },
 
   stopActiveRepairLoop: () => {
-    const id = (get() as any).timerIntervalId;
+    const { timerIntervalId, activeRepairInstanceId, pauseRepair } = get();
+    if (activeRepairInstanceId) pauseRepair(activeRepairInstanceId);
+
+    const id = timerIntervalId;
     if (id) {
       clearInterval(id);
-      // Null out active interval and target parameters, then boot passive clock back up
       set({ timerIntervalId: null, activeRepairInstanceId: null });
-      console.log(
-        "⏱️ High-speed repair halted. Resuming normal time passage parameters.",
-      );
-      (get() as any).startPassiveTimer();
+      get().startPassiveTimer();
+    } else if (activeRepairInstanceId) {
+      set({ activeRepairInstanceId: null });
     }
   },
 
@@ -1331,6 +1316,12 @@ export const useGameStore = create<GameState>((set, get) => ({
           nextDay += 1;
 
           // Midnight Structural Decay Tick Loop
+          const radiationShieldActive = updatedModules.some(
+            (mod) =>
+              mod.id === "radiation_tower" &&
+              mod.hp > 0 &&
+              (newTowerQueues[mod.instanceId] || 0) > 0,
+          );
           updatedModules = updatedModules.map((mod) => {
             const config = MODULES[mod.id];
             let decay = config ? config.baseDecayRate : 2;
@@ -1338,8 +1329,13 @@ export const useGameStore = create<GameState>((set, get) => ({
             // Environmental Amplifiers: Storm strains greenhouses and filters heavily
             if (isStormActive && config?.category === "life_support")
               decay *= 2;
-            if (isExtremeRadiationActive && mod.id === "radiation_tower")
-              decay *= 3;
+            if (isExtremeRadiationActive) {
+              if (radiationShieldActive) {
+                decay = 0;
+              } else if (mod.id === "radiation_tower") {
+                decay *= 3;
+              }
+            }
 
             return { ...mod, hp: Math.max(0, mod.hp - decay) };
           });
@@ -1413,6 +1409,17 @@ export const useGameStore = create<GameState>((set, get) => ({
 
           // A. Process Rad Shields (Aegis Towers require power + loaded filters)
           if (config.id === "radiation_tower" && hasPowerSurplus) {
+            if (state.radiationTowerAutoFill[mod.instanceId]) {
+              while (
+                (newTowerQueues[mod.instanceId] || 0) < 3 &&
+                (updatedInventory.radiation_filter || 0) > 0
+              ) {
+                updatedInventory.radiation_filter -= 1;
+                newTowerQueues[mod.instanceId] =
+                  (newTowerQueues[mod.instanceId] || 0) + 1;
+              }
+            }
+
             const currentQueue = newTowerQueues[mod.instanceId] || 0;
             if (currentQueue > 0) {
               activeRadTowersCount += 1;
