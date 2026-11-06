@@ -1,5 +1,8 @@
 import React from "react";
-import { useGameStore } from "../store/useGameStore";
+import {
+  getPowerBankCapacity,
+  useGameStore,
+} from "../store/useGameStore";
 
 export const BaseStatusHUD: React.FC = () => {
   const currentDay = useGameStore((state) => state.currentDay);
@@ -14,6 +17,9 @@ export const BaseStatusHUD: React.FC = () => {
   const repairKitCount = useGameStore(
     (state) => state.inventory.repair_kit || 0,
   );
+  const powerBankCharge = useGameStore((state) => state.powerBankCharge);
+  const placedModules = useGameStore((state) => state.placedModules);
+  const powerBankCapacity = getPowerBankCapacity(placedModules);
   const formattedHour = String(currentHour).padStart(2, "0");
   const formattedMinute = String(currentMinute).padStart(2, "0");
 
@@ -42,6 +48,18 @@ export const BaseStatusHUD: React.FC = () => {
         <div className="flex justify-between">
           <span className="text-neutral-400">EXHAUSTION:</span>
           <span className="text-amber-400 font-bold">{fatigueLevel} / 100</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-neutral-400">POWER BANK:</span>
+          <span
+            className={`font-bold ${
+              powerBankCapacity > 0 && powerBankCharge / powerBankCapacity < 0.2
+                ? "text-red-400"
+                : "text-green-400"
+            }`}
+          >
+            {Math.round(powerBankCharge)} / {powerBankCapacity} EU
+          </span>
         </div>
         {currentHour >= 21 && currentHour < 23 && (
           <div className="border-t border-neutral-800 pt-2 mt-2 space-y-1.5">

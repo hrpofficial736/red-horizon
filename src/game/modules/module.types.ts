@@ -78,8 +78,10 @@ export interface ModuleDef {
   // Power consumption or generation per operational hour
   // Positive = Generates power (Solar Panel), Negative = Consumes power (Drill)
   powerDraw: number;
+  powerCapacity?: number; // Stored energy capacity for battery modules
 
-  // Direct resource inputs and outputs when active during a shift
+  // Direct resource inputs and outputs when active during a shift.
+  // Extraction modules use productionOutputs for each resource they extract.
   productionInputs?: ResourceRate[];
   productionOutputs?: ResourceRate[];
   maxModules?: number; // Optional: Limit on how many of this module can be built at once

@@ -10,7 +10,7 @@ import { MAT_ICONS } from "../game/utils/matetialsIcons";
 import { ALL_TEXTURES } from "../game/utils/allTextures";
 import unexplored from "../assets/unexplored.png";
 
-const CATEGORIES: ResearchCategory[] = ["FOOD", "TECH", "BASE"];
+const CATEGORIES: ResearchCategory[] = ["FOOD", "BASE"];
 const formatRemainingTime = (hours: number) => {
   const totalMinutes = Math.max(0, Math.ceil(hours * 60));
   return `${String(Math.floor(totalMinutes / 60)).padStart(2, "0")}:${String(
@@ -56,8 +56,7 @@ export function ResearchComponent() {
           if (canResearch) queueResearch(node);
         }}
         className={`relative max-w-full rounded-xl p-0 text-left transition flex flex-col gap-1 min-h-34 ${
-          (isLocked || researched ) ??
-          "cursor-not-allowed"
+          (isLocked || researched) ?? "cursor-not-allowed"
         }`}
       >
         <div
@@ -68,9 +67,7 @@ export function ResearchComponent() {
                 ? "bg-neutral-900 opacity-45"
                 : "bg-neutral-900"
           } ${
-            isLocked || researched
-              ? "cursor-not-allowed"
-              : "hover:border-white"
+            isLocked || researched ? "cursor-not-allowed" : "hover:border-white"
           }`}
         >
           <img
@@ -84,7 +81,6 @@ export function ResearchComponent() {
             {node.name}
           </span>
         ) : null}
-
       </button>
     );
   };
@@ -98,10 +94,12 @@ export function ResearchComponent() {
               <h3 className="border-b border-neutral-700 pb-2 text-sm font-bold tracking-widest text-white">
                 {category}
               </h3>
-              <div className="flex flex-col gap-2">
-                {RESEARCH_TREE.filter(
-                  (node) => node.category === category,
-                ).map(renderNode)}
+              <div
+                className={`flex gap-2 ${category === "BASE" ? "flex-row" : "flex-col"}`}
+              >
+                {RESEARCH_TREE.filter((node) => node.category === category).map(
+                  renderNode,
+                )}
               </div>
             </div>
           ))}

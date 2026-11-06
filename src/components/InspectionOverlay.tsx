@@ -39,6 +39,7 @@ export const InspectionOverlay: React.FC<InspectionOverlayProps> = ({
 
   const config = MODULES[liveModule.id];
   const maxHp = config ? config.maxIntegrity : 100;
+  const displayedHp = Math.round(liveModule.hp);
   const hpPercent = Math.round((liveModule.hp / maxHp) * 100);
   const isCurrentlyRepairing = activeRepairInstanceId === liveModule.instanceId;
 
@@ -78,7 +79,7 @@ export const InspectionOverlay: React.FC<InspectionOverlayProps> = ({
           </div>
           <div className="flex justify-between text-[10px] mt-1 text-neutral-400">
             <span>
-              Status Value: {liveModule.hp} / {maxHp} HP
+              Status Value: {displayedHp} / {maxHp} HP
             </span>
             <span>{hpPercent}%</span>
           </div>

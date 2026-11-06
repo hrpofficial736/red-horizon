@@ -171,7 +171,9 @@ function App() {
                 ? moduleConfig.maxIntegrity
                 : 100;
 
-            const currentHP = liveModuleData ? liveModuleData.hp : maxIntegrity;
+            const currentHP = Math.round(
+              liveModuleData ? liveModuleData.hp : maxIntegrity,
+            );
             const hpPercentage =
               maxIntegrity > 0
                 ? Math.round((currentHP / maxIntegrity) * 100)

@@ -263,6 +263,7 @@ export const MODULES: Record<string, ModuleDef> = {
     baseDecayRate: 2,
     powerDraw: 0, // Handles storage capacity changes through game context logic
     maxModules: 2, // Only two battery banks can be built at a time
+    powerCapacity: 200,
   },
 
   // --- 4. TECHNOLOGY & TECH LOGS ---

@@ -376,6 +376,10 @@ export class IsoScene extends Phaser.Scene {
     if (!this.dragged && !this.pinching) {
       if (p.button === 2) {
         this.select(null);
+      } else if (this.hoveredModuleUid !== null) {
+        // Module interaction is limited to the sprite/placeholder itself.
+        // The hover ring and label are visual-only and must not affect placement.
+        this.drawGhost();
       } else if (this.selected) {
         this.updateHover(p);
         const a = this.anchor();

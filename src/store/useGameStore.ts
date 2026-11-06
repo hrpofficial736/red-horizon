@@ -7,6 +7,9 @@ import type { ResearchNode } from "../game/modules/data/researchConfig";
 const IDEAL_WAKE_HOUR = 7;
 const IDEAL_SLEEP_HOUR = 21;
 const FAINT_HOUR = 23;
+export const DAYLIGHT_START_HOUR = 7;
+export const DAYLIGHT_END_HOUR = 19;
+const POWER_BANK_CHARGE_RATE = 25;
 
 const FOOD_FATIGUE_RECOVERY = {
   soup: 5,
@@ -24,13 +27,72 @@ const OVERTIME_FATIGUE_PER_HOUR = 10;
 const NO_FOOD_HEALTH_LOSS = 10;
 export const REPAIR_TIME_SPEED = 15;
 // Difficulty tuning: percentages are decimal fractions of a module's max HP.
-export const RADIATION_DAY_DECAY_PER_SOL = 0.0050;
-export const RADIATION_NIGHT_DECAY_PER_SOL = 0.0075;
+export const RADIATION_DAY_DECAY_PER_SOL = 0.050;
+export const RADIATION_NIGHT_DECAY_PER_SOL = 0.075;
 export const RADIATION_WAVE_DAMAGE = 0.075;
 export const RADIATION_WAVE_INTERVAL_DAYS = 3;
 export const RADIATION_TOWER_DAY_REDUCTION = 0.65;
 export const RADIATION_TOWER_NIGHT_REDUCTION = 0.65;
 export const RADIATION_TOWER_COVERAGE_RADIUS = 4;
+
+const isNightEssential = (moduleId: string) =>
+  moduleId === "habitat" ||
+  moduleId === "life_support" ||
+  moduleId === "battery";
+
+export const getPowerBankCapacity = (
+  placedModules: Array<{ id: string; hp: number }>,
+) =>
+  placedModules.reduce(
+    (capacity, module) =>
+      capacity +
+      (module.hp > 0 ? (MODULES[module.id]?.powerCapacity ?? 0) : 0),
+    0,
+  );
+
+export const hasOperationalPower = (
+  placedModules: Array<{
+    id: string;
+    hp: number;
+    active: boolean;
+    powerSupplyEnabled: boolean;
+  }>,
+  powerBankCharge: number,
+  currentHour: number,
+) => {
+  let generated = 0;
+  let consumed = 0;
+
+  placedModules.forEach((module) => {
+    if (module.hp <= 0 || !module.active) return;
+    const config = MODULES[module.id];
+    if (!config) return;
+
+    if (config.powerDraw > 0) {
+      if (
+        currentHour >= DAYLIGHT_START_HOUR &&
+        currentHour < DAYLIGHT_END_HOUR
+      ) {
+        generated += config.powerDraw;
+      }
+    } else {
+      consumed += Math.abs(config.powerDraw);
+    }
+  });
+
+  const canSupplyFromBattery = placedModules.some(
+    (module) =>
+      module.id === "battery" &&
+      module.hp > 0 &&
+      module.active &&
+      module.powerSupplyEnabled,
+  );
+
+  return (
+    generated >= consumed ||
+    (canSupplyFromBattery && powerBankCharge >= consumed - generated)
+  );
+};
 const STARTING_DISCOVERED_RESOURCES: ResourceType[] = [
   "iron_ore",
   "silicates",
@@ -91,8 +153,11 @@ interface GameState {
     x: number;
     y: number;
     hp: number;
+    active: boolean;
+    powerSupplyEnabled: boolean;
   }>;
   astronautHealth: number;
+  powerBankCharge: number;
   currentDay: number;
   lastRadiationWaveDay: number;
   currentHour: number;
@@ -143,6 +208,8 @@ interface GameState {
   processResearchQueue: () => void;
   unlockModuleBlueprint: (moduleId: string) => void;
   buildModule: (moduleId: string, gridX: number, gridY: number) => boolean;
+  toggleModule: (instanceId: string) => void;
+  togglePowerSupply: (instanceId: string) => void;
 
   // // EXTENDED SYSTEM ACTIONS
   sleepUntilMorning: () => boolean;
@@ -162,10 +229,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   // 1. Initial State Definitions
   inventory: {
     iron_ore: 15,
-    silicates: 25,
-    iron_plate: 55,
-    glass_panel: 30,
-    electronics: 40,
+    silicates: 15,
+    iron_plate: 25,
+    glass_panel: 20,
+    electronics: 10,
     repair_kit: 2,
     water_filter: 0,
     air_filter: 0,
@@ -326,6 +393,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   ],
   placedModules: [],
   astronautHealth: 100,
+  powerBankCharge: 0,
   currentDay: 1,
   lastRadiationWaveDay: 1,
   currentHour: 7, // The ideal work day starts at 07:00
@@ -838,6 +906,8 @@ export const useGameStore = create<GameState>((set, get) => ({
           x: gridX,
           y: gridY,
           hp: config.maxIntegrity,
+          active: true,
+          powerSupplyEnabled: false,
         },
       ],
     }));
@@ -849,6 +919,26 @@ export const useGameStore = create<GameState>((set, get) => ({
       }),
     );
     return true;
+  },
+
+  toggleModule: (instanceId) => {
+    set((state) => ({
+      placedModules: state.placedModules.map((module) =>
+        module.instanceId === instanceId && module.hp > 0
+          ? { ...module, active: !module.active }
+          : module,
+      ),
+    }));
+  },
+
+  togglePowerSupply: (instanceId) => {
+    set((state) => ({
+      placedModules: state.placedModules.map((module) =>
+        module.instanceId === instanceId && module.id === "battery"
+          ? { ...module, powerSupplyEnabled: !module.powerSupplyEnabled }
+          : module,
+      ),
+    }));
   },
 
   // 6. Core Work Shifts Loop
@@ -898,8 +988,12 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
 
     stopPassiveTimer();
-    const overtimeHours = currentHour - IDEAL_SLEEP_HOUR;
-    get().advanceHour(10, { pauseWorkshop: true });
+    const overtimeHours =
+      currentHour >= IDEAL_SLEEP_HOUR
+        ? currentHour - IDEAL_SLEEP_HOUR
+        : currentHour + 24 - IDEAL_SLEEP_HOUR;
+    const sleepHours = (24 - currentHour + IDEAL_WAKE_HOUR) % 24 || 24;
+    get().advanceHour(sleepHours, { pauseWorkshop: true });
 
     set((state) => {
       const selectedFood = FOOD_PRIORITY.find(
@@ -1235,7 +1329,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   // 9. Narrative Progression Interaction
   establishComms: () => {
     const { currentDay, placedModules } = get();
-    const hasRadar = placedModules.some((m) => m.id === "radar" && m.hp > 0);
+    const hasRadar = placedModules.some(
+      (m) => m.id === "radar" && m.hp > 0 && m.active,
+    );
 
     if (currentDay >= 15 && hasRadar) {
       set({ isCommsEstablished: true });
@@ -1259,6 +1355,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       const updatedInventory = { ...state.inventory };
       const logs = [...state.gameLogs];
       let workshopQueue = [...state.workshopQueue];
+      let powerBankCharge = state.powerBankCharge;
       const healthModifier = 0;
       let lastRadiationWaveDay = state.lastRadiationWaveDay;
 
@@ -1299,7 +1396,8 @@ export const useGameStore = create<GameState>((set, get) => ({
         }
 
         const radiationTower = updatedModules.find(
-          (mod) => mod.id === "radiation_tower" && mod.hp > 0,
+          (mod) =>
+            mod.id === "radiation_tower" && mod.hp > 0 && mod.active,
         );
         const towerConfig = MODULES.radiation_tower;
         const towerCenter = radiationTower
@@ -1361,6 +1459,27 @@ export const useGameStore = create<GameState>((set, get) => ({
           nextDay += 1;
         }
 
+        const isDaylight =
+          nextHour >= DAYLIGHT_START_HOUR && nextHour < DAYLIGHT_END_HOUR;
+        const isNightPowerInterval =
+          !isDaylight || nextHour === DAYLIGHT_START_HOUR;
+        if (!isDaylight) {
+          updatedModules = updatedModules.map((mod) => ({
+            ...mod,
+            active: isNightEssential(mod.id),
+            powerSupplyEnabled:
+              mod.id === "battery" ? mod.hp > 0 : mod.powerSupplyEnabled,
+          }));
+        } else if (nextHour === DAYLIGHT_START_HOUR) {
+          updatedModules = updatedModules.map((mod) =>
+            mod.id === "solar" && mod.hp > 0
+              ? { ...mod, active: true }
+              : mod.id === "battery"
+                ? { ...mod, powerSupplyEnabled: false }
+                : mod,
+          );
+        }
+
         const elapsedHour = getGameHour(nextDay, nextHour);
         const completedItems = options?.pauseWorkshop
           ? []
@@ -1402,29 +1521,65 @@ export const useGameStore = create<GameState>((set, get) => ({
         // --- PHASE 1: POWER AUDIT BALANCE VALIDATION ---
         let totalPowerGenerated = 0;
         let totalPowerConsumed = 0;
+        let activeBatteryCount = 0;
 
         updatedModules.forEach((mod) => {
-          if (mod.hp <= 0) return; // Broken modules draw/generate no grid power
+          if (mod.hp <= 0 || !mod.active) return; // Broken or manually inactive modules are offline
           const config = MODULES[mod.id];
           if (!config) return;
 
           if (config.powerDraw > 0) {
             // Solar efficiency drops by 90% during Sol 10-18 dust storm events
             const output =
-              isStormActive && config.id === "solar"
+              isNightPowerInterval
+                ? 0
+                : isStormActive && config.id === "solar"
                 ? Math.floor(config.powerDraw * 0.1)
                 : config.powerDraw;
             totalPowerGenerated += output;
           } else {
             totalPowerConsumed += Math.abs(config.powerDraw);
           }
+          if (config.id === "battery") activeBatteryCount += 1;
         });
 
-        const hasPowerSurplus = totalPowerGenerated >= totalPowerConsumed;
+        const powerBankCapacity = getPowerBankCapacity(updatedModules);
+        powerBankCharge = Math.min(powerBankCharge, powerBankCapacity);
+        const powerDeficit = Math.max(
+          0,
+          totalPowerConsumed - totalPowerGenerated,
+        );
+        const canSupplyFromBattery = updatedModules.some(
+          (mod) =>
+            mod.id === "battery" &&
+            mod.hp > 0 &&
+            mod.active &&
+            (mod.powerSupplyEnabled || nextHour === DAYLIGHT_START_HOUR),
+        );
+        const batteryDischarge = canSupplyFromBattery
+          ? Math.min(powerBankCharge, powerDeficit)
+          : 0;
+        powerBankCharge -= batteryDischarge;
+        const daylightSurplus = Math.max(
+          0,
+          totalPowerGenerated - totalPowerConsumed,
+        );
+        if (isDaylight && activeBatteryCount > 0) {
+          powerBankCharge = Math.min(
+            powerBankCapacity,
+            powerBankCharge +
+              Math.min(
+                daylightSurplus,
+                activeBatteryCount * POWER_BANK_CHARGE_RATE,
+              ),
+          );
+        }
+        const hasPowerSurplus =
+          totalPowerGenerated + batteryDischarge >= totalPowerConsumed;
 
         // --- PHASE 2: RESOURCE TRANSFORMATION & CONSUMPTION COMPUTATIONS ---
         updatedModules.forEach((mod) => {
-          if (mod.hp <= 0) return;
+          if (mod.hp <= 0 || !mod.active) return;
           const config = MODULES[mod.id];
           if (!config) return;
 
@@ -1448,11 +1603,14 @@ export const useGameStore = create<GameState>((set, get) => ({
               }
             }
 
-            // Step 3: Run output generations if grid has power and dependencies were met
-            if (inputsSatisfied && config.productionOutputs) {
+            // Step 3: Run output generation/extraction if grid power and inputs are available.
+            // Resource rates are read from the module definition, so new driller
+            // variants work without adding resource-specific game-loop logic.
+            const productionOutputs = config.productionOutputs;
+            if (inputsSatisfied && productionOutputs?.length) {
               const storageCapacity = getStorageCapacity(updatedModules);
               const currentInventoryTotal = getInventoryTotal(updatedInventory);
-              const outputTotal = config.productionOutputs.reduce(
+              const outputTotal = productionOutputs.reduce(
                 (total, output) => total + output.amountPerTick,
                 0,
               );
@@ -1460,7 +1618,7 @@ export const useGameStore = create<GameState>((set, get) => ({
                 currentInventoryTotal + outputTotal <= storageCapacity;
 
               if (hasStorageSpace) {
-                config.productionOutputs.forEach((out) => {
+                productionOutputs.forEach((out) => {
                   updatedInventory[out.resource] =
                     (updatedInventory[out.resource] || 0) + out.amountPerTick;
                 });
@@ -1496,6 +1654,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         lastRadiationWaveDay,
         placedModules: updatedModules,
         inventory: updatedInventory,
+        powerBankCharge,
         workshopQueue,
         astronautHealth: Math.max(
           0,

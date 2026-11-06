@@ -41,6 +41,7 @@ export const RepairButton: React.FC<RepairButtonProps> = ({
 
   const config = MODULES[moduleInstance.id];
   const maxHp = config ? config.maxIntegrity : 100;
+  const displayedHp = Math.round(moduleInstance.hp);
   const isFullyRepaired = moduleInstance.hp >= maxHp;
 
   const startRepairHold = () => {
@@ -115,8 +116,8 @@ export const RepairButton: React.FC<RepairButtonProps> = ({
   );
 
   return (
-    <div className="flex flex-col items-center justify-between bg-neutral-900/90 border border-neutral-800 rounded-lg select-none">
-      <div>
+    <div className="flex flex-col gap-2 pt-1 items-center justify-between bg-neutral-900/90 border border-neutral-800 rounded-lg select-none">
+      {/* <div>
         <h4 className="text-sm font-bold text-white">
           {config?.name || moduleInstance.id}
         </h4>
@@ -129,10 +130,10 @@ export const RepairButton: React.FC<RepairButtonProps> = ({
                 : "text-neutral-200"
             }
           >
-            {moduleInstance.hp} / {maxHp} HP
+            {displayedHp} / {maxHp} HP
           </span>
         </p>
-      </div>
+      </div> */}
       <div className="text-center text-xs font-bold text-orange-300">
         {isPressing
           ? `${String(Math.floor(remainingMinutes / 60)).padStart(2, "0")}:${String(
@@ -167,10 +168,10 @@ export const RepairButton: React.FC<RepairButtonProps> = ({
 
         <span className="relative z-10 pointer-events-none">
           {isFullyRepaired
-            ? "🔧 NOMINAL"
+            ? "NOMINAL"
             : isPressing
-              ? "🛠️ REPAIRING..."
-              : "✊ HOLD TO REPAIR"}
+              ? "REPAIRING..."
+              : "HOLD TO REPAIR"}
         </span>
       </button>
     </div>

@@ -55,6 +55,7 @@ export const MaintenancePanel: React.FC = () => {
           {placedModules.map((mod) => {
             const config = MODULES[mod.id];
             const maxHp = config ? config.maxIntegrity : 100;
+            const displayedHp = Math.round(mod.hp);
             const hpPercentage = Math.round((mod.hp / maxHp) * 100);
 
             // Visual indicators for danger zones
@@ -88,7 +89,7 @@ export const MaintenancePanel: React.FC = () => {
                   >
                     Grid Pos: ({mod.x}, {mod.y}) | HP:{" "}
                     <span style={{ color: statusColor, fontWeight: "bold" }}>
-                      {mod.hp}/{maxHp} ({hpPercentage}%)
+                      {displayedHp}/{maxHp} ({hpPercentage}%)
                     </span>
                   </div>
                   {mod.hp === 0 && (
