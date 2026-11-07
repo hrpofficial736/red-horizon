@@ -1,5 +1,9 @@
 import React, { useEffect, useState, useRef } from "react";
-import { useGameStore } from "../store/useGameStore";
+import {
+  getRepairDurationMinutes,
+  REPAIR_THRESHOLD_HEALTH,
+  useGameStore,
+} from "../store/useGameStore";
 import { MODULES } from "../game/modules/moduleDefinitions";
 
 interface RepairButtonProps {
@@ -23,15 +27,6 @@ export const RepairButton: React.FC<RepairButtonProps> = ({
     (state) => state.inventory.repair_kit || 0,
   );
 
-  // Local interaction tracking variables
-  const [isPressing, setIsPressing] = useState(false);
-  const initialElapsedMinutes = getRepairElapsedMinutes(moduleInstance.instanceId);
-  const [progress, setProgress] = useState(
-    Math.min(100, (initialElapsedMinutes / 60) * 100),
-  );
-  const [remainingMinutes, setRemainingMinutes] = useState(
-    Math.max(0, 60 - initialElapsedMinutes),
-  );
   const repairJob = useGameStore((state) => state.repairJobs[moduleInstance.instanceId]);
   const activeRepairInstanceId = useGameStore(
     (state) => state.activeRepairInstanceId,
@@ -41,12 +36,26 @@ export const RepairButton: React.FC<RepairButtonProps> = ({
 
   const config = MODULES[moduleInstance.id];
   const maxHp = config ? config.maxIntegrity : 100;
-  const displayedHp = Math.round(moduleInstance.hp);
-  const isFullyRepaired = moduleInstance.hp >= maxHp;
+  const healthPercentage = (moduleInstance.hp / maxHp) * 100;
+  const isRepairDisabled = healthPercentage >= REPAIR_THRESHOLD_HEALTH;
+  const durationMinutes =
+    repairJob?.durationMinutes ??
+    getRepairDurationMinutes(healthPercentage);
+  const durationHours = durationMinutes / 60;
+
+  // Local interaction tracking variables
+  const [isPressing, setIsPressing] = useState(false);
+  const initialElapsedMinutes = getRepairElapsedMinutes(moduleInstance.instanceId);
+  const [progress, setProgress] = useState(
+    Math.min(100, (initialElapsedMinutes / durationMinutes) * 100),
+  );
+  const [remainingMinutes, setRemainingMinutes] = useState(
+    Math.max(0, durationMinutes - initialElapsedMinutes),
+  );
 
   const startRepairHold = () => {
     if (
-      isFullyRepaired ||
+      isRepairDisabled ||
       isPressing ||
       activeRepairInstanceId === moduleInstance.instanceId
     )
@@ -79,11 +88,11 @@ export const RepairButton: React.FC<RepairButtonProps> = ({
       }
 
       const elapsedMinutes = getRepairElapsedMinutes(moduleInstance.instanceId);
-      const remaining = Math.max(0, 60 - elapsedMinutes);
-      setProgress(Math.min(100, (elapsedMinutes / 60) * 100));
+      const remaining = Math.max(0, durationMinutes - elapsedMinutes);
+      setProgress(Math.min(100, (elapsedMinutes / durationMinutes) * 100));
       setRemainingMinutes(remaining);
 
-      if (elapsedMinutes >= 60) {
+      if (elapsedMinutes >= durationMinutes) {
         finishRepair();
       }
     }, 100);
@@ -92,8 +101,8 @@ export const RepairButton: React.FC<RepairButtonProps> = ({
   const pauseRepairHold = () => {
     stopActiveRepairLoop();
     const elapsedMinutes = getRepairElapsedMinutes(moduleInstance.instanceId);
-    setRemainingMinutes(Math.max(0, 60 - elapsedMinutes));
-    setProgress(Math.min(100, (elapsedMinutes / 60) * 100));
+    setRemainingMinutes(Math.max(0, durationMinutes - elapsedMinutes));
+    setProgress(Math.min(100, (elapsedMinutes / durationMinutes) * 100));
     setIsPressing(false);
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = null;
@@ -125,7 +134,7 @@ export const RepairButton: React.FC<RepairButtonProps> = ({
           Integrity:{" "}
           <span
             className={
-              moduleInstance.hp < 30
+              moduleInstance.hp < 16
                 ? "text-red-500 font-bold"
                 : "text-neutral-200"
             }
@@ -139,19 +148,19 @@ export const RepairButton: React.FC<RepairButtonProps> = ({
           ? `${String(Math.floor(remainingMinutes / 60)).padStart(2, "0")}:${String(
               remainingMinutes % 60,
             ).padStart(2, "0")} REMAINING`
-          : "REPAIR TIME 01:00"}
+          : `REPAIR TIME ${durationHours.toString().padStart(2, "0")}:00`}
       </div>
 
       {/* INTERACTIVE HOLD TO WRENCH FIX CONTROLLER BUTTON */}
       <button
-        disabled={isFullyRepaired || (!repairJob && repairKitCount < 1)}
+        disabled={isRepairDisabled || (!repairJob && repairKitCount < 1)}
         onMouseDown={startRepairHold}
         onMouseUp={pauseRepairHold}
         onMouseLeave={pauseRepairHold}
         onTouchStart={startRepairHold} // Native touch gesture mappings for mobile devices
         onTouchEnd={pauseRepairHold}
         className={`relative overflow-hidden px-4 py-2.5 text-[11px] uppercase tracking-wider font-bold rounded min-w-[150px] transition-all duration-100 ${
-          isFullyRepaired
+          isRepairDisabled
             ? "bg-neutral-800 text-neutral-500 cursor-not-allowed border border-neutral-700"
             : repairKitCount < 1 && !repairJob
               ? "bg-red-950/20 text-red-500 border border-red-900/40 cursor-not-allowed"
@@ -167,8 +176,8 @@ export const RepairButton: React.FC<RepairButtonProps> = ({
         )}
 
         <span className="relative z-10 pointer-events-none">
-          {isFullyRepaired
-            ? "NOMINAL"
+          {isRepairDisabled
+            ? "HEALTHY"
             : isPressing
               ? "REPAIRING..."
               : "HOLD TO REPAIR"}

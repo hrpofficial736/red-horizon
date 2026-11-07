@@ -73,7 +73,7 @@ export const InspectionOverlay: React.FC<InspectionOverlayProps> = ({
           </span>
           <div className="w-full bg-neutral-900 h-2 rounded overflow-hidden border border-neutral-800">
             <div
-              className={`h-full transition-all duration-75 ${hpPercent < 30 ? "bg-red-600" : hpPercent < 65 ? "bg-amber-500" : "bg-green-500"}`}
+              className={`h-full transition-all duration-75 ${hpPercent < 16 ? "bg-red-600" : hpPercent < 51 ? "bg-amber-500" : "bg-green-500"}`}
               style={{ width: `${hpPercent}%` }}
             />
           </div>

@@ -8,6 +8,8 @@ import { RepairButton } from "./RepairButton";
 
 export function StatsComponent() {
   const placedModules = useGameStore((state) => state.placedModules);
+  const powerBankCharge = useGameStore((state) => state.powerBankCharge);
+  const currentHour = useGameStore((state) => state.currentHour);
   const toggleModule = useGameStore((state) => state.toggleModule);
   const togglePowerSupply = useGameStore((state) => state.togglePowerSupply);
   const hasPowerSurplus = useGameStore((state) => {
@@ -43,7 +45,24 @@ export function StatsComponent() {
               (module.hp / config.maxIntegrity) * 100,
             );
             const displayedHp = Math.round(module.hp);
-            const isActive = module.active && module.hp > 0 && hasPowerSurplus;
+            const isPowerGenerator = config.powerDraw > 0;
+            const isActive = isPowerGenerator
+              ? module.active && module.hp > 0
+              : module.active && module.hp > 0 && hasPowerSurplus;
+            const canActivate =
+              module.hp > 0 &&
+              (isPowerGenerator ||
+                hasOperationalPower(
+                  placedModules.map((candidate) =>
+                    candidate.instanceId === module.instanceId
+                      ? { ...candidate, active: true }
+                      : candidate,
+                  ),
+                  powerBankCharge,
+                  currentHour,
+                ));
+            const canToggle =
+              !isPowerGenerator && module.hp > 0 && (module.active || canActivate);
             return (
               <div
                 key={module.instanceId}
@@ -70,19 +89,27 @@ export function StatsComponent() {
                   <button
                     type="button"
                     role="switch"
-                    aria-checked={module.active}
-                    aria-label={`${module.active ? "Deactivate" : "Activate"} ${config.name}`}
-                    disabled={module.hp <= 0}
+                    aria-checked={isActive}
+                    aria-label={
+                      isPowerGenerator
+                        ? `${config.name} is automatic`
+                        : `${module.active ? "Deactivate" : canActivate ? "Activate" : "Waiting for power"} ${config.name}`
+                    }
+                    disabled={!canToggle}
                     onClick={() => toggleModule(module.instanceId)}
                     className={`relative h-5 w-10 shrink-0 rounded-full border transition ${
-                      module.active
+                      isActive
                         ? "border-green-500/60 bg-green-900/70"
-                        : "border-neutral-600 bg-neutral-800"
-                    } ${module.hp <= 0 ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+                        : "border-neutral-700 bg-neutral-900 opacity-60"
+                    } ${
+                      !canToggle
+                        ? "cursor-not-allowed opacity-50"
+                        : "cursor-pointer"
+                    }`}
                   >
                     <span
                       className={`absolute top-0.5 h-3.5 w-3.5 rounded-full transition ${
-                        module.active
+                        isActive
                           ? "left-5 bg-green-300"
                           : "left-0.5 bg-neutral-400"
                       }`}
@@ -116,9 +143,9 @@ export function StatsComponent() {
                   <div className="h-1.5 overflow-hidden rounded bg-neutral-800">
                     <div
                       className={`h-full ${
-                        hpPercentage < 30
+                        hpPercentage < 16
                           ? "bg-red-500"
-                          : hpPercentage < 65
+                          : hpPercentage < 51
                             ? "bg-amber-500"
                             : "bg-green-500"
                       }`}

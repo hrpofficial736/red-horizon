@@ -190,11 +190,11 @@ function App() {
 
             let healthTextColor = "text-green-400";
             let healthBarColor = "bg-green-500";
-            if (hpPercentage < 65) {
+            if (hpPercentage < 51) {
               healthTextColor = "text-amber-400";
               healthBarColor = "bg-amber-500";
             }
-            if (hpPercentage < 30) {
+            if (hpPercentage < 16) {
               healthTextColor = "text-red-500 animate-pulse font-bold";
               healthBarColor = "bg-red-600";
             }

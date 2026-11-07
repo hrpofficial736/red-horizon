@@ -26,6 +26,12 @@ const FOOD_PRIORITY = ["good_meal", "meal", "soup"] as const;
 const OVERTIME_FATIGUE_PER_HOUR = 10;
 const NO_FOOD_HEALTH_LOSS = 10;
 export const REPAIR_TIME_SPEED = 15;
+export const REPAIR_THRESHOLD_HEALTH = 80;
+export const REPAIR_WARNING_HEALTH = 51;
+export const REPAIR_CRITICAL_HEALTH = 16;
+export const REPAIR_TIME_STANDARD_HOURS = 1;
+export const REPAIR_TIME_WARNING_HOURS = 2;
+export const REPAIR_TIME_CRITICAL_HOURS = 4;
 // Difficulty tuning: percentages are decimal fractions of a module's max HP.
 export const RADIATION_DAY_DECAY_PER_SOL = 0.050;
 export const RADIATION_NIGHT_DECAY_PER_SOL = 0.075;
@@ -34,11 +40,6 @@ export const RADIATION_WAVE_INTERVAL_DAYS = 3;
 export const RADIATION_TOWER_DAY_REDUCTION = 0.65;
 export const RADIATION_TOWER_NIGHT_REDUCTION = 0.65;
 export const RADIATION_TOWER_COVERAGE_RADIUS = 4;
-
-const isNightEssential = (moduleId: string) =>
-  moduleId === "habitat" ||
-  moduleId === "life_support" ||
-  moduleId === "battery";
 
 export const getPowerBankCapacity = (
   placedModules: Array<{ id: string; hp: number }>,
@@ -93,6 +94,26 @@ export const hasOperationalPower = (
     (canSupplyFromBattery && powerBankCharge >= consumed - generated)
   );
 };
+
+const isProductionOperational = (
+  placedModules: Array<{
+    id: string;
+    hp: number;
+    active: boolean;
+    powerSupplyEnabled: boolean;
+  }>,
+  powerBankCharge: number,
+  currentHour: number,
+  moduleId: string,
+) => {
+  const module = placedModules.find((candidate) => candidate.id === moduleId);
+  return (
+    module !== undefined &&
+    module.hp > 0 &&
+    module.active &&
+    hasOperationalPower(placedModules, powerBankCharge, currentHour)
+  );
+};
 const STARTING_DISCOVERED_RESOURCES: ResourceType[] = [
   "iron_ore",
   "silicates",
@@ -125,10 +146,45 @@ export interface ResearchQueueItem {
 interface RepairJob {
   elapsedMinutes: number;
   startedAt: number | null;
+  durationMinutes: number;
 }
+
+export const getRepairDurationMinutes = (healthPercentage: number) => {
+  if (healthPercentage < REPAIR_CRITICAL_HEALTH) {
+    return REPAIR_TIME_CRITICAL_HOURS * 60;
+  }
+  if (healthPercentage < REPAIR_WARNING_HEALTH) {
+    return REPAIR_TIME_WARNING_HOURS * 60;
+  }
+  return REPAIR_TIME_STANDARD_HOURS * 60;
+};
 
 const getGameHour = (day: number, hour: number, minute = 0) =>
   day * 24 + hour + minute / 60;
+
+const shiftPendingQueue = (
+  queue: CraftQueueItem[],
+  elapsedHours: number,
+) =>
+  queue.map((item) =>
+    item.completed
+      ? item
+      : {
+          ...item,
+          startedAt: item.startedAt + elapsedHours,
+          completesAt: item.completesAt + elapsedHours,
+        },
+  );
+
+const shiftPendingResearch = (
+  queue: ResearchQueueItem[],
+  elapsedHours: number,
+) =>
+  queue.map((item) => ({
+    ...item,
+    startedAt: item.startedAt + elapsedHours,
+    completesAt: item.completesAt + elapsedHours,
+  }));
 
 export const getInventoryTotal = (
   inventory: Record<ResourceType, number>,
@@ -155,6 +211,7 @@ interface GameState {
     hp: number;
     active: boolean;
     powerSupplyEnabled: boolean;
+    productionPausedAt?: number;
   }>;
   astronautHealth: number;
   powerBankCharge: number;
@@ -219,7 +276,7 @@ interface GameState {
   establishComms: () => boolean;
   advanceHour: (
     hours: number,
-    options?: { pauseWorkshop?: boolean },
+    options?: { pauseWorkshop?: boolean; applyRadiation?: boolean },
   ) => void;
   startPassiveTimer: () => void;
   stopPassiveTimer: () => void;
@@ -245,7 +302,18 @@ export const useGameStore = create<GameState>((set, get) => ({
   discoveredResourceTypes: STARTING_DISCOVERED_RESOURCES,
 
   queueGreenhouseCrafting: (recipe) => {
-    const { inventory, greenhouseQueue } = get();
+    const { inventory, greenhouseQueue, placedModules, powerBankCharge, currentHour } =
+      get();
+    if (
+      !isProductionOperational(
+        placedModules,
+        powerBankCharge,
+        currentHour,
+        "greenhouse",
+      )
+    ) {
+      return false;
+    }
     const hasMaterials = recipe.cost.every(
       (req) => (inventory[req.resource] || 0) >= req.amount,
     );
@@ -349,6 +417,16 @@ export const useGameStore = create<GameState>((set, get) => ({
     );
 
     set((state) => {
+      if (
+        !isProductionOperational(
+          state.placedModules,
+          state.powerBankCharge,
+          state.currentHour,
+          "greenhouse",
+        )
+      ) {
+        return state;
+      }
       const completedItems = state.greenhouseQueue.filter(
         (item) => !item.completed && item.completesAt <= now,
       );
@@ -444,7 +522,24 @@ export const useGameStore = create<GameState>((set, get) => ({
     ),
 
   queueResearch: (node) => {
-    const { researchQueue, inventory, researchedNodeIds } = get();
+    const {
+      researchQueue,
+      inventory,
+      researchedNodeIds,
+      placedModules,
+      powerBankCharge,
+      currentHour,
+    } = get();
+    if (
+      !isProductionOperational(
+        placedModules,
+        powerBankCharge,
+        currentHour,
+        "researchLab",
+      )
+    ) {
+      return false;
+    }
     if (
       researchQueue.length >= 2 ||
       researchedNodeIds.includes(node.id) ||
@@ -529,6 +624,16 @@ export const useGameStore = create<GameState>((set, get) => ({
       get().currentMinute,
     );
     set((state) => {
+      if (
+        !isProductionOperational(
+          state.placedModules,
+          state.powerBankCharge,
+          state.currentHour,
+          "researchLab",
+        )
+      ) {
+        return state;
+      }
       const completed = state.researchQueue.find(
           (item) => item.completesAt <= now,
       );
@@ -603,7 +708,18 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   queueCrafting: (recipe) => {
-    const { inventory, workshopQueue } = get();
+    const { inventory, workshopQueue, placedModules, powerBankCharge, currentHour } =
+      get();
+    if (
+      !isProductionOperational(
+        placedModules,
+        powerBankCharge,
+        currentHour,
+        "workshop",
+      )
+    ) {
+      return false;
+    }
     const hasMaterials = recipe.cost.every(
       (req) => (inventory[req.resource] || 0) >= req.amount,
     );
@@ -705,6 +821,16 @@ export const useGameStore = create<GameState>((set, get) => ({
     );
 
     set((state) => {
+      if (
+        !isProductionOperational(
+          state.placedModules,
+          state.powerBankCharge,
+          state.currentHour,
+          "workshop",
+        )
+      ) {
+        return state;
+      }
       const completedItems = state.workshopQueue.filter(
         (item) => !item.completed && item.completesAt <= now,
       );
@@ -740,7 +866,18 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   queueKitchenCrafting: (recipe) => {
-    const { inventory, kitchenQueue } = get();
+    const { inventory, kitchenQueue, placedModules, powerBankCharge, currentHour } =
+      get();
+    if (
+      !isProductionOperational(
+        placedModules,
+        powerBankCharge,
+        currentHour,
+        "kitchen",
+      )
+    ) {
+      return false;
+    }
     const hasMaterials = recipe.cost.every(
       (req) => (inventory[req.resource] || 0) >= req.amount,
     );
@@ -844,6 +981,16 @@ export const useGameStore = create<GameState>((set, get) => ({
     );
 
     set((state) => {
+      if (
+        !isProductionOperational(
+          state.placedModules,
+          state.powerBankCharge,
+          state.currentHour,
+          "kitchen",
+        )
+      ) {
+        return state;
+      }
       const completedItems = state.kitchenQueue.filter(
         (item) => !item.completed && item.completesAt <= now,
       );
@@ -906,7 +1053,10 @@ export const useGameStore = create<GameState>((set, get) => ({
           x: gridX,
           y: gridY,
           hp: config.maxIntegrity,
-          active: true,
+          active:
+            config.powerDraw <= 0 ||
+            (get().currentHour >= DAYLIGHT_START_HOUR &&
+              get().currentHour < DAYLIGHT_END_HOUR),
           powerSupplyEnabled: false,
         },
       ],
@@ -922,13 +1072,89 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   toggleModule: (instanceId) => {
-    set((state) => ({
-      placedModules: state.placedModules.map((module) =>
-        module.instanceId === instanceId && module.hp > 0
-          ? { ...module, active: !module.active }
-          : module,
-      ),
-    }));
+    set((state) => {
+      const now = getGameHour(
+        state.currentDay,
+        state.currentHour,
+        state.currentMinute,
+      );
+      const module = state.placedModules.find(
+        (candidate) => candidate.instanceId === instanceId,
+      );
+      if (!module || module.hp <= 0) return state;
+      if ((MODULES[module.id]?.powerDraw ?? 0) > 0) return state;
+
+      const active = !module.active;
+      if (
+        active &&
+        MODULES[module.id]?.powerDraw < 0 &&
+        !hasOperationalPower(
+            state.placedModules.map((candidate) =>
+              candidate.instanceId === instanceId
+                ? { ...candidate, active: true }
+                : candidate,
+            ),
+            state.powerBankCharge,
+            state.currentHour,
+          )
+      ) {
+        return state;
+      }
+      const elapsedPausedHours =
+        module.productionPausedAt === undefined
+          ? 0
+          : Math.max(0, now - module.productionPausedAt);
+      const nextState = {
+        placedModules: state.placedModules.map((candidate) =>
+          candidate.instanceId === instanceId
+            ? {
+                ...candidate,
+                active,
+                productionPausedAt: active ? undefined : now,
+              }
+            : candidate,
+        ),
+      };
+
+      if (!active || elapsedPausedHours === 0) return nextState;
+      if (module.id === "workshop") {
+        return {
+          ...nextState,
+          workshopQueue: shiftPendingQueue(
+            state.workshopQueue,
+            elapsedPausedHours,
+          ),
+        };
+      }
+      if (module.id === "kitchen") {
+        return {
+          ...nextState,
+          kitchenQueue: shiftPendingQueue(
+            state.kitchenQueue,
+            elapsedPausedHours,
+          ),
+        };
+      }
+      if (module.id === "greenhouse") {
+        return {
+          ...nextState,
+          greenhouseQueue: shiftPendingQueue(
+            state.greenhouseQueue,
+            elapsedPausedHours,
+          ),
+        };
+      }
+      if (module.id === "researchLab") {
+        return {
+          ...nextState,
+          researchQueue: shiftPendingResearch(
+            state.researchQueue,
+            elapsedPausedHours,
+          ),
+        };
+      }
+      return nextState;
+    });
   },
 
   togglePowerSupply: (instanceId) => {
@@ -1130,8 +1356,19 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   startRepair: (instanceId) => {
     const state = get();
+    const module = state.placedModules.find(
+      (candidate) => candidate.instanceId === instanceId,
+    );
+    if (!module) return false;
+    const maxIntegrity = MODULES[module.id]?.maxIntegrity ?? 100;
+    const healthPercentage = (module.hp / maxIntegrity) * 100;
+    if (healthPercentage >= REPAIR_THRESHOLD_HEALTH) return false;
+
     const existingJob = state.repairJobs[instanceId];
-    if (existingJob?.elapsedMinutes >= 60) return false;
+    const durationMinutes =
+      existingJob?.durationMinutes ??
+      getRepairDurationMinutes(healthPercentage);
+    if (existingJob?.elapsedMinutes >= durationMinutes) return false;
 
     if (
       state.activeRepairInstanceId &&
@@ -1154,6 +1391,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         [instanceId]: {
           elapsedMinutes: existingJob?.elapsedMinutes ?? 0,
           startedAt: now,
+          durationMinutes,
         },
       },
       activeRepairInstanceId: instanceId,
@@ -1170,13 +1408,17 @@ export const useGameStore = create<GameState>((set, get) => ({
       get().currentHour * 60 +
       get().currentMinute;
     const elapsedMinutes = Math.min(
-      60,
+      job.durationMinutes,
       job.elapsedMinutes + Math.max(0, now - job.startedAt),
     );
     set((state) => ({
       repairJobs: {
         ...state.repairJobs,
-        [instanceId]: { elapsedMinutes, startedAt: null },
+        [instanceId]: {
+          ...job,
+          elapsedMinutes,
+          startedAt: null,
+        },
       },
       activeRepairInstanceId:
         state.activeRepairInstanceId === instanceId
@@ -1195,7 +1437,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       get().currentHour * 60 +
       get().currentMinute;
     return Math.min(
-      60,
+      job.durationMinutes,
       job.elapsedMinutes + Math.max(0, now - job.startedAt),
     );
   },
@@ -1303,7 +1545,8 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       const elapsedMinutes = store.getRepairElapsedMinutes(instanceId);
 
-      if (elapsedMinutes >= 60) {
+      const repairJob = store.repairJobs[instanceId];
+      if (repairJob && elapsedMinutes >= repairJob.durationMinutes) {
         store.completeRepair(instanceId);
         store.stopActiveRepairLoop();
       }
@@ -1355,20 +1598,20 @@ export const useGameStore = create<GameState>((set, get) => ({
       const updatedInventory = { ...state.inventory };
       const logs = [...state.gameLogs];
       let workshopQueue = [...state.workshopQueue];
+      let kitchenQueue = [...state.kitchenQueue];
+      let greenhouseQueue = [...state.greenhouseQueue];
+      let researchQueue = [...state.researchQueue];
       let powerBankCharge = state.powerBankCharge;
       const healthModifier = 0;
       let lastRadiationWaveDay = state.lastRadiationWaveDay;
 
       if (options?.pauseWorkshop) {
-        workshopQueue = workshopQueue.map((item) =>
-          item.completed
-            ? item
-            : {
-                ...item,
-                startedAt: item.startedAt + hours,
-                completesAt: item.completesAt + hours,
-              },
+        const workshop = state.placedModules.find(
+          (module) => module.id === "workshop" && module.hp > 0,
         );
+        if (workshop?.active && workshop.productionPausedAt === undefined) {
+          workshopQueue = shiftPendingQueue(workshopQueue, hours);
+        }
       }
 
       // Active environmental modifiers based on timeline narrative context rules
@@ -1434,7 +1677,15 @@ export const useGameStore = create<GameState>((set, get) => ({
             : 0;
           const damage =
             config.maxIntegrity * percentage * (1 - reduction);
-          return { ...mod, hp: Math.max(0, mod.hp - damage) };
+          const hp = Math.max(0, mod.hp - damage);
+          return {
+            ...mod,
+            hp,
+            active:
+              hp < config.maxIntegrity * (REPAIR_CRITICAL_HEALTH / 100)
+                ? false
+                : mod.active,
+          };
         };
 
         updatedModules = updatedModules.map((mod) =>
@@ -1463,25 +1714,61 @@ export const useGameStore = create<GameState>((set, get) => ({
           nextHour >= DAYLIGHT_START_HOUR && nextHour < DAYLIGHT_END_HOUR;
         const isNightPowerInterval =
           !isDaylight || nextHour === DAYLIGHT_START_HOUR;
-        if (!isDaylight) {
-          updatedModules = updatedModules.map((mod) => ({
-            ...mod,
-            active: isNightEssential(mod.id),
-            powerSupplyEnabled:
-              mod.id === "battery" ? mod.hp > 0 : mod.powerSupplyEnabled,
-          }));
-        } else if (nextHour === DAYLIGHT_START_HOUR) {
+        updatedModules = updatedModules.map((mod) => {
+          const config = MODULES[mod.id];
+          return config?.powerDraw > 0
+            ? { ...mod, active: mod.hp > 0 && isDaylight }
+            : mod;
+        });
+        if (isDaylight && nextHour === DAYLIGHT_START_HOUR) {
           updatedModules = updatedModules.map((mod) =>
-            mod.id === "solar" && mod.hp > 0
-              ? { ...mod, active: true }
-              : mod.id === "battery"
+            mod.id === "battery"
                 ? { ...mod, powerSupplyEnabled: false }
                 : mod,
           );
         }
 
         const elapsedHour = getGameHour(nextDay, nextHour);
-        const completedItems = options?.pauseWorkshop
+        const workshopOperational = isProductionOperational(
+          updatedModules,
+          powerBankCharge,
+          nextHour,
+          "workshop",
+        );
+        if (!workshopOperational) {
+          workshopQueue = shiftPendingQueue(workshopQueue, 1);
+        }
+        if (
+          !isProductionOperational(
+            updatedModules,
+            powerBankCharge,
+            nextHour,
+            "kitchen",
+          )
+        ) {
+          kitchenQueue = shiftPendingQueue(kitchenQueue, 1);
+        }
+        if (
+          !isProductionOperational(
+            updatedModules,
+            powerBankCharge,
+            nextHour,
+            "greenhouse",
+          )
+        ) {
+          greenhouseQueue = shiftPendingQueue(greenhouseQueue, 1);
+        }
+        if (
+          !isProductionOperational(
+            updatedModules,
+            powerBankCharge,
+            nextHour,
+            "researchLab",
+          )
+        ) {
+          researchQueue = shiftPendingResearch(researchQueue, 1);
+        }
+        const completedItems = options?.pauseWorkshop || !workshopOperational
           ? []
           : workshopQueue.filter(
               (item) => !item.completed && item.completesAt <= elapsedHour,
@@ -1576,6 +1863,14 @@ export const useGameStore = create<GameState>((set, get) => ({
         }
         const hasPowerSurplus =
           totalPowerGenerated + batteryDischarge >= totalPowerConsumed;
+        if (!isDaylight && !hasPowerSurplus) {
+          updatedModules = updatedModules.map((mod) => {
+            const config = MODULES[mod.id];
+            return config?.powerDraw < 0 && mod.hp > 0
+              ? { ...mod, active: false }
+              : mod;
+          });
+        }
 
         // --- PHASE 2: RESOURCE TRANSFORMATION & CONSUMPTION COMPUTATIONS ---
         updatedModules.forEach((mod) => {
@@ -1656,6 +1951,9 @@ export const useGameStore = create<GameState>((set, get) => ({
         inventory: updatedInventory,
         powerBankCharge,
         workshopQueue,
+        kitchenQueue,
+        greenhouseQueue,
+        researchQueue,
         astronautHealth: Math.max(
           0,
           Math.min(100, state.astronautHealth + healthModifier),

@@ -5,7 +5,10 @@ import {
   type CraftingRecipe,
 } from "../game/modules/data/recipesConfig";
 import { MAT_ICONS } from "../game/utils/matetialsIcons";
-import { useGameStore } from "../store/useGameStore";
+import {
+  hasOperationalPower,
+  useGameStore,
+} from "../store/useGameStore";
 import { MAT_IMPORTS } from "../game/utils/materialsTexture";
 import bigBorder from "../assets/BigBorder.png";
 import borders from "../assets/Border.png";
@@ -34,6 +37,13 @@ export function GreenhouseComponent() {
   const currentDay = useGameStore((state) => state.currentDay);
   const currentHour = useGameStore((state) => state.currentHour);
   const currentMinute = useGameStore((state) => state.currentMinute);
+  const powerBankCharge = useGameStore((state) => state.powerBankCharge);
+  const placedModules = useGameStore((state) => state.placedModules);
+  const greenhouseOperational =
+    hasOperationalPower(placedModules, powerBankCharge, currentHour) &&
+    placedModules.some(
+      (module) => module.id === "greenhouse" && module.active && module.hp > 0,
+    );
   const now = currentDay * 24 * 60 + currentHour * 60 + currentMinute;
   const [selectedRecipe, setSelectedRecipe] = useState<CraftingRecipe | null>(
     null,
@@ -190,9 +200,12 @@ export function GreenhouseComponent() {
             </p>
           )}
           {greenhouseQueue.map((item, index) => {
-            const isFinished = item.completed || item.completesAt * 60 <= now;
+            const isFinished =
+              item.completed ||
+              (greenhouseOperational && item.completesAt * 60 <= now);
             const isActive =
               !isFinished &&
+              greenhouseOperational &&
               !greenhouseQueue
                 .slice(0, index)
                 .some(
@@ -239,6 +252,8 @@ export function GreenhouseComponent() {
                     <span className="text-[10px] uppercase tracking-wider text-neutral-500">
                       {isFinished
                         ? "Finished"
+                        : !greenhouseOperational
+                          ? "Paused • module inactive"
                         : isActive
                           ? "Cultivating"
                           : `Queued • starts at ${formatGameTime(item.startedAt)}`}

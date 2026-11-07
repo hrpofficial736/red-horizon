@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { REPAIR_TIME_SPEED, useGameStore } from "../store/useGameStore";
 
-const VERY_FAST_FORWARD_SPEED = 25;
+const VERY_FAST_FORWARD_SPEED = 25
 
 export const DebugTimeSkip: React.FC = () => {
   const [isSkipping, setIsSkipping] = useState(false);

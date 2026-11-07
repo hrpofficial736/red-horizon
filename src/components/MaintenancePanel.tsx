@@ -60,8 +60,8 @@ export const MaintenancePanel: React.FC = () => {
 
             // Visual indicators for danger zones
             let statusColor = "#6bbf4e"; // Healthy Green
-            if (hpPercentage < 60) statusColor = "#ffa500"; // Warn Orange
-            if (hpPercentage < 25) statusColor = "#ff4d4d"; // Danger Red
+            if (hpPercentage < 51) statusColor = "#ffa500"; // Warn Orange
+            if (hpPercentage < 16) statusColor = "#ff4d4d"; // Danger Red
 
             return (
               <div

@@ -5,7 +5,7 @@ import {
   type CraftingRecipe,
 } from "../game/modules/data/recipesConfig";
 import { MAT_IMPORTS } from "../game/utils/materialsTexture";
-import { useGameStore } from "../store/useGameStore";
+import { hasOperationalPower, useGameStore } from "../store/useGameStore";
 import { MAT_ICONS } from "../game/utils/matetialsIcons";
 import { useState } from "react";
 import bigBorder from "../assets/BigBorder.png";
@@ -44,6 +44,19 @@ export function WorkshopComponent({ isKitchen = false }: { isKitchen?: boolean }
   const currentHour = useGameStore((state) => state.currentHour);
   const currentMinute = useGameStore((state) => state.currentMinute);
   const currentDay = useGameStore((state) => state.currentDay);
+  const productionModuleActive = useGameStore((state) =>
+    hasOperationalPower(
+      state.placedModules,
+      state.powerBankCharge,
+      state.currentHour,
+    ) &&
+      state.placedModules.some(
+        (module) =>
+          module.id === (isKitchen ? "kitchen" : "workshop") &&
+          module.active &&
+          module.hp > 0,
+      ),
+  );
   const now = currentDay * 24 * 60 + currentHour * 60 + currentMinute;
   const recipes = isKitchen ? KITCHEN_RECIPES : WORKSHOP_RECIPES;
   const queue = isKitchen ? kitchenQueue : workshopQueue;
@@ -59,7 +72,7 @@ export function WorkshopComponent({ isKitchen = false }: { isKitchen?: boolean }
           return null;
         })
         .filter(
-          (resource): resource is CraftingRecipe["output"] => resource !== null,
+          (resource): resource is "meal" | "good_meal" => resource !== null,
         ),
     ],
   );
@@ -224,9 +237,12 @@ export function WorkshopComponent({ isKitchen = false }: { isKitchen?: boolean }
             </p>
           )}
           {queue.map((item, index) => {
-            const isFinished = item.completed || item.completesAt * 60 <= now;
+            const isFinished =
+              item.completed ||
+              (productionModuleActive && item.completesAt * 60 <= now);
             const isActive =
               !isFinished &&
+              productionModuleActive &&
               !queue
                 .slice(0, index)
                 .some(
@@ -273,6 +289,8 @@ export function WorkshopComponent({ isKitchen = false }: { isKitchen?: boolean }
                     <span className="mt-1 block text-[10px] uppercase tracking-wider text-neutral-500">
                       {isFinished
                         ? "Finished"
+                        : !productionModuleActive
+                          ? "Paused • module inactive"
                         : isActive
                           ? remainingMinutes === 0
                             ? "Completing this game hour"

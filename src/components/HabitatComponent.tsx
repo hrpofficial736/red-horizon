@@ -104,9 +104,9 @@ export function HabitatComponent({ instanceId }: { instanceId: string }) {
               <div className="h-2 overflow-hidden rounded bg-neutral-800">
                 <div
                   className={`h-full ${
-                    hpPercentage < 30
+                    hpPercentage < 16
                       ? "bg-red-500"
-                      : hpPercentage < 65
+                      : hpPercentage < 51
                         ? "bg-amber-500"
                         : "bg-green-500"
                   }`}

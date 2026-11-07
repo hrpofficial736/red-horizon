@@ -4,7 +4,10 @@ import {
   type ResearchCategory,
   type ResearchNode,
 } from "../game/modules/data/researchConfig";
-import { useGameStore } from "../store/useGameStore";
+import {
+  hasOperationalPower,
+  useGameStore,
+} from "../store/useGameStore";
 import borders from "../assets/Border.png";
 import { MAT_ICONS } from "../game/utils/matetialsIcons";
 import { ALL_TEXTURES } from "../game/utils/allTextures";
@@ -27,7 +30,14 @@ export function ResearchComponent() {
   const currentDay = useGameStore((state) => state.currentDay);
   const currentHour = useGameStore((state) => state.currentHour);
   const currentMinute = useGameStore((state) => state.currentMinute);
+  const powerBankCharge = useGameStore((state) => state.powerBankCharge);
+  const placedModules = useGameStore((state) => state.placedModules);
   const now = currentDay * 24 + currentHour + currentMinute / 60;
+  const researchOperational =
+    hasOperationalPower(placedModules, powerBankCharge, currentHour) &&
+    placedModules.some(
+      (module) => module.id === "researchLab" && module.active && module.hp > 0,
+    );
 
   const [selectedNode, setSelectedNode] = useState<ResearchNode | null>(null);
 
@@ -137,8 +147,18 @@ export function ResearchComponent() {
                     </button>
                   </div>
                   <div className="mt-2 flex justify-between text-[10px] text-neutral-400">
-                    <span>{index === 0 ? "PROCESSING" : "WAITING"}</span>
-                    <span>{formatRemainingTime(remaining)}</span>
+                    <span>
+                      {!researchOperational
+                        ? "PAUSED • MODULE INACTIVE"
+                        : index === 0
+                          ? "PROCESSING"
+                          : "WAITING"}
+                    </span>
+                    <span>
+                      {formatRemainingTime(
+                        researchOperational ? remaining : 0,
+                      )}
+                    </span>
                   </div>
                 </div>
               );
