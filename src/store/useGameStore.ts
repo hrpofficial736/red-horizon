@@ -287,9 +287,9 @@ export const useGameStore = create<GameState>((set, get) => ({
   inventory: {
     iron_ore: 15,
     silicates: 15,
-    iron_plate: 25,
+    iron_plate: 35,
     glass_panel: 20,
-    electronics: 10,
+    electronics: 20,
     repair_kit: 2,
     water_filter: 0,
     air_filter: 0,

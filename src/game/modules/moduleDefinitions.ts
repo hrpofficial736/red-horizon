@@ -24,12 +24,9 @@ export const MODULES: Record<string, ModuleDef> = {
     maxIntegrity: 100,
     baseDecayRate: 4,
     powerDraw: -5, // Passive background drain
-    productionInputs: [
-      { resource: "water", amountPerTick: 1 },
-      { resource: "raw_food", amountPerTick: 1 },
-    ],
+    productionInputs: [{ resource: "water", amountPerTick: 1 }],
     maxModules: 1, // Only one habitat can be built at a time
-    moduleCapacity: 100,
+    moduleCapacity: 200,
   },
   greenhouse: {
     id: "greenhouse",
@@ -99,7 +96,7 @@ export const MODULES: Record<string, ModuleDef> = {
       { resource: "iron_plate", amount: 14 },
       { resource: "electronics", amount: 8 },
     ],
-    maxIntegrity: 180,
+    maxIntegrity: 100,
     baseDecayRate: 8, // Heavily worn down by solar particle bombardments
     powerDraw: -25, // Demands heavy baseline electrical routing to run the magnets
     maxModules: 1, // Only one radiation tower can be built at a time
