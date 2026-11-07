@@ -17,6 +17,13 @@ export const BaseStatusHUD: React.FC = () => {
   const repairKitCount = useGameStore(
     (state) => state.inventory.repair_kit || 0,
   );
+  const ironPlateCount = useGameStore(
+    (state) => state.inventory.iron_plate || 0,
+  );
+  const glassPanelCount = useGameStore(
+    (state) => state.inventory.glass_panel || 0,
+  );
+  const soupCount = useGameStore((state) => state.inventory.soup || 0);
   const powerBankCharge = useGameStore((state) => state.powerBankCharge);
   const placedModules = useGameStore((state) => state.placedModules);
   const powerBankCapacity = getPowerBankCapacity(placedModules);
@@ -86,7 +93,7 @@ export const BaseStatusHUD: React.FC = () => {
           </div>
         )}
         <div className="flex justify-between border-t border-neutral-800 pt-2 mt-2">
-          <span className="text-neutral-400">MAINTENANCE KITS:</span>
+          <span className="text-neutral-400">REPAIR KITS:</span>
           <span className="text-white font-bold">{repairKitCount} units</span>
         </div>
       </div>

@@ -3,6 +3,7 @@ import { MODULES } from "../game/modules/moduleDefinitions";
 import { MAT_ICONS } from "../game/utils/matetialsIcons";
 import {
   hasOperationalPower,
+  isCriticalPowerModule,
   useGameStore,
 } from "../store/useGameStore";
 import { RepairButton } from "./RepairButton";
@@ -56,7 +57,9 @@ export function HabitatComponent({ instanceId }: { instanceId: string }) {
   );
   const displayedHp = Math.round(placedModule.hp);
   const isActive =
-    placedModule.active && placedModule.hp > 0 && hasPowerSurplus;
+    placedModule.active &&
+    placedModule.hp > 0 &&
+    (isCriticalPowerModule(placedModule.id) || hasPowerSurplus);
   const hasProduction =
     (config.productionInputs?.length ?? 0) > 0 ||
     (config.productionOutputs?.length ?? 0) > 0;

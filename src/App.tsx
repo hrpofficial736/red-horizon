@@ -14,6 +14,7 @@ import { GreenhouseComponent } from "./components/GreenhouseComponent";
 import { ResearchComponent } from "./components/ResearchComponent";
 import { HabitatComponent } from "./components/HabitatComponent";
 import { RadiationTowerPanel } from "./components/RadiationTowerPanel";
+import { SleepTransitionOverlay } from "./components/SleepTransitionOverlay";
 
 type ActiveTab = "none" | "build" | "inventory" | "research" | "logs";
 type CraftingModuleId = "workshop" | "kitchen" | "greenhouse";
@@ -121,6 +122,7 @@ function App() {
 
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-[#1a0f0a] select-none text-white">
+      <SleepTransitionOverlay />
       {/* 🎮 LAYER 1: PHASER CANVAS BACKGROUND CONTAINER (Lowest Depth) */}
       <div
         className={`absolute inset-0 z-0 ${

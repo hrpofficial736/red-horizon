@@ -10,6 +10,9 @@ const FAINT_HOUR = 23;
 export const DAYLIGHT_START_HOUR = 7;
 export const DAYLIGHT_END_HOUR = 19;
 const POWER_BANK_CHARGE_RATE = 25;
+const CRITICAL_POWER_MODULE_IDS = new Set(["habitat", "life_support"]);
+export const isCriticalPowerModule = (moduleId: string) =>
+  CRITICAL_POWER_MODULE_IDS.has(moduleId);
 
 const FOOD_FATIGUE_RECOVERY = {
   soup: 5,
@@ -86,7 +89,9 @@ export const hasOperationalPower = (
       module.id === "battery" &&
       module.hp > 0 &&
       module.active &&
-      module.powerSupplyEnabled,
+      (module.powerSupplyEnabled ||
+        currentHour < DAYLIGHT_START_HOUR ||
+        currentHour >= DAYLIGHT_END_HOUR),
   );
 
   return (
@@ -212,6 +217,7 @@ interface GameState {
     active: boolean;
     powerSupplyEnabled: boolean;
     productionPausedAt?: number;
+    powerPausedAt?: number;
   }>;
   astronautHealth: number;
   powerBankCharge: number;
@@ -223,6 +229,8 @@ interface GameState {
   isFainted: boolean;
   nextWakeHour: number;
   overtimeHours: number;
+  sleepOverlayPhase: "none" | "fadeOut" | "day" | "fadeIn";
+  sleepOverlayDay: number;
   timerIntervalId: null | ReturnType<typeof setInterval>;
   workshopQueue: CraftQueueItem[];
   kitchenQueue: CraftQueueItem[];
@@ -479,6 +487,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   isFainted: false,
   nextWakeHour: IDEAL_WAKE_HOUR,
   overtimeHours: 0,
+  sleepOverlayPhase: "none",
+  sleepOverlayDay: 1,
 
   timerIntervalId: null,
   workshopQueue: [],
@@ -1058,6 +1068,7 @@ export const useGameStore = create<GameState>((set, get) => ({
             (get().currentHour >= DAYLIGHT_START_HOUR &&
               get().currentHour < DAYLIGHT_END_HOUR),
           powerSupplyEnabled: false,
+          powerPausedAt: undefined,
         },
       ],
     }));
@@ -1083,6 +1094,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       );
       if (!module || module.hp <= 0) return state;
       if ((MODULES[module.id]?.powerDraw ?? 0) > 0) return state;
+      if (isCriticalPowerModule(module.id)) return state;
 
       const active = !module.active;
       if (
@@ -1111,6 +1123,7 @@ export const useGameStore = create<GameState>((set, get) => ({
                 ...candidate,
                 active,
                 productionPausedAt: active ? undefined : now,
+                powerPausedAt: active ? undefined : candidate.powerPausedAt,
               }
             : candidate,
         ),
@@ -1158,13 +1171,23 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   togglePowerSupply: (instanceId) => {
-    set((state) => ({
-      placedModules: state.placedModules.map((module) =>
-        module.instanceId === instanceId && module.id === "battery"
-          ? { ...module, powerSupplyEnabled: !module.powerSupplyEnabled }
-          : module,
-      ),
-    }));
+    set((state) => {
+      const isNight =
+        state.currentHour < DAYLIGHT_START_HOUR ||
+        state.currentHour >= DAYLIGHT_END_HOUR;
+      return {
+        placedModules: state.placedModules.map((module) =>
+          module.instanceId === instanceId && module.id === "battery"
+            ? {
+                ...module,
+                powerSupplyEnabled: isNight
+                  ? true
+                  : !module.powerSupplyEnabled,
+              }
+            : module,
+        ),
+      };
+    });
   },
 
   // 6. Core Work Shifts Loop
@@ -1214,55 +1237,69 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
 
     stopPassiveTimer();
+    const targetDay = get().currentDay + 1;
+    set({
+      sleepOverlayPhase: "fadeOut",
+      sleepOverlayDay: targetDay,
+    });
     const overtimeHours =
       currentHour >= IDEAL_SLEEP_HOUR
         ? currentHour - IDEAL_SLEEP_HOUR
         : currentHour + 24 - IDEAL_SLEEP_HOUR;
     const sleepHours = (24 - currentHour + IDEAL_WAKE_HOUR) % 24 || 24;
-    get().advanceHour(sleepHours, { pauseWorkshop: true });
+    window.setTimeout(() => {
+      get().advanceHour(sleepHours, { pauseWorkshop: true });
 
-    set((state) => {
-      const selectedFood = FOOD_PRIORITY.find(
-        (food) => (state.inventory[food] || 0) > 0,
-      );
-      const nextWakeHour = IDEAL_WAKE_HOUR + overtimeHours;
-      const nextInventory = { ...state.inventory };
+      set((state) => {
+        const selectedFood = FOOD_PRIORITY.find(
+          (food) => (state.inventory[food] || 0) > 0,
+        );
+        const nextWakeHour = IDEAL_WAKE_HOUR + overtimeHours;
+        const nextInventory = { ...state.inventory };
 
-      if (selectedFood) {
-        nextInventory[selectedFood] -= 1;
-      }
+        if (selectedFood) {
+          nextInventory[selectedFood] -= 1;
+        }
 
-      return {
-        currentHour: nextWakeHour,
-        currentMinute: 0,
-        nextWakeHour,
-        overtimeHours,
-        inventory: nextInventory,
-        fatigueLevel: selectedFood
-          ? Math.max(
-              0,
-              state.fatigueLevel - FOOD_FATIGUE_RECOVERY[selectedFood],
-            )
-          : state.fatigueLevel,
-        astronautHealth: selectedFood
-          ? Math.min(
-              100,
-              state.astronautHealth + FOOD_HEALTH_RECOVERY[selectedFood],
-            )
-          : Math.max(0, state.astronautHealth - NO_FOOD_HEALTH_LOSS),
-        gameLogs: [
-          ...state.gameLogs,
-          selectedFood
-            ? `🍽️ Night meal: ${selectedFood.replace("_", " ")} consumed.`
-            : "🚨 No meal available. Astronaut health decreased.",
-          overtimeHours > 0
-            ? `😴 Recovery delayed by ${overtimeHours} overtime hour${overtimeHours === 1 ? "" : "s"}. Wake time: ${String(nextWakeHour).padStart(2, "0")}:00.`
-            : "😴 Optimal sleep cycle complete. Wake time: 07:00.",
-        ],
-      };
-    });
+        return {
+          currentHour: nextWakeHour,
+          currentMinute: 0,
+          nextWakeHour,
+          overtimeHours,
+          inventory: nextInventory,
+          fatigueLevel: selectedFood
+            ? Math.max(
+                0,
+                state.fatigueLevel - FOOD_FATIGUE_RECOVERY[selectedFood],
+              )
+            : state.fatigueLevel,
+          astronautHealth: selectedFood
+            ? Math.min(
+                100,
+                state.astronautHealth + FOOD_HEALTH_RECOVERY[selectedFood],
+              )
+            : Math.max(0, state.astronautHealth - NO_FOOD_HEALTH_LOSS),
+          sleepOverlayPhase: "day",
+          gameLogs: [
+            ...state.gameLogs,
+            selectedFood
+              ? `🍽️ Night meal: ${selectedFood.replace("_", " ")} consumed.`
+              : "🚨 No meal available. Astronaut health decreased.",
+            overtimeHours > 0
+              ? `😴 Recovery delayed by ${overtimeHours} overtime hour${overtimeHours === 1 ? "" : "s"}. Wake time: ${String(nextWakeHour).padStart(2, "0")}:00.`
+              : "😴 Optimal sleep cycle complete. Wake time: 07:00.",
+          ],
+        };
+      });
 
-    startPassiveTimer();
+      window.setTimeout(() => {
+        set({ sleepOverlayPhase: "fadeIn" });
+        window.setTimeout(() => {
+          set({ sleepOverlayPhase: "none" });
+          startPassiveTimer();
+        }, 1000);
+      }, 2500);
+    }, 1000);
     return true;
   },
 
@@ -1454,7 +1491,20 @@ export const useGameStore = create<GameState>((set, get) => ({
     set((state) => ({
       placedModules: state.placedModules.map((module) =>
         module.instanceId === instanceId
-          ? { ...module, hp: config.maxIntegrity }
+          ? {
+              ...module,
+              hp: config.maxIntegrity,
+              active:
+                config.powerDraw > 0
+                  ? state.currentHour >= DAYLIGHT_START_HOUR &&
+                    state.currentHour < DAYLIGHT_END_HOUR
+                  : true,
+              powerSupplyEnabled:
+                module.id === "battery"
+                  ? state.currentHour < DAYLIGHT_START_HOUR ||
+                    state.currentHour >= DAYLIGHT_END_HOUR
+                  : module.powerSupplyEnabled,
+            }
           : module,
       ),
       repairJobs: Object.fromEntries(
@@ -1672,10 +1722,13 @@ export const useGameStore = create<GameState>((set, get) => ({
           return {
             ...mod,
             hp,
-            active:
-              hp < config.maxIntegrity * (REPAIR_CRITICAL_HEALTH / 100)
-                ? false
-                : mod.active,
+            active: hp <= 0
+              ? false
+              : isCriticalPowerModule(mod.id)
+                ? true
+                : hp < config.maxIntegrity * (REPAIR_CRITICAL_HEALTH / 100)
+                  ? false
+                  : mod.active,
           };
         };
 
@@ -1707,19 +1760,82 @@ export const useGameStore = create<GameState>((set, get) => ({
           !isDaylight || nextHour === DAYLIGHT_START_HOUR;
         updatedModules = updatedModules.map((mod) => {
           const config = MODULES[mod.id];
-          return config?.powerDraw > 0
-            ? { ...mod, active: mod.hp > 0 && isDaylight }
-            : mod;
+          if (config?.powerDraw > 0) {
+            return { ...mod, active: mod.hp > 0 && isDaylight };
+          }
+          if (mod.id === "battery") {
+            return {
+              ...mod,
+              active: mod.hp > 0,
+              powerSupplyEnabled: !isDaylight,
+            };
+          }
+          if (!isDaylight && !isCriticalPowerModule(mod.id)) {
+            return {
+              ...mod,
+              active: false,
+              powerPausedAt: mod.powerPausedAt ?? getGameHour(nextDay, nextHour),
+              productionPausedAt:
+                mod.productionPausedAt ??
+                getGameHour(nextDay, nextHour),
+            };
+          }
+          return mod;
         });
         if (isDaylight && nextHour === DAYLIGHT_START_HOUR) {
           updatedModules = updatedModules.map((mod) =>
             mod.id === "battery"
-                ? { ...mod, powerSupplyEnabled: false }
-                : mod,
+              ? { ...mod, powerSupplyEnabled: false }
+              : mod,
           );
         }
 
         const elapsedHour = getGameHour(nextDay, nextHour);
+        if (isDaylight) {
+          updatedModules = updatedModules.map((mod) => {
+            if (
+              mod.powerPausedAt === undefined ||
+              mod.hp <= 0 ||
+              isCriticalPowerModule(mod.id)
+            ) {
+              return mod;
+            }
+
+            const elapsedPausedHours = Math.max(
+              0,
+              elapsedHour - mod.powerPausedAt,
+            );
+            if (elapsedPausedHours > 0) {
+              if (mod.id === "workshop") {
+                workshopQueue = shiftPendingQueue(
+                  workshopQueue,
+                  elapsedPausedHours,
+                );
+              } else if (mod.id === "kitchen") {
+                kitchenQueue = shiftPendingQueue(
+                  kitchenQueue,
+                  elapsedPausedHours,
+                );
+              } else if (mod.id === "greenhouse") {
+                greenhouseQueue = shiftPendingQueue(
+                  greenhouseQueue,
+                  elapsedPausedHours,
+                );
+              } else if (mod.id === "researchLab") {
+                researchQueue = shiftPendingResearch(
+                  researchQueue,
+                  elapsedPausedHours,
+                );
+              }
+            }
+            return {
+              ...mod,
+              active: true,
+              powerPausedAt: undefined,
+              productionPausedAt: undefined,
+            };
+          });
+        }
         const workshopOperational = isProductionOperational(
           updatedModules,
           powerBankCharge,
@@ -1788,6 +1904,35 @@ export const useGameStore = create<GameState>((set, get) => ({
           if (config.id === "battery") activeBatteryCount += 1;
         });
 
+        const hasActiveBattery = updatedModules.some(
+          (mod) => mod.id === "battery" && mod.hp > 0 && mod.active,
+        );
+        const availablePower =
+          totalPowerGenerated + (hasActiveBattery ? powerBankCharge : 0);
+        if (totalPowerConsumed > availablePower) {
+          updatedModules = updatedModules.map((mod) => {
+            const config = MODULES[mod.id];
+            if (
+              !config ||
+              config.powerDraw >= 0 ||
+              !mod.active ||
+              mod.hp <= 0 ||
+              isCriticalPowerModule(mod.id) ||
+              totalPowerConsumed <= availablePower
+            ) {
+              return mod;
+            }
+
+            totalPowerConsumed -= Math.abs(config.powerDraw);
+            return {
+              ...mod,
+              active: false,
+              powerPausedAt: elapsedHour,
+              productionPausedAt: mod.productionPausedAt ?? elapsedHour,
+            };
+          });
+        }
+
         const powerBankCapacity = getPowerBankCapacity(updatedModules);
         powerBankCharge = Math.min(powerBankCharge, powerBankCapacity);
         const powerDeficit = Math.max(
@@ -1821,20 +1966,6 @@ export const useGameStore = create<GameState>((set, get) => ({
         }
         const hasPowerSurplus =
           totalPowerGenerated + batteryDischarge >= totalPowerConsumed;
-        if (!isDaylight && !hasPowerSurplus) {
-          updatedModules = updatedModules.map((mod) => {
-            const config = MODULES[mod.id];
-            return config?.powerDraw < 0 && mod.hp > 0
-              ? {
-                  ...mod,
-                  active: false,
-                  productionPausedAt:
-                    mod.productionPausedAt ?? elapsedHour,
-                }
-              : mod;
-          });
-        }
-
         // --- PHASE 2: RESOURCE TRANSFORMATION & CONSUMPTION COMPUTATIONS ---
         updatedModules.forEach((mod) => {
           if (mod.hp <= 0 || !mod.active) return;

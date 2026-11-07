@@ -2,6 +2,7 @@ import { MODULES } from "../game/modules/moduleDefinitions";
 import { MAT_ICONS } from "../game/utils/matetialsIcons";
 import {
   hasOperationalPower,
+  isCriticalPowerModule,
   useGameStore,
 } from "../store/useGameStore";
 import { RepairButton } from "./RepairButton";
@@ -46,9 +47,12 @@ export function StatsComponent() {
             );
             const displayedHp = Math.round(module.hp);
             const isPowerGenerator = config.powerDraw > 0;
-            const isActive = isPowerGenerator
-              ? module.active && module.hp > 0
-              : module.active && module.hp > 0 && hasPowerSurplus;
+            const isActive =
+              module.active &&
+              module.hp > 0 &&
+              (isPowerGenerator ||
+                isCriticalPowerModule(module.id) ||
+                hasPowerSurplus);
             const canActivate =
               module.hp > 0 &&
               (isPowerGenerator ||
@@ -62,7 +66,10 @@ export function StatsComponent() {
                   currentHour,
                 ));
             const canToggle =
-              !isPowerGenerator && module.hp > 0 && (module.active || canActivate);
+              !isPowerGenerator &&
+              !isCriticalPowerModule(module.id) &&
+              module.hp > 0 &&
+              (module.active || canActivate);
             return (
               <div
                 key={module.instanceId}
