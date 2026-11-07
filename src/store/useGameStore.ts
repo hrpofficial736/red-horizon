@@ -1605,15 +1605,6 @@ export const useGameStore = create<GameState>((set, get) => ({
       const healthModifier = 0;
       let lastRadiationWaveDay = state.lastRadiationWaveDay;
 
-      if (options?.pauseWorkshop) {
-        const workshop = state.placedModules.find(
-          (module) => module.id === "workshop" && module.hp > 0,
-        );
-        if (workshop?.active && workshop.productionPausedAt === undefined) {
-          workshopQueue = shiftPendingQueue(workshopQueue, hours);
-        }
-      }
-
       // Active environmental modifiers based on timeline narrative context rules
       const isStormActive = nextDay >= 10 && nextDay <= 18;
 
@@ -1735,39 +1726,6 @@ export const useGameStore = create<GameState>((set, get) => ({
           nextHour,
           "workshop",
         );
-        if (!workshopOperational) {
-          workshopQueue = shiftPendingQueue(workshopQueue, 1);
-        }
-        if (
-          !isProductionOperational(
-            updatedModules,
-            powerBankCharge,
-            nextHour,
-            "kitchen",
-          )
-        ) {
-          kitchenQueue = shiftPendingQueue(kitchenQueue, 1);
-        }
-        if (
-          !isProductionOperational(
-            updatedModules,
-            powerBankCharge,
-            nextHour,
-            "greenhouse",
-          )
-        ) {
-          greenhouseQueue = shiftPendingQueue(greenhouseQueue, 1);
-        }
-        if (
-          !isProductionOperational(
-            updatedModules,
-            powerBankCharge,
-            nextHour,
-            "researchLab",
-          )
-        ) {
-          researchQueue = shiftPendingResearch(researchQueue, 1);
-        }
         const completedItems = options?.pauseWorkshop || !workshopOperational
           ? []
           : workshopQueue.filter(
@@ -1867,7 +1825,12 @@ export const useGameStore = create<GameState>((set, get) => ({
           updatedModules = updatedModules.map((mod) => {
             const config = MODULES[mod.id];
             return config?.powerDraw < 0 && mod.hp > 0
-              ? { ...mod, active: false }
+              ? {
+                  ...mod,
+                  active: false,
+                  productionPausedAt:
+                    mod.productionPausedAt ?? elapsedHour,
+                }
               : mod;
           });
         }

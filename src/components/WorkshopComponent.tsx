@@ -44,6 +44,12 @@ export function WorkshopComponent({ isKitchen = false }: { isKitchen?: boolean }
   const currentHour = useGameStore((state) => state.currentHour);
   const currentMinute = useGameStore((state) => state.currentMinute);
   const currentDay = useGameStore((state) => state.currentDay);
+  const productionPausedAt = useGameStore(
+    (state) =>
+      state.placedModules.find(
+        (module) => module.id === (isKitchen ? "kitchen" : "workshop"),
+      )?.productionPausedAt,
+  );
   const productionModuleActive = useGameStore((state) =>
     hasOperationalPower(
       state.placedModules,
@@ -58,6 +64,9 @@ export function WorkshopComponent({ isKitchen = false }: { isKitchen?: boolean }
       ),
   );
   const now = currentDay * 24 * 60 + currentHour * 60 + currentMinute;
+  const progressNow = productionModuleActive
+    ? now
+    : Math.min(now, (productionPausedAt ?? now) * 60);
   const recipes = isKitchen ? KITCHEN_RECIPES : WORKSHOP_RECIPES;
   const queue = isKitchen ? kitchenQueue : workshopQueue;
   const queueRecipe = isKitchen ? queueKitchenCrafting : queueCrafting;
@@ -239,7 +248,7 @@ export function WorkshopComponent({ isKitchen = false }: { isKitchen?: boolean }
           {queue.map((item, index) => {
             const isFinished =
               item.completed ||
-              (productionModuleActive && item.completesAt * 60 <= now);
+              (productionModuleActive && item.completesAt * 60 <= progressNow);
             const isActive =
               !isFinished &&
               productionModuleActive &&
@@ -247,7 +256,7 @@ export function WorkshopComponent({ isKitchen = false }: { isKitchen?: boolean }
                 .slice(0, index)
                 .some(
                   (queued) =>
-                    !queued.completed && queued.completesAt * 60 > now,
+                    !queued.completed && queued.completesAt * 60 > progressNow,
                 );
             const totalMinutes = Math.max(
               1,
@@ -255,21 +264,20 @@ export function WorkshopComponent({ isKitchen = false }: { isKitchen?: boolean }
             );
             const remainingMinutes = Math.max(
               0,
-              Math.round(item.completesAt * 60 - now),
+              Math.round(item.completesAt * 60 - progressNow),
             );
             const progress = isFinished
               ? 100
-              : isActive
-                ? Math.min(
-                    100,
-                    Math.max(
-                      0,
-                      Math.round(
-                        ((now - item.startedAt * 60) * 100) / totalMinutes,
-                      ),
+              : Math.min(
+                  100,
+                  Math.max(
+                    0,
+                    Math.round(
+                      ((progressNow - item.startedAt * 60) * 100) /
+                        totalMinutes,
                     ),
-                  )
-                : 0;
+                  ),
+                );
             return (
               <div
                 key={item.id}

@@ -32,12 +32,18 @@ export function ResearchComponent() {
   const currentMinute = useGameStore((state) => state.currentMinute);
   const powerBankCharge = useGameStore((state) => state.powerBankCharge);
   const placedModules = useGameStore((state) => state.placedModules);
+  const productionPausedAt = placedModules.find(
+    (module) => module.id === "researchLab",
+  )?.productionPausedAt;
   const now = currentDay * 24 + currentHour + currentMinute / 60;
   const researchOperational =
     hasOperationalPower(placedModules, powerBankCharge, currentHour) &&
     placedModules.some(
       (module) => module.id === "researchLab" && module.active && module.hp > 0,
     );
+  const progressNow = researchOperational
+    ? now
+    : Math.min(now, productionPausedAt ?? now);
 
   const [selectedNode, setSelectedNode] = useState<ResearchNode | null>(null);
 
@@ -129,7 +135,7 @@ export function ResearchComponent() {
           <div className="flex flex-col gap-2 overflow-y-auto">
             {researchQueue.map((item, index) => {
               const remaining =
-                index === 0 ? item.completesAt - now : item.completesAt - now;
+                item.completesAt - progressNow;
               return (
                 <div
                   key={item.id}
@@ -156,7 +162,7 @@ export function ResearchComponent() {
                     </span>
                     <span>
                       {formatRemainingTime(
-                        researchOperational ? remaining : 0,
+                        Math.max(0, remaining),
                       )}
                     </span>
                   </div>

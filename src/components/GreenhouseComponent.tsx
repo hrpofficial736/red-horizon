@@ -39,12 +39,18 @@ export function GreenhouseComponent() {
   const currentMinute = useGameStore((state) => state.currentMinute);
   const powerBankCharge = useGameStore((state) => state.powerBankCharge);
   const placedModules = useGameStore((state) => state.placedModules);
+  const productionPausedAt = placedModules.find(
+    (module) => module.id === "greenhouse",
+  )?.productionPausedAt;
   const greenhouseOperational =
     hasOperationalPower(placedModules, powerBankCharge, currentHour) &&
     placedModules.some(
       (module) => module.id === "greenhouse" && module.active && module.hp > 0,
     );
   const now = currentDay * 24 * 60 + currentHour * 60 + currentMinute;
+  const progressNow = greenhouseOperational
+    ? now
+    : Math.min(now, (productionPausedAt ?? now) * 60);
   const [selectedRecipe, setSelectedRecipe] = useState<CraftingRecipe | null>(
     null,
   );
@@ -202,7 +208,7 @@ export function GreenhouseComponent() {
           {greenhouseQueue.map((item, index) => {
             const isFinished =
               item.completed ||
-              (greenhouseOperational && item.completesAt * 60 <= now);
+              (greenhouseOperational && item.completesAt * 60 <= progressNow);
             const isActive =
               !isFinished &&
               greenhouseOperational &&
@@ -210,7 +216,7 @@ export function GreenhouseComponent() {
                 .slice(0, index)
                 .some(
                   (queued) =>
-                    !queued.completed && queued.completesAt * 60 > now,
+                    !queued.completed && queued.completesAt * 60 > progressNow,
                 );
             const totalMinutes = Math.max(
               1,
@@ -218,20 +224,19 @@ export function GreenhouseComponent() {
             );
             const progress = isFinished
               ? 100
-              : isActive
-                ? Math.min(
-                    100,
-                    Math.max(
-                      0,
-                      Math.round(
-                        ((now - item.startedAt * 60) * 100) / totalMinutes,
-                      ),
+              : Math.min(
+                  100,
+                  Math.max(
+                    0,
+                    Math.round(
+                      ((progressNow - item.startedAt * 60) * 100) /
+                        totalMinutes,
                     ),
-                  )
-                : 0;
+                  ),
+                );
             const remainingMinutes = Math.max(
               0,
-              Math.round(item.completesAt * 60 - now),
+              Math.round(item.completesAt * 60 - progressNow),
             );
             return (
               <div
