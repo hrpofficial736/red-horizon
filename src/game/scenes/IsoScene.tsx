@@ -77,6 +77,10 @@ export class IsoScene extends Phaser.Scene {
     // );
     this.tryPlace(9, 8);
     this.selected = null;
+
+    this.select("life_support");
+    this.tryPlace(11, 8);
+    this.selected = null;
   }
 
   // ---- Isometric math ----------------------------------------------------------

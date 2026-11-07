@@ -64,9 +64,9 @@ The final sequence is:
 > The mission clock begins. Build enough infrastructure to survive, then
 > recover a sample worthy of bringing home.
 
-### 3.2 Current starting inventory
+### 3.2 Current and recommended starting inventory
 
-These are the current quantities defined by the game state:
+These are the quantities currently defined by the game state:
 
 | Item | Starting quantity | Initial use |
 |---|---:|---|
@@ -88,27 +88,67 @@ These are the current quantities defined by the game state:
 `Mars Sample` is a planned resource and must be added to the inventory model.
 It should not be available from the starting inventory or ordinary crafting.
 
+#### Recommended smooth-start values
+
+The current inventory is enough to place the first power, water, and mining
+modules, but it leaves only `1 Electronics` after Solar Array, Battery, Water
+Extractor, and Regolith Extractor construction. That is too tight for a
+smooth opening because the player cannot absorb an early repair, build the
+Workshop, or recover from a power mistake.
+
+The following values are the recommended launch balance. They assume Habitat
+and Life Support are prebuilt and their construction costs are not deducted:
+
+| Item | Recommended quantity | Reason |
+|---|---:|---|
+| Iron Ore | 24 | Early Workshop conversion and reserve refining |
+| Silicates | 24 | Early glass/electronics production and first research |
+| Iron Plate | 42 | Solar, Battery, Water, Drill, Workshop, and repair reserve |
+| Glass Panel | 24 | Early power, Life Support reserve, Kitchen, and Greenhouse |
+| Electronics | 30 | Early power chain, Workshop, Lab, and emergency reserve |
+| Repair Kit | 3 | One early repair plus two reserved for radiation preparation |
+| Water Filter | 0 | Crafted only when the filter system is introduced |
+| Air Filter | 0 | Crafted only when the filter system is introduced |
+| Water | 18 | Life Support buffer, hydration, and first greenhouse queues |
+| Raw Food | 8 | Prevents immediate starvation while Greenhouse is built |
+| Soup | 2 | Initial fatigue recovery and one emergency reserve |
+| Meal | 0 | Unlocked through Meal Preparation research |
+| Good Meal | 0 | Unlocked through Nutritional Optimization research |
+| Mars Sample | 0 | Must only be created by the Sample Extractor |
+
+The first four player-built modules cost `19 Iron Plate`, `4 Glass Panel`, and
+`13 Electronics`. The recommended values leave enough material for the
+Workshop and at least one early repair without requiring perfect play.
+Starting values should not be increased to cover every later module; mining
+and Workshop production must remain meaningful.
+
 ### 3.3 Initial placed modules
 
-The game starts with one prebuilt and fully repaired Habitat. The Habitat's
-construction cost is not deducted from the starting inventory. It is the
-engineer's completed shelter from the intro cutscene.
+The game starts with two prebuilt and fully repaired critical modules:
+
+1. Habitat — `100/100 HP`, active.
+2. Life Support — `100/100 HP`, active.
+
+Their construction costs are not deducted from the starting inventory. The
+engineer completed both systems before the intro cutscene ends. Life Support is
+the primary survival system and is never optional in the mission plan.
 
 Recommended first placement order:
 
-1. Solar Array
-2. Battery
-3. Water Extractor
-4. Regolith Extractor
-5. Workshop
-6. Kitchen
-7. Greenhouse
-8. Research Lab
+1. Solar Array 1
+2. Solar Array 2
+3. Battery
+4. Water Extractor
+5. Regolith Extractor
+6. Workshop
+7. Research Lab
+8. Kitchen
+9. Greenhouse
 
-The Habitat should start with 100/100 HP, be active, and be represented in
-`placedModules` before the first game tick. The player should not be forced to
-build every recommended module on a single day. The order is a priority guide
-that protects survival before expansion.
+Habitat and Life Support should be represented in `placedModules` before the
+first game tick. The player should not be forced to build every recommended
+module on a single day. The order is a priority guide that protects survival
+before expansion.
 
 ## 4. Module Priority and Resource Plan
 
@@ -116,16 +156,47 @@ that protects survival before expansion.
 
 | Priority | Module | Why it matters | Current build cost |
 |---:|---|---|---|
-| 1 | Solar Array | Generates 25 power during daylight | 2 Iron Plate, 4 Glass Panel, 2 Electronics |
-| 2 | Battery | Stores power for night operations | 6 Iron Plate, 6 Electronics |
-| 3 | Water Extractor | Produces 2 Water per production tick | 5 Iron Plate, 2 Electronics |
-| 4 | Regolith Extractor | Produces 3 Iron Ore and 2 Silicates per tick | 6 Iron Plate, 3 Electronics |
-| 5 | Workshop | Converts raw materials into construction supplies | 10 Iron Plate, 5 Electronics |
-| 6 | Kitchen | Converts Raw Food into fatigue recovery meals | 6 Iron Plate, 2 Glass Panel, 2 Electronics |
-| 7 | Greenhouse | Produces food packs using Water | 4 Iron Plate, 8 Glass Panel |
+| 1 | Life Support | Main survival system; regulates air, pressure, and water circulation | Prebuilt |
+| 2 | Habitat | Provides shelter and the engineer's safe operating base | Prebuilt |
+| 3 | Solar Array | Generates 25 power during daylight for the survival grid | 2 Iron Plate, 4 Glass Panel, 2 Electronics |
+| 4 | Battery | Stores power for Life Support and Habitat through the night | 6 Iron Plate, 6 Electronics |
+| 5 | Water Extractor | Produces 2 Water per production tick for Life Support and food | 5 Iron Plate, 2 Electronics |
+| 6 | Regolith Extractor | Produces 3 Iron Ore and 2 Silicates per tick | 6 Iron Plate, 3 Electronics |
+| 7 | Workshop | Converts raw materials into construction supplies | 10 Iron Plate, 5 Electronics |
 | 8 | Research Lab | Unlocks technology and mission-critical blueprints | 6 Iron Plate, 6 Glass Panel, 8 Electronics |
+| 9 | Kitchen | Converts Raw Food into fatigue recovery meals | 6 Iron Plate, 2 Glass Panel, 2 Electronics |
+| 10 | Greenhouse | Produces food packs using Water | 4 Iron Plate, 8 Glass Panel |
 
-### 4.2 Expansion priority
+### 4.2 Mandatory survival power rule
+
+Habitat and Life Support are critical modules and cannot be manually
+deactivated. They must remain active during daylight and must remain active
+overnight using Battery power. A power deficit is a failure state to resolve
+through additional Solar Arrays, Batteries, or reduced optional production; it
+must never silently switch off Habitat or Life Support.
+
+The power controller should enforce this invariant:
+
+- Daylight: Solar Arrays supply Habitat and Life Support first.
+- Night: Battery supplies Habitat and Life Support first.
+- Optional modules are disabled or paused before either critical module.
+- The player may not toggle either critical module off.
+- If the Battery cannot cover the night load, show an explicit critical power
+  warning and pause optional modules.
+
+The current power values explain why two Solar Arrays are the optimal opening:
+Habitat consumes `5`, Life Support consumes `12`, Water consumes `10`, and the
+Regolith Extractor consumes `18` power. One Solar Array generates only `25`
+power, while that first operating group would consume `45`. Two Solar Arrays
+generate `50`, leaving a daylight surplus to charge the Battery. At night,
+optional production should pause first so the Battery protects the combined
+`17` power draw of Habitat and Life Support.
+
+With the recommended starting inventory, the cost of the two-Array opening
+(`21 Iron Plate`, `8 Glass Panel`, and `15 Electronics`) is affordable and
+leaves a meaningful reserve for Water, Regolith, and the first repair.
+
+### 4.3 Expansion priority
 
 After the survival chain is online, build toward:
 
@@ -228,12 +299,13 @@ ending.
 #### Mission M01: Establish a survivable shelter
 
 - **Window:** Sol 1-2
-- **Objective:** Activate the prebuilt Habitat, then place the Solar Array,
-  Battery, and Water Extractor.
-- **Success condition:** Habitat is active, Water production has begun, and
-  the base has enough power to operate through one night.
-- **Reward:** Unlocks the normal build loop; the Habitat construction step is
-  already complete.
+- **Objective:** Verify the prebuilt Habitat and Life Support, then place the
+  Solar Array, Battery, and Water Extractor.
+- **Success condition:** Habitat and Life Support remain active, Water
+  production has begun, and the base has enough power to operate through one
+  night.
+- **Reward:** Unlocks the normal build loop; Habitat and Life Support
+  construction is already complete.
 - **Failure pressure:** Without water and power, later food and life-support
   tasks cannot be sustained.
 
@@ -250,8 +322,8 @@ ending.
 #### Mission M03: Restore fabrication
 
 - **Window:** Sol 3-6
-- **Objective:** Place the Workshop and craft Iron Plates, Glass Panels, and
-  Electronics.
+- **Objective:** Place the Workshop and Research Lab, then craft Iron Plates,
+  Glass Panels, and Electronics while keeping Life Support powered.
 - **Success condition:** Workshop operational and at least 8 Electronics
   available after construction.
 - **Priority:** Craft construction materials before optional Repair Kits.
@@ -566,19 +638,23 @@ required to implement the complete plan:
 
 1. Add `mars_sample` to `ResourceType`, inventory initialization, icons, and
    storage handling.
-2. Add the `sample_extractor` module definition and texture.
-3. Add the `research_sample_recovery` research node.
-4. Add an extraction queue/job with active-time-only progress.
-5. Add mission state, event IDs, and save-state persistence.
-6. Add radar alignment and beacon deployment interactions.
-7. Require both Radar and Mission Control Uplink for the final transmission.
-8. Add Sol 10, Sol 15, Sol 25-26, and Sol 29 cutscenes.
-9. Add the hard-fail ending when readiness is missing before Sol 29.
-10. Add the victory ending immediately when the rover arrives on Sol 25-26
+2. Start every new game with fully repaired Habitat and Life Support entries in
+   `placedModules`; do not charge their construction costs.
+3. Add the `sample_extractor` module definition and texture.
+4. Add the `research_sample_recovery` research node.
+5. Add an extraction queue/job with active-time-only progress.
+6. Enforce the critical power rule: Habitat and Life Support cannot be toggled
+   off, and Battery power is reserved for them at night.
+7. Add mission state, event IDs, and save-state persistence.
+8. Add radar alignment and beacon deployment interactions.
+9. Require both Radar and Mission Control Uplink for the final transmission.
+10. Add Sol 10, Sol 15, Sol 25-26, and Sol 29 cutscenes.
+11. Add the hard-fail ending when readiness is missing before Sol 29.
+12. Add the victory ending immediately when the rover arrives on Sol 25-26
     with the sample.
-11. Add mission HUD indicators for the next objective, deadline, sample state,
+13. Add mission HUD indicators for the next objective, deadline, sample state,
     beacon state, and rescue readiness.
-12. Add a complete Sol 1-30 playtest using the inventory and build priorities
+14. Add a complete Sol 1-30 playtest using the inventory and build priorities
     in this document.
 
 ## 11. Recommended Playtest Checkpoints
