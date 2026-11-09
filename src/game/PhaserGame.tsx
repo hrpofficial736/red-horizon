@@ -75,11 +75,13 @@ export default function PhaserGame() {
         .placedModules.find(
           (candidate) =>
             candidate.id === data.id &&
-            candidate.x === data.oldCol &&
-            candidate.y === data.oldRow,
+            candidate.x === data.oldRow &&
+            candidate.y === data.oldCol,
         );
       if (module) {
-        useGameStore.getState().moveModule(module.instanceId, data.col, data.row);
+        useGameStore
+          .getState()
+          .moveModule(module.instanceId, data.row, data.col);
       }
     };
 
