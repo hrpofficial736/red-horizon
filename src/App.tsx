@@ -15,6 +15,7 @@ import { ResearchComponent } from "./components/ResearchComponent";
 import { HabitatComponent } from "./components/HabitatComponent";
 import { RadiationTowerPanel } from "./components/RadiationTowerPanel";
 import { SleepTransitionOverlay } from "./components/SleepTransitionOverlay";
+import { UplinkComponent } from "./components/UplinkComponent";
 
 type ActiveTab = "none" | "build" | "inventory" | "research" | "logs";
 type CraftingModuleId = "workshop" | "kitchen" | "greenhouse";
@@ -31,6 +32,9 @@ function App() {
   const [habitatModule, setHabitatModule] = useState<{
     instanceId: string;
   } | null>(null);
+  const [uplinkModule, setUplinkModule] = useState<{
+    instanceId: string;
+  } | null>(null);
   const placedModules = useGameStore((state) => state.placedModules);
   const hasResearchLab = placedModules.some(
     (module) => module.id === "researchLab",
@@ -39,11 +43,13 @@ function App() {
     activeTab !== "none" ||
     showStatusModal !== null ||
     craftingModule !== null ||
-    habitatModule !== null;
+    habitatModule !== null ||
+    uplinkModule !== null;
 
   useEffect(() => {
-    (window as Window & { __tharsisOverlayOpen?: boolean }).__tharsisOverlayOpen =
-      isOverlayOpen;
+    (
+      window as Window & { __tharsisOverlayOpen?: boolean }
+    ).__tharsisOverlayOpen = isOverlayOpen;
 
     return () => {
       (
@@ -66,6 +72,7 @@ function App() {
     setShowStatusModal(null);
     setCraftingModule(null);
     setHabitatModule(null);
+    setUplinkModule(null);
     setActiveTab(activeTab === tab ? "none" : tab);
   };
 
@@ -82,6 +89,14 @@ function App() {
         setShowStatusModal(null);
         setCraftingModule(null);
         setHabitatModule({ instanceId: e.detail.instanceId });
+        setActiveTab("none");
+        return;
+      }
+      if (e.detail.id === "communication") {
+        setShowStatusModal(null);
+        setCraftingModule(null);
+        setHabitatModule(null);
+        setUplinkModule({ instanceId: e.detail.instanceId });
         setActiveTab("none");
         return;
       }
@@ -315,6 +330,15 @@ function App() {
           </OverlayLayout>
         )}
 
+        {uplinkModule && (
+          <UplinkComponent
+            hasRadar={placedModules.some(
+              (module) => module.id === "radar" && module.active && module.hp > 0,
+            )}
+            onClose={() => setUplinkModule(null)}
+          />
+        )}
+
         {craftingModule && (
           <OverlayLayout
             title={`MODULE ${craftingModule.id.toUpperCase()} // ${craftingModule.id.toUpperCase()}`}
@@ -342,55 +366,56 @@ function App() {
               }))}
           >
             {craftingModule.id === "workshop" && <WorkshopComponent />}
-            {craftingModule.id === "kitchen" && (
-              <WorkshopComponent isKitchen />
-            )}
-            {craftingModule.id === "greenhouse" && (
-              <GreenhouseComponent />
-            )}
+            {craftingModule.id === "kitchen" && <WorkshopComponent isKitchen />}
+            {craftingModule.id === "greenhouse" && <GreenhouseComponent />}
           </OverlayLayout>
         )}
 
         {/* 🧭 HUD BOTTOM-CENTER: TABS DIRECTORY BAR MENU NAVIGATION */}
-        <div className="absolute bottom-6 left-1/2 z-[60] -translate-x-1/2 bg-neutral-950/90 border border-neutral-800 p-2 rounded-full flex gap-2 backdrop-blur shadow-xl pointer-events-auto">
-          {(["build", "inventory", ...(hasResearchLab ? ["research"] : []), "logs"] as const).map(
-            (tab) => (
-              <button
-                key={tab}
-                onClick={() => selectTab(tab)}
-                className={`px-5 py-3 rounded-full text-xs font-bold tracking-wider uppercase transition-all duration-150 cursor-pointer ${
-                  activeTab === tab
-                    ? "bg-white text-black shadow-lg scale-105 font-bold"
-                    : "text-neutral-400 hover:text-white hover:bg-neutral-900"
-                }`}
-              >
-                {tab === "build" && (
-                  <span className="flex items-center gap-2">
-                    <Wrench size={16} />
-                    Build
-                  </span>
-                )}
-                {tab === "inventory" && (
-                  <span className="flex items-center gap-2">
-                    <CirclePile size={16} />
-                    Inventory
-                  </span>
-                )}
-                {tab === "research" && (
-                  <span className="flex items-center gap-2">
-                    <Microscope size={16} />
-                    Research
-                  </span>
-                )}
-                {tab === "logs" && (
-                  <span className="flex items-center gap-2">
-                    <SatelliteDish size={16} />
-                    Logs
-                  </span>
-                )}
-              </button>
-            ),
-          )}
+        <div className="absolute bottom-6 left-1/2 z-60 -translate-x-1/2 bg-neutral-950/90 border border-neutral-800 p-2 rounded-full flex gap-2 backdrop-blur shadow-xl pointer-events-auto">
+          {(
+            [
+              "build",
+              "inventory",
+              ...(hasResearchLab ? ["research"] : []),
+              "logs",
+            ] as const
+          ).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => selectTab(tab as ActiveTab)}
+              className={`px-5 py-3 rounded-full text-xs font-bold tracking-wider uppercase transition-all duration-150 cursor-pointer ${
+                activeTab === tab
+                  ? "bg-white text-black shadow-lg scale-105 font-bold"
+                  : "text-neutral-400 hover:text-white hover:bg-neutral-900"
+              }`}
+            >
+              {tab === "build" && (
+                <span className="flex items-center gap-2">
+                  <Wrench size={16} />
+                  Build
+                </span>
+              )}
+              {tab === "inventory" && (
+                <span className="flex items-center gap-2">
+                  <CirclePile size={16} />
+                  Inventory
+                </span>
+              )}
+              {tab === "research" && (
+                <span className="flex items-center gap-2">
+                  <Microscope size={16} />
+                  Research
+                </span>
+              )}
+              {tab === "logs" && (
+                <span className="flex items-center gap-2">
+                  <SatelliteDish size={16} />
+                  Logs
+                </span>
+              )}
+            </button>
+          ))}
         </div>
       </div>
     </div>
