@@ -14,7 +14,8 @@ import radiation_tower from "../../assets/images/M_RadiationTower.png";
 import drill from "../../assets/images/M_MaterialExtractor.png";
 import battery from "../../assets/images/M_PowerStation.png";
 import kitchen from "../../assets/images/M_Kitchen.png";
-import sampleExtractor from "../../assets/images/M_SampleExt.webp";
+import sample_extractor from "../../assets/images/M_SampleExt.png";
+import beacon from "../../assets/images/M_Beacon.png";
 
 export const TEXTURE_IMPORTS: Record<string, string> = {
   habitat: habitat,
@@ -33,5 +34,6 @@ export const TEXTURE_IMPORTS: Record<string, string> = {
   drill: drill,
   battery: battery,
   kitchen: kitchen,
-  sample_extractor: sampleExtractor,
+  sample_extractor: sample_extractor,
+  beacon: beacon,
 };

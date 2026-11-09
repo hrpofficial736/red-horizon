@@ -273,6 +273,7 @@ interface GameState {
   processResearchQueue: () => void;
   unlockModuleBlueprint: (moduleId: string) => void;
   buildModule: (moduleId: string, gridX: number, gridY: number) => boolean;
+  moveModule: (instanceId: string, gridX: number, gridY: number) => boolean;
   toggleModule: (instanceId: string) => void;
   togglePowerSupply: (instanceId: string) => void;
 
@@ -1100,6 +1101,22 @@ export const useGameStore = create<GameState>((set, get) => ({
         detail: { moduleId, gridX, gridY, instanceId },
       }),
     );
+    return true;
+  },
+
+  moveModule: (instanceId, gridX, gridY) => {
+    const module = get().placedModules.find(
+      (candidate) => candidate.instanceId === instanceId,
+    );
+    if (!module) return false;
+
+    set((state) => ({
+      placedModules: state.placedModules.map((candidate) =>
+        candidate.instanceId === instanceId
+          ? { ...candidate, x: gridX, y: gridY }
+          : candidate,
+      ),
+    }));
     return true;
   },
 

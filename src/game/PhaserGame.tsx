@@ -63,6 +63,49 @@ export default function PhaserGame() {
 
     game.events.on("module-placed", handleModulePlaced);
 
+    const handleModuleMoved = (data: {
+      id: string;
+      oldCol: number;
+      oldRow: number;
+      col: number;
+      row: number;
+    }) => {
+      const module = useGameStore
+        .getState()
+        .placedModules.find(
+          (candidate) =>
+            candidate.id === data.id &&
+            candidate.x === data.oldRow &&
+            candidate.y === data.oldCol,
+        );
+      if (module) {
+        useGameStore
+          .getState()
+          .moveModule(module.instanceId, data.row, data.col);
+      }
+    };
+
+    game.events.on("module-moved", handleModuleMoved);
+
+    const handleModuleMoveRequested = (data: {
+      uid: number;
+      id: string;
+      col: number;
+      row: number;
+    }) => {
+      window.dispatchEvent(
+        new CustomEvent("PHASER_MODULE_MOVE_REQUESTED", { detail: data }),
+      );
+    };
+
+    game.events.on("module-move-requested", handleModuleMoveRequested);
+
+    const handleBeginModuleMove = (event: Event) => {
+      const data = (event as CustomEvent<{ uid: number }>).detail;
+      game.events.emit("begin-module-move", data.uid);
+    };
+    window.addEventListener("PHASER_BEGIN_MODULE_MOVE", handleBeginModuleMove);
+
     const handleModuleClicked = (data: {
       uid: number;
       id: string;
@@ -106,6 +149,12 @@ export default function PhaserGame() {
     // Cleanup also makes React StrictMode (double-mount in dev) safe
     return () => {
       game.events.off("module-placed", handleModulePlaced);
+      game.events.off("module-moved", handleModuleMoved);
+      game.events.off("module-move-requested", handleModuleMoveRequested);
+      window.removeEventListener(
+        "PHASER_BEGIN_MODULE_MOVE",
+        handleBeginModuleMove,
+      );
       game.events.off("module-clicked", handleModuleClicked);
       game.events.off("tile-click", onTile);
       (window as any).phaserGameInstance = null;

@@ -54,7 +54,7 @@ export function SleepTransitionOverlay() {
               style={{ height: `${countdownFill}%` }}
             />
           </div>
-          <div className="flex flex-row min-w-[44px] bg-gray-50/10 h-10 items-center justify-center rounded-tr-xl rounded-br-xl">
+          <div className="flex flex-row min-w-44 bg-gray-50/10 h-10 items-center justify-center rounded-tr-xl rounded-br-xl">
             <p className="text-lg font-bold leading-none">
               {daysUntilRadiation}
             </p>
