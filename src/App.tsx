@@ -12,20 +12,15 @@ import { WorkshopComponent } from "./components/WorkshopComponent";
 import { GreenhouseComponent } from "./components/GreenhouseComponent";
 import { ResearchComponent } from "./components/ResearchComponent";
 import { HabitatComponent } from "./components/HabitatComponent";
-import { RadiationTowerPanel } from "./components/RadiationTowerPanel";
 import { SleepTransitionOverlay } from "./components/SleepTransitionOverlay";
 import { UplinkComponent } from "./components/UplinkComponent";
 
 type ActiveTab = "none" | "build" | "inventory" | "research" | "logs";
-type CraftingModuleId =
-  | "workshop"
-  | "kitchen"
-  | "greenhouse"
-  | "sample_extractor";
+type CraftingModuleId = "workshop" | "kitchen" | "greenhouse";
 
 function App() {
-    const [activeTab, setActiveTab] = useState<ActiveTab>("none");
-    const gameLogs = useGameStore((state) => state.gameLogs);
+  const [activeTab, setActiveTab] = useState<ActiveTab>("none");
+  const gameLogs = useGameStore((state) => state.gameLogs);
 
   const [showStatusModal, setShowStatusModal] = useState<any>(null);
   const [moveRequest, setMoveRequest] = useState<{
@@ -69,24 +64,19 @@ function App() {
 
   const startPassiveTimer = useGameStore((state) => state.startPassiveTimer);
   const stopPassiveTimer = useGameStore((state) => state.stopPassiveTimer);
-  const startActiveRepairLoop = useGameStore(
-    (state) => state.startActiveRepairLoop,
-  );
-  const stopActiveRepairLoop = useGameStore(
-    (state) => state.stopActiveRepairLoop,
-  );
-
-  const closeTab = () => setActiveTab("none");
-  const selectTab = (tab: ActiveTab) => {
+  const closeTab = () => {
     setShowStatusModal(null);
+    setActiveTab("none");
+  };
+  const selectTab = (tab: ActiveTab) => {
     setCraftingModule(null);
     setHabitatModule(null);
     setUplinkModule(null);
     setActiveTab(activeTab === tab ? "none" : tab);
   };
 
-    const startPassiveTimer = useGameStore((state) => state.startPassiveTimer);
-    const stopPassiveTimer = useGameStore((state) => state.stopPassiveTimer);
+  useEffect(() => {
+    startPassiveTimer(); // Automatically starts ticking 1 game hour every 5 seconds
 
     // Safely clears the interval timer if the user refreshes or hot-reloads during development
     return () => stopPassiveTimer();
@@ -95,14 +85,12 @@ function App() {
   useEffect(() => {
     const triggerPopupOverlay = (e: any) => {
       if (e.detail.id === "habitat") {
-        setShowStatusModal(null);
         setCraftingModule(null);
         setHabitatModule({ instanceId: e.detail.instanceId });
         setActiveTab("none");
         return;
       }
       if (e.detail.id === "communication") {
-        setShowStatusModal(null);
         setCraftingModule(null);
         setHabitatModule(null);
         setUplinkModule({ instanceId: e.detail.instanceId });
@@ -110,28 +98,31 @@ function App() {
         return;
       }
       if (e.detail.id === "workshop") {
-        setShowStatusModal(null);
         setActiveTab("none");
         setCraftingModule(e.detail);
         return;
       }
       if (e.detail.id === "greenhouse") {
-        setShowStatusModal(null);
         setActiveTab("none");
         setCraftingModule(e.detail);
         return;
       }
       if (e.detail.id === "kitchen") {
-        setShowStatusModal(null);
         setActiveTab("none");
         setCraftingModule(e.detail);
         return;
       }
+       if (e.detail.id === "sample_extractor") {
+                setShowStatusModal(null);
+                setActiveTab("none");
+                setCraftingModule(e.detail);
+                return;
+            }
       if (e.detail.id === "researchLab") {
-        setShowStatusModal(null);
         setCraftingModule(null);
-        setHabitatModule(null);
-        setActiveTab(activeTab === tab ? "none" : tab);
+        setActiveTab("research");
+        return;
+      }
     };
 
     window.addEventListener("PHASER_POPUP_MODAL_SIGNAL", triggerPopupOverlay);
@@ -235,112 +226,44 @@ function App() {
             </div>
           </div>
         )}
-        {showStatusModal &&
-          (() => {
-            const liveModuleData = placedModules.find(
-              (m: any) => m.instanceId === showStatusModal.instanceId,
-            );
 
-            // 🟢 FIXED: Reads directly from static definitions to completely sandbox 0 HP testing bugs
-            const moduleConfig = MODULES[showStatusModal.id];
-            const maxIntegrity =
-              moduleConfig && moduleConfig.maxIntegrity > 0
-                ? moduleConfig.maxIntegrity
-                : 100;
-
-    useEffect(() => {
-        const triggerPopupOverlay = (e: any) => {
-            if (e.detail.id === "habitat") {
-                setShowStatusModal(null);
-                setCraftingModule(null);
-                setHabitatModule({ instanceId: e.detail.instanceId });
-                setActiveTab("none");
-                return;
-            }
-            if (e.detail.id === "workshop") {
-                setShowStatusModal(null);
-                setActiveTab("none");
-                setCraftingModule(e.detail);
-                return;
-            }
-            if (e.detail.id === "greenhouse") {
-                setShowStatusModal(null);
-                setActiveTab("none");
-                setCraftingModule(e.detail);
-                return;
-            }
-            if (e.detail.id === "kitchen") {
-                setShowStatusModal(null);
-                setActiveTab("none");
-                setCraftingModule(e.detail);
-                return;
-            }
-            if (e.detail.id === "sample_extractor") {
-                setShowStatusModal(null);
-                setActiveTab("none");
-                setCraftingModule(e.detail);
-                return;
-            }
-            if (e.detail.id === "researchLab") {
-                setShowStatusModal(null);
-                setCraftingModule(null);
-                setActiveTab("research");
-                return;
-            }
-            setShowStatusModal(e.detail); // Saves the clicked module information
-        };
-
-        window.addEventListener("PHASER_POPUP_MODAL_SIGNAL", triggerPopupOverlay);
-        return () =>
-            window.removeEventListener(
-                "PHASER_POPUP_MODAL_SIGNAL",
-                triggerPopupOverlay,
-            );
-    }, []);
-
-    return (
-        <div className="relative w-screen h-screen overflow-hidden bg-[#1a0f0a] select-none text-white">
-            <SleepTransitionOverlay />
-            {/* 🎮 LAYER 1: PHASER CANVAS BACKGROUND CONTAINER (Lowest Depth) */}
-            <div
-                className={`absolute inset-0 z-0 ${isOverlayOpen ? "pointer-events-none" : "pointer-events-auto"
-                    }`}
-            >
-                <PhaserGame />
-            </div>
-
-            {/* 🛸 LAYER 2: INTERACTIVE REACT HUD INTERFACE LAYER (Highest Depth) */}
-            {/* We use global relative context here to punch through fixed canvasses */}
-            <div className="relative w-full h-full z-50 pointer-events-none">
-                {isOverlayOpen && (
+        {/* 🪟 CENTRAL OPERATIONAL CONTROL OPTIONS TERMINAL BOX OVERLAY */}
+        {activeTab !== "none" && (
+          <OverlayLayout
+            title={activeTab}
+            moduleType="TERMINAL"
+            onClose={closeTab}
+          >
+            {activeTab === "build" && <BuildComponent closeTab={closeTab} />}
+            {activeTab === "inventory" && <InventoryComponent />}
+            {activeTab === "research" && <ResearchComponent />}
+            {activeTab === "logs" && (
+              <div className="h-full overflow-y-auto space-y-2 bg-black/50 p-3 rounded border border-neutral-900 text-xs text-green-400 font-mono">
+                {gameLogs
+                  .slice()
+                  .reverse()
+                  .map((log, index) => (
                     <div
-                        aria-hidden="true"
-                        className="absolute inset-0 z-40 pointer-events-auto"
-                        onPointerDown={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                        }}
-                        onClick={(event) => {
-                            event.preventDefault();
-                            event.stopPropagation();
-                        }}
-                    />
-                )}
-                {/* 📊 CORE HUD STATUS DATA METRICS PANEL (Top Right) */}
-                <div className="pointer-events-auto">
-                    <BaseStatusHUD />
-                    <DebugTimeSkip />
-                </div>
+                      key={index}
+                      className="border-b border-neutral-900 pb-1 last:border-0"
+                    >
+                      {log}
+                    </div>
+                  ))}
+              </div>
+            )}
+          </OverlayLayout>
+        )}
 
-                {/* 🛸 HUD TOP-CENTER FLOATING OVERLAY: ACTIVE BASE RESOURCE STOCKPILES BAR */}
-                <ResourceOverlay />
-
-                {/* 🟢 3. MOUNT THE FLOATING INSPECTION STAT OVERLAY CARD HERE */}
-                {/* 🟢 3. PLOP THIS SIMPLE FLOATING MODAL DIRECTLY HERE */}
-                {showStatusModal &&
-                    (() => {
-
-                        // 🟢 FIXED: Reads directly from static definitions to completely sandbox 0 HP testing bugs
+        {habitatModule && (
+          <OverlayLayout
+            title="HABITAT"
+            moduleType="TERMINAL"
+            onClose={() => setHabitatModule(null)}
+          >
+            <HabitatComponent instanceId={habitatModule.instanceId} />
+          </OverlayLayout>
+        )}
 
         {uplinkModule && (
           <UplinkComponent
@@ -362,7 +285,9 @@ function App() {
                 (module, index, modules) =>
                   (module.id === "workshop" ||
                     module.id === "kitchen" ||
-                    module.id === "greenhouse") &&
+                    module.id === "greenhouse" ||
+                    module.id === "sample_extractor"
+                ) &&
                   modules.findIndex(
                     (candidate) => candidate.id === module.id,
                   ) === index,
@@ -380,6 +305,7 @@ function App() {
             {craftingModule.id === "workshop" && <WorkshopComponent />}
             {craftingModule.id === "kitchen" && <WorkshopComponent isKitchen />}
             {craftingModule.id === "greenhouse" && <GreenhouseComponent />}
+            {craftingModule.id === "sample_extractor" && <WorkshopComponent isSampleExtractor />}
           </OverlayLayout>
         )}
 
@@ -429,7 +355,9 @@ function App() {
             </button>
           ))}
         </div>
-    );
+      </div>
+    </div>
+  );
 }
 
 export default App;
