@@ -4,7 +4,6 @@ import { BaseStatusHUD } from "./components/BaseStatusHUD";
 import PhaserGame from "./game/PhaserGame";
 import { BuildComponent } from "./components/BuildComponent";
 import { InventoryComponent } from "./components/InventoryComponent";
-import { MODULES } from "./game/modules/moduleDefinitions";
 import { DebugTimeSkip } from "./components/DebugTimeSkip";
 import { CirclePile, Microscope, SatelliteDish, Wrench } from "lucide-react";
 import ResourceOverlay from "./components/ResourceOverlay";
@@ -13,7 +12,6 @@ import { WorkshopComponent } from "./components/WorkshopComponent";
 import { GreenhouseComponent } from "./components/GreenhouseComponent";
 import { ResearchComponent } from "./components/ResearchComponent";
 import { HabitatComponent } from "./components/HabitatComponent";
-import { RadiationTowerPanel } from "./components/RadiationTowerPanel";
 import { SleepTransitionOverlay } from "./components/SleepTransitionOverlay";
 import { UplinkComponent } from "./components/UplinkComponent";
 
@@ -66,16 +64,11 @@ function App() {
 
   const startPassiveTimer = useGameStore((state) => state.startPassiveTimer);
   const stopPassiveTimer = useGameStore((state) => state.stopPassiveTimer);
-  const startActiveRepairLoop = useGameStore(
-    (state) => state.startActiveRepairLoop,
-  );
-  const stopActiveRepairLoop = useGameStore(
-    (state) => state.stopActiveRepairLoop,
-  );
-
-  const closeTab = () => setActiveTab("none");
-  const selectTab = (tab: ActiveTab) => {
+  const closeTab = () => {
     setShowStatusModal(null);
+    setActiveTab("none");
+  };
+  const selectTab = (tab: ActiveTab) => {
     setCraftingModule(null);
     setHabitatModule(null);
     setUplinkModule(null);
@@ -92,14 +85,12 @@ function App() {
   useEffect(() => {
     const triggerPopupOverlay = (e: any) => {
       if (e.detail.id === "habitat") {
-        setShowStatusModal(null);
         setCraftingModule(null);
         setHabitatModule({ instanceId: e.detail.instanceId });
         setActiveTab("none");
         return;
       }
       if (e.detail.id === "communication") {
-        setShowStatusModal(null);
         setCraftingModule(null);
         setHabitatModule(null);
         setUplinkModule({ instanceId: e.detail.instanceId });
@@ -107,30 +98,25 @@ function App() {
         return;
       }
       if (e.detail.id === "workshop") {
-        setShowStatusModal(null);
         setActiveTab("none");
         setCraftingModule(e.detail);
         return;
       }
       if (e.detail.id === "greenhouse") {
-        setShowStatusModal(null);
         setActiveTab("none");
         setCraftingModule(e.detail);
         return;
       }
       if (e.detail.id === "kitchen") {
-        setShowStatusModal(null);
         setActiveTab("none");
         setCraftingModule(e.detail);
         return;
       }
       if (e.detail.id === "researchLab") {
-        setShowStatusModal(null);
         setCraftingModule(null);
         setActiveTab("research");
         return;
       }
-      setShowStatusModal(e.detail); // Saves the clicked module information
     };
 
     window.addEventListener("PHASER_POPUP_MODAL_SIGNAL", triggerPopupOverlay);
@@ -234,122 +220,6 @@ function App() {
             </div>
           </div>
         )}
-        {showStatusModal &&
-          (() => {
-            const liveModuleData = placedModules.find(
-              (m: any) => m.instanceId === showStatusModal.instanceId,
-            );
-
-            // 🟢 FIXED: Reads directly from static definitions to completely sandbox 0 HP testing bugs
-            const moduleConfig = MODULES[showStatusModal.id];
-            const maxIntegrity =
-              moduleConfig && moduleConfig.maxIntegrity > 0
-                ? moduleConfig.maxIntegrity
-                : 100;
-
-            const currentHP = Math.round(
-              liveModuleData ? liveModuleData.hp : maxIntegrity,
-            );
-            const hpPercentage =
-              maxIntegrity > 0
-                ? Math.round((currentHP / maxIntegrity) * 100)
-                : 0;
-
-            if (showStatusModal.id === "radiation_tower") {
-              return (
-                <RadiationTowerPanel
-                  instanceId={showStatusModal.instanceId}
-                  onClose={() => setShowStatusModal(null)}
-                />
-              );
-            }
-
-            let healthTextColor = "text-green-400";
-            let healthBarColor = "bg-green-500";
-            if (hpPercentage < 51) {
-              healthTextColor = "text-amber-400";
-              healthBarColor = "bg-amber-500";
-            }
-            if (hpPercentage < 16) {
-              healthTextColor = "text-red-500 animate-pulse font-bold";
-              healthBarColor = "bg-red-600";
-            }
-
-            return (
-              <div className="absolute top-1/4 left-8 z-50 w-76 bg-neutral-950/95 border-2 border-neutral-800 text-white p-4 rounded-xl font-mono shadow-2xl pointer-events-auto flex flex-col backdrop-blur-md">
-                <div className="flex justify-between items-center border-b border-neutral-800 pb-2 mb-3">
-                  <span className="text-orange-400 font-bold text-xs uppercase tracking-wider">
-                    ⚡ MODULE TELEMETRY
-                  </span>
-                  <button
-                    onClick={() => {
-                      setShowStatusModal(null);
-                      stopActiveRepairLoop();
-                    }}
-                    className="text-neutral-500 hover:text-white cursor-pointer text-xs"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <div className="text-xs space-y-3 mb-4">
-                  <div>
-                    Module Class:{" "}
-                    <strong className="capitalize text-white">
-                      {showStatusModal.id}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span className="text-neutral-400 block text-[10px] uppercase mb-1 tracking-wider">
-                      Structural Integrity:
-                    </span>
-                    <div className="w-full bg-neutral-900 h-2.5 rounded border border-neutral-800 overflow-hidden">
-                      <div
-                        className={`h-full transition-all duration-75 ${healthBarColor}`}
-                        style={{
-                          width: `${Math.max(0, Math.min(100, hpPercentage))}%`,
-                        }}
-                      />
-                    </div>
-                    <div className="flex justify-between text-[10px] mt-1 text-neutral-400">
-                      <span>
-                        Status:{" "}
-                        <span className={healthTextColor}>
-                          {currentHP} / {maxIntegrity} HP
-                        </span>
-                      </span>
-                      <span>{hpPercentage}%</span>
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  disabled={currentHP >= maxIntegrity}
-                  onMouseDown={() =>
-                    liveModuleData &&
-                    startActiveRepairLoop(liveModuleData.instanceId)
-                  }
-                  onMouseUp={stopActiveRepairLoop}
-                  onMouseLeave={stopActiveRepairLoop}
-                  onTouchStart={() =>
-                    liveModuleData &&
-                    startActiveRepairLoop(liveModuleData.instanceId)
-                  }
-                  onTouchEnd={stopActiveRepairLoop}
-                  className={`w-full font-bold py-3 px-3 rounded text-center text-xs uppercase tracking-wider select-none transition-all duration-150 ${
-                    currentHP >= maxIntegrity
-                      ? "bg-neutral-800 text-neutral-500 border border-neutral-700 cursor-not-allowed"
-                      : "bg-orange-500 hover:bg-orange-400 text-black active:scale-[0.99] cursor-pointer"
-                  }`}
-                >
-                  {currentHP >= maxIntegrity
-                    ? "🔧 NOMINAL STATUS"
-                    : "✊ HOLD TO REPAIR"}
-                </button>
-              </div>
-            );
-          })()}
 
         {/* 🪟 CENTRAL OPERATIONAL CONTROL OPTIONS TERMINAL BOX OVERLAY */}
         {activeTab !== "none" && (
