@@ -24,6 +24,11 @@ function App() {
   const gameLogs = useGameStore((state) => state.gameLogs);
 
   const [showStatusModal, setShowStatusModal] = useState<any>(null);
+  const [moveRequest, setMoveRequest] = useState<{
+    uid: number;
+    id: string;
+    name?: string;
+  } | null>(null);
   const [craftingModule, setCraftingModule] = useState<{
     id: string;
     instanceId: string;
@@ -38,6 +43,7 @@ function App() {
   const isOverlayOpen =
     activeTab !== "none" ||
     showStatusModal !== null ||
+    moveRequest !== null ||
     craftingModule !== null ||
     habitatModule !== null;
 
@@ -120,6 +126,32 @@ function App() {
       );
   }, []);
 
+  useEffect(() => {
+    const handleMoveRequest = (event: Event) => {
+      setMoveRequest((event as CustomEvent<typeof moveRequest>).detail);
+    };
+    window.addEventListener(
+      "PHASER_MODULE_MOVE_REQUESTED",
+      handleMoveRequest,
+    );
+    return () =>
+      window.removeEventListener(
+        "PHASER_MODULE_MOVE_REQUESTED",
+        handleMoveRequest,
+      );
+  }, []);
+
+  const cancelMoveRequest = () => setMoveRequest(null);
+  const confirmMoveRequest = () => {
+    if (!moveRequest) return;
+    window.dispatchEvent(
+      new CustomEvent("PHASER_BEGIN_MODULE_MOVE", {
+        detail: { uid: moveRequest.uid },
+      }),
+    );
+    setMoveRequest(null);
+  };
+
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-[#1a0f0a] select-none text-white">
       <SleepTransitionOverlay />
@@ -160,6 +192,33 @@ function App() {
 
         {/* 🟢 3. MOUNT THE FLOATING INSPECTION STAT OVERLAY CARD HERE */}
         {/* 🟢 3. PLOP THIS SIMPLE FLOATING MODAL DIRECTLY HERE */}
+        {moveRequest && (
+          <div className="absolute left-1/2 top-1/3 z-50 w-80 -translate-x-1/2 rounded-xl border-2 border-neutral-700 bg-neutral-950/95 p-5 text-white shadow-2xl pointer-events-auto">
+            <h2 className="text-sm font-bold uppercase tracking-widest text-orange-400">
+              Move module?
+            </h2>
+            <p className="mt-3 text-sm text-neutral-300">
+              Move this module to another position? Its health, state, and
+              progress will remain unchanged.
+            </p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={cancelMoveRequest}
+                className="rounded border border-neutral-700 px-4 py-2 text-xs font-bold uppercase text-neutral-300"
+              >
+                No
+              </button>
+              <button
+                type="button"
+                onClick={confirmMoveRequest}
+                className="rounded border border-orange-500 bg-orange-950 px-4 py-2 text-xs font-bold uppercase text-orange-200"
+              >
+                Yes
+              </button>
+            </div>
+          </div>
+        )}
         {showStatusModal &&
           (() => {
             const liveModuleData = placedModules.find(
