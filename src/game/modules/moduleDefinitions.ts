@@ -311,7 +311,7 @@ export const MODULES: Record<string, ModuleDef> = {
     maxIntegrity: 100,
     baseDecayRate: 5,
     powerDraw: -15,
-    maxModules: 2, // Only one radar can be built at a time
+    maxModules: 1, // Only one radar can be built at a time
   },
   storage_small: {
     id: "storage_small",
@@ -387,6 +387,54 @@ export const MODULES: Record<string, ModuleDef> = {
     baseDecayRate: 4,
     powerDraw: -15, // Demands heavy baseline electrical infrastructure to punch through Martian storms
     maxModules: 1, // Only one communication module can be built at a time
+  },
+  sample_extractor: {
+    id: "sample_extractor",
+    name: "Sample Extractor",
+    description: "Extracts and processes samples from the Martian environment.",
+    category: "tech",
+    isUnlockedByDefault: false,
+    w: 2,
+    h: 2,
+    texture: "sample_extractor",
+    height: 62,
+    color: 0x8b4513,
+    anchor: "center",
+    originY: 0.7,
+    scale: 0.19,
+    buildCost: [
+      { resource: "iron_plate", amount: 6 },
+      { resource: "glass_panel", amount: 2 },
+      { resource: "electronics", amount: 4 },
+    ],
+    maxIntegrity: 100,
+    baseDecayRate: 4,
+    powerDraw: -8, // Requires a moderate amount of power to operate
+    maxModules: 1, // Only one sample extractor can be built at a time
+  },
+  beacon: {
+    id: "beacon",
+    name: "Beacon",
+    description: "A signal beacon for navigation and communication.",
+    category: "tech",
+    isUnlockedByDefault: false,
+    w: 2,
+    h: 2,
+    texture: "beacon",
+    height: 62,
+    color: 0x8b4513,
+    anchor: "center",
+    originY: 0.72,
+    scale: 0.19,
+    buildCost: [
+      { resource: "iron_plate", amount: 4 },
+      { resource: "glass_panel", amount: 2 },
+      { resource: "electronics", amount: 4 },
+    ],
+    maxIntegrity: 100,
+    baseDecayRate: 4,
+    powerDraw: -8, // Requires a moderate amount of power to operate
+    maxModules: 1, // Only one beacon can be built at a time
   },
 };
 

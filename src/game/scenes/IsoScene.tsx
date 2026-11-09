@@ -216,8 +216,8 @@ export class IsoScene extends Phaser.Scene {
     );
     this.input.keyboard?.on("keydown-FOUR", () => this.select("greenhouse"));
     this.input.keyboard?.on("keydown-FIVE", () => this.select("water"));
-    this.input.keyboard?.on("keydown-SIX", () => this.select("radar"));
-    this.input.keyboard?.on("keydown-SEVEN", () => this.select("storage"));
+    this.input.keyboard?.on("keydown-SIX", () => this.select("communication"));
+    this.input.keyboard?.on("keydown-SEVEN", () => this.select("radar"));
     this.input.keyboard?.on("keydown-ESC", () => this.select(null));
 
     // React -> Phaser:  game.events.emit("select-module", "panel")
