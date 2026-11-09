@@ -26,7 +26,8 @@ export type ResourceType =
   | "raw_food" // Survival elements
   | "soup"
   | "meal"
-  | "good_meal";
+  | "good_meal"
+  | "mars_sample";
 
 // 2. Define the functional category of a module for game logic execution
 export type ModuleCategory =

@@ -9,6 +9,17 @@ export interface CraftingRecipe {
   cost: Array<{ resource: ResourceType; amount: number }>;
 }
 
+export const SAMPLE_EXTRACTOR_RECIPES: CraftingRecipe[] = [
+  {
+    output: "mars_sample",
+    name: "Mars Sample",
+    description:
+      "A sterile geological sample extracted from the Martian surface for analysis and research.",
+    craftHours: 2,
+    cost: [{ resource: "silicates", amount: 2 }],
+  },
+];
+
 export const WORKSHOP_RECIPES: CraftingRecipe[] = [
   {
     output: "repair_kit",
@@ -152,4 +163,5 @@ export const INVENTORY_RECIPES: CraftingRecipe[] = [
   ...KITCHEN_RECIPES,
   ...RESOURCES,
   ...FOOD_PACK_RECIPES,
+  ...SAMPLE_EXTRACTOR_RECIPES
 ];

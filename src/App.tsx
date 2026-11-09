@@ -112,6 +112,12 @@ function App() {
         setCraftingModule(e.detail);
         return;
       }
+       if (e.detail.id === "sample_extractor") {
+                setShowStatusModal(null);
+                setActiveTab("none");
+                setCraftingModule(e.detail);
+                return;
+            }
       if (e.detail.id === "researchLab") {
         setCraftingModule(null);
         setActiveTab("research");
@@ -279,7 +285,9 @@ function App() {
                 (module, index, modules) =>
                   (module.id === "workshop" ||
                     module.id === "kitchen" ||
-                    module.id === "greenhouse") &&
+                    module.id === "greenhouse" ||
+                    module.id === "sample_extractor"
+                ) &&
                   modules.findIndex(
                     (candidate) => candidate.id === module.id,
                   ) === index,
@@ -297,6 +305,7 @@ function App() {
             {craftingModule.id === "workshop" && <WorkshopComponent />}
             {craftingModule.id === "kitchen" && <WorkshopComponent isKitchen />}
             {craftingModule.id === "greenhouse" && <GreenhouseComponent />}
+            {craftingModule.id === "sample_extractor" && <WorkshopComponent isSampleExtractor />}
           </OverlayLayout>
         )}
 
