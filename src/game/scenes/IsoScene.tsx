@@ -669,6 +669,16 @@ export class IsoScene extends Phaser.Scene {
       this.placed.forEach((placed) => this.updateRingState(placed));
     });
     target.on("pointerdown", () => {
+      const interactiveUiModules = [
+        "habitat",
+        "workshop",
+        "kitchen",
+        "greenhouse",
+        "sample_extractor",
+        "researchLab",
+      ];
+
+      if (!interactiveUiModules.includes(module.def.id)) return;
       if (this.isOverlayOpen()) return;
       this.selectedModuleUid = module.uid;
       this.placed.forEach((placed) => this.updateRingState(placed));

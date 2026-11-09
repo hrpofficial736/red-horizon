@@ -306,6 +306,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     soup: 2,
     meal: 0,
     good_meal: 0,
+    mars_sample: 0,
   },
   discoveredResourceTypes: STARTING_DISCOVERED_RESOURCES,
 
@@ -720,13 +721,21 @@ export const useGameStore = create<GameState>((set, get) => ({
   queueCrafting: (recipe) => {
     const { inventory, workshopQueue, placedModules, powerBankCharge, currentHour } =
       get();
+    const hasSampleExtractorActive = placedModules.some(
+      (module) =>
+        module.id === "sample_extractor" &&
+        module.hp > 0 &&
+        module.active &&
+        hasOperationalPower(placedModules, powerBankCharge, currentHour),
+    );
     if (
       !isProductionOperational(
         placedModules,
         powerBankCharge,
         currentHour,
         "workshop",
-      )
+      ) &&
+      !hasSampleExtractorActive
     ) {
       return false;
     }
@@ -831,13 +840,25 @@ export const useGameStore = create<GameState>((set, get) => ({
     );
 
     set((state) => {
+      const hasSampleExtractorActive = state.placedModules.some(
+        (module) =>
+          module.id === "sample_extractor" &&
+          module.hp > 0 &&
+          module.active &&
+          hasOperationalPower(
+            state.placedModules,
+            state.powerBankCharge,
+            state.currentHour,
+          ),
+      );
       if (
         !isProductionOperational(
           state.placedModules,
           state.powerBankCharge,
           state.currentHour,
           "workshop",
-        )
+        ) &&
+        !hasSampleExtractorActive
       ) {
         return state;
       }

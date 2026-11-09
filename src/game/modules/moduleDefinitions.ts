@@ -388,6 +388,30 @@ export const MODULES: Record<string, ModuleDef> = {
     powerDraw: -15, // Demands heavy baseline electrical infrastructure to punch through Martian storms
     maxModules: 1, // Only one communication module can be built at a time
   },
+  sample_extractor: {
+    id: "sample_extractor",
+    name: "Sample Extractor",
+    description: "Extracts and processes samples from the Martian environment.",
+    category: "tech",
+    isUnlockedByDefault: false,
+    w: 2,
+    h: 2,
+    texture: "sample_extractor",
+    height: 62,
+    color: 0x8b4513,
+    anchor: "center",
+    originY: 0.7,
+    scale: 0.19,
+    buildCost: [
+      { resource: "iron_plate", amount: 6 },
+      { resource: "glass_panel", amount: 2 },
+      { resource: "electronics", amount: 4 },
+    ],
+    maxIntegrity: 100,
+    baseDecayRate: 4,
+    powerDraw: -8, // Requires a moderate amount of power to operate
+    maxModules: 1, // Only one sample extractor can be built at a time
+  },
 };
 
 // export const MODULES: Record<string, ModuleDef> = {

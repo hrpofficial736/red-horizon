@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useGameStore } from "../store/useGameStore";
 import { MODULES } from "../game/modules/moduleDefinitions";
 import { TEXTURE_IMPORTS } from "../game/utils/textureImports";
@@ -14,6 +14,9 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
   const inventory = useGameStore((state) => state.inventory);
   const placedModules = useGameStore((state) => state.placedModules);
   const unlockedModuleIds = useGameStore((state) => state.unlockedModuleIds);
+  const hasResearchLab = placedModules.some(
+    (module) => module.id === "researchLab",
+  );
 
   const canAffordModule = selectedModule.buildCost.every((cost) => {
     const stockAvailable = inventory[cost.resource] ?? 0;
@@ -34,11 +37,23 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
     }
   };
 
-  const unlockedModules = Object.values(MODULES).filter(
+  const defaultUnlockedModules = Object.values(MODULES).filter(
     (mod) =>
       (mod.isUnlockedByDefault || unlockedModuleIds.includes(mod.id)) &&
       mod.id !== "habitat",
   );
+
+  const unlockedModules = defaultUnlockedModules.filter((mod) => {
+    if (mod.id !== "sample_extractor") return true;
+    return hasResearchLab || unlockedModuleIds.includes(mod.id);
+  });
+
+  useEffect(() => {
+    if (unlockedModules.length === 0) return;
+    if (!unlockedModules.some((mod) => mod.id === selectedModule.id)) {
+      setSelectedModule(unlockedModules[0]);
+    }
+  }, [selectedModule.id, unlockedModules]);
 
   const getModulesLeft = (mod: ModuleDef) => {
     const countPlaced = placedModules.filter((m) => m.id === mod.id).length;

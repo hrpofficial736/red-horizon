@@ -80,4 +80,14 @@ export const RESEARCH_TREE: ResearchNode[] = [
     texture: "communication",
     unlocks: { moduleId: "communication" },
   },
+  {
+    id: "tech_sample_extractor",
+    category: "TECH",
+    name: "Sample Extractor",
+    description: "Unlocks the sample extractor module for collecting Martian samples.",
+    silicateCost: 12,
+    researchHours: 3,
+    texture: "sample_extractor",
+    unlocks: { moduleId: "sample_extractor" },
+  },
 ];
