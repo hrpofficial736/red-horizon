@@ -1,6 +1,7 @@
 import { X } from "lucide-react";
 import {
   KITCHEN_RECIPES,
+  SAMPLE_EXTRACTOR_RECIPES,
   WORKSHOP_RECIPES,
   type CraftingRecipe,
 } from "../game/modules/data/recipesConfig";
@@ -25,7 +26,13 @@ const formatRemainingTime = (minutes: number) => {
   return `${String(hours).padStart(2, "0")}:${String(remainingMinutes).padStart(2, "0")}`;
 };
 
-export function WorkshopComponent({ isKitchen = false }: { isKitchen?: boolean }) {
+export function WorkshopComponent({
+  isKitchen = false,
+  isSampleExtractor = false,
+}: {
+  isKitchen?: boolean;
+  isSampleExtractor?: boolean;
+}) {
   const inventory = useGameStore((state) => state.inventory);
   const discoveredResourceTypes = useGameStore(
     (state) => state.discoveredResourceTypes,
@@ -47,7 +54,13 @@ export function WorkshopComponent({ isKitchen = false }: { isKitchen?: boolean }
   const productionPausedAt = useGameStore(
     (state) =>
       state.placedModules.find(
-        (module) => module.id === (isKitchen ? "kitchen" : "workshop"),
+        (module) =>
+          module.id ===
+          (isSampleExtractor
+            ? "sample_extractor"
+            : isKitchen
+              ? "kitchen"
+              : "workshop"),
       )?.productionPausedAt,
   );
   const productionModuleActive = useGameStore((state) =>
@@ -58,7 +71,12 @@ export function WorkshopComponent({ isKitchen = false }: { isKitchen?: boolean }
     ) &&
       state.placedModules.some(
         (module) =>
-          module.id === (isKitchen ? "kitchen" : "workshop") &&
+          module.id ===
+            (isSampleExtractor
+              ? "sample_extractor"
+              : isKitchen
+                ? "kitchen"
+                : "workshop") &&
           module.active &&
           module.hp > 0,
       ),
@@ -67,10 +85,22 @@ export function WorkshopComponent({ isKitchen = false }: { isKitchen?: boolean }
   const progressNow = productionModuleActive
     ? now
     : Math.min(now, (productionPausedAt ?? now) * 60);
-  const recipes = isKitchen ? KITCHEN_RECIPES : WORKSHOP_RECIPES;
-  const queue = isKitchen ? kitchenQueue : workshopQueue;
-  const queueRecipe = isKitchen ? queueKitchenCrafting : queueCrafting;
-  const cancelQueue = isKitchen ? cancelKitchenCrafting : cancelCrafting;
+  const recipes = isSampleExtractor
+    ? SAMPLE_EXTRACTOR_RECIPES
+    : isKitchen
+      ? KITCHEN_RECIPES
+      : WORKSHOP_RECIPES;
+  const queue = isSampleExtractor ? workshopQueue : isKitchen ? kitchenQueue : workshopQueue;
+  const queueRecipe = isSampleExtractor
+    ? queueCrafting
+    : isKitchen
+      ? queueKitchenCrafting
+      : queueCrafting;
+  const cancelQueue = isSampleExtractor
+    ? cancelCrafting
+    : isKitchen
+      ? cancelKitchenCrafting
+      : cancelCrafting;
   const researchedKitchenRecipes = new Set(
     [
       "soup",
@@ -98,12 +128,12 @@ export function WorkshopComponent({ isKitchen = false }: { isKitchen?: boolean }
         </h3>
         <div className="flex flex-wrap gap-2 overflow-y-auto scrollbar-none">
           {recipes
-            .filter(
-              (recipe) =>
-                isKitchen
-                  ? researchedKitchenRecipes.has(recipe.output)
-                  : discoveredResourceTypes.includes(recipe.output),
-            )
+            .filter((recipe) => {
+              if (isSampleExtractor) return true;
+              return isKitchen
+                ? researchedKitchenRecipes.has(recipe.output)
+                : discoveredResourceTypes.includes(recipe.output);
+            })
             .map((recipe) => {
             const canAfford = recipe.cost.every(
               (cost) => (inventory[cost.resource] || 0) >= cost.amount,
@@ -233,7 +263,11 @@ export function WorkshopComponent({ isKitchen = false }: { isKitchen?: boolean }
       <section className="flex w-2/7 flex-1 flex-col overflow-hidden rounded-b-xl p-0">
         <div className="mb-3 flex items-center justify-between ">
           <h3 className="text-md font-bold uppercase tracking-widest text-white">
-            {isKitchen ? "Kitchen Queue" : "Fabrication Queue"}
+            {isSampleExtractor
+              ? "Sample Extractor Queue"
+              : isKitchen
+                ? "Kitchen Queue"
+                : "Fabrication Queue"}
           </h3>
           <span className="text-[10px] text-sec">
             {queue.length} item{queue.length === 1 ? "" : "s"}

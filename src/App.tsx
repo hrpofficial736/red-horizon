@@ -4,7 +4,6 @@ import { BaseStatusHUD } from "./components/BaseStatusHUD";
 import PhaserGame from "./game/PhaserGame";
 import { BuildComponent } from "./components/BuildComponent";
 import { InventoryComponent } from "./components/InventoryComponent";
-import { MODULES } from "./game/modules/moduleDefinitions";
 import { DebugTimeSkip } from "./components/DebugTimeSkip";
 import { CirclePile, Microscope, SatelliteDish, Wrench } from "lucide-react";
 import ResourceOverlay from "./components/ResourceOverlay";
@@ -18,11 +17,15 @@ import { SleepTransitionOverlay } from "./components/SleepTransitionOverlay";
 import { UplinkComponent } from "./components/UplinkComponent";
 
 type ActiveTab = "none" | "build" | "inventory" | "research" | "logs";
-type CraftingModuleId = "workshop" | "kitchen" | "greenhouse";
+type CraftingModuleId =
+  | "workshop"
+  | "kitchen"
+  | "greenhouse"
+  | "sample_extractor";
 
 function App() {
-  const [activeTab, setActiveTab] = useState<ActiveTab>("none");
-  const gameLogs = useGameStore((state) => state.gameLogs);
+    const [activeTab, setActiveTab] = useState<ActiveTab>("none");
+    const gameLogs = useGameStore((state) => state.gameLogs);
 
   const [showStatusModal, setShowStatusModal] = useState<any>(null);
   const [moveRequest, setMoveRequest] = useState<{
@@ -82,8 +85,8 @@ function App() {
     setActiveTab(activeTab === tab ? "none" : tab);
   };
 
-  useEffect(() => {
-    startPassiveTimer(); // Automatically starts ticking 1 game hour every 5 seconds
+    const startPassiveTimer = useGameStore((state) => state.startPassiveTimer);
+    const stopPassiveTimer = useGameStore((state) => state.stopPassiveTimer);
 
     // Safely clears the interval timer if the user refreshes or hot-reloads during development
     return () => stopPassiveTimer();
@@ -127,10 +130,8 @@ function App() {
       if (e.detail.id === "researchLab") {
         setShowStatusModal(null);
         setCraftingModule(null);
-        setActiveTab("research");
-        return;
-      }
-      setShowStatusModal(e.detail); // Saves the clicked module information
+        setHabitatModule(null);
+        setActiveTab(activeTab === tab ? "none" : tab);
     };
 
     window.addEventListener("PHASER_POPUP_MODAL_SIGNAL", triggerPopupOverlay);
@@ -247,147 +248,99 @@ function App() {
                 ? moduleConfig.maxIntegrity
                 : 100;
 
-            const currentHP = Math.round(
-              liveModuleData ? liveModuleData.hp : maxIntegrity,
+    useEffect(() => {
+        const triggerPopupOverlay = (e: any) => {
+            if (e.detail.id === "habitat") {
+                setShowStatusModal(null);
+                setCraftingModule(null);
+                setHabitatModule({ instanceId: e.detail.instanceId });
+                setActiveTab("none");
+                return;
+            }
+            if (e.detail.id === "workshop") {
+                setShowStatusModal(null);
+                setActiveTab("none");
+                setCraftingModule(e.detail);
+                return;
+            }
+            if (e.detail.id === "greenhouse") {
+                setShowStatusModal(null);
+                setActiveTab("none");
+                setCraftingModule(e.detail);
+                return;
+            }
+            if (e.detail.id === "kitchen") {
+                setShowStatusModal(null);
+                setActiveTab("none");
+                setCraftingModule(e.detail);
+                return;
+            }
+            if (e.detail.id === "sample_extractor") {
+                setShowStatusModal(null);
+                setActiveTab("none");
+                setCraftingModule(e.detail);
+                return;
+            }
+            if (e.detail.id === "researchLab") {
+                setShowStatusModal(null);
+                setCraftingModule(null);
+                setActiveTab("research");
+                return;
+            }
+            setShowStatusModal(e.detail); // Saves the clicked module information
+        };
+
+        window.addEventListener("PHASER_POPUP_MODAL_SIGNAL", triggerPopupOverlay);
+        return () =>
+            window.removeEventListener(
+                "PHASER_POPUP_MODAL_SIGNAL",
+                triggerPopupOverlay,
             );
-            const hpPercentage =
-              maxIntegrity > 0
-                ? Math.round((currentHP / maxIntegrity) * 100)
-                : 0;
+    }, []);
 
-            if (showStatusModal.id === "radiation_tower") {
-              return (
-                <RadiationTowerPanel
-                  instanceId={showStatusModal.instanceId}
-                  onClose={() => setShowStatusModal(null)}
-                />
-              );
-            }
+    return (
+        <div className="relative w-screen h-screen overflow-hidden bg-[#1a0f0a] select-none text-white">
+            <SleepTransitionOverlay />
+            {/* 🎮 LAYER 1: PHASER CANVAS BACKGROUND CONTAINER (Lowest Depth) */}
+            <div
+                className={`absolute inset-0 z-0 ${isOverlayOpen ? "pointer-events-none" : "pointer-events-auto"
+                    }`}
+            >
+                <PhaserGame />
+            </div>
 
-            let healthTextColor = "text-green-400";
-            let healthBarColor = "bg-green-500";
-            if (hpPercentage < 51) {
-              healthTextColor = "text-amber-400";
-              healthBarColor = "bg-amber-500";
-            }
-            if (hpPercentage < 16) {
-              healthTextColor = "text-red-500 animate-pulse font-bold";
-              healthBarColor = "bg-red-600";
-            }
-
-            return (
-              <div className="absolute top-1/4 left-8 z-50 w-76 bg-neutral-950/95 border-2 border-neutral-800 text-white p-4 rounded-xl font-mono shadow-2xl pointer-events-auto flex flex-col backdrop-blur-md">
-                <div className="flex justify-between items-center border-b border-neutral-800 pb-2 mb-3">
-                  <span className="text-orange-400 font-bold text-xs uppercase tracking-wider">
-                    ⚡ MODULE TELEMETRY
-                  </span>
-                  <button
-                    onClick={() => {
-                      setShowStatusModal(null);
-                      stopActiveRepairLoop();
-                    }}
-                    className="text-neutral-500 hover:text-white cursor-pointer text-xs"
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <div className="text-xs space-y-3 mb-4">
-                  <div>
-                    Module Class:{" "}
-                    <strong className="capitalize text-white">
-                      {showStatusModal.id}
-                    </strong>
-                  </div>
-
-                  <div>
-                    <span className="text-neutral-400 block text-[10px] uppercase mb-1 tracking-wider">
-                      Structural Integrity:
-                    </span>
-                    <div className="w-full bg-neutral-900 h-2.5 rounded border border-neutral-800 overflow-hidden">
-                      <div
-                        className={`h-full transition-all duration-75 ${healthBarColor}`}
-                        style={{
-                          width: `${Math.max(0, Math.min(100, hpPercentage))}%`,
-                        }}
-                      />
-                    </div>
-                    <div className="flex justify-between text-[10px] mt-1 text-neutral-400">
-                      <span>
-                        Status:{" "}
-                        <span className={healthTextColor}>
-                          {currentHP} / {maxIntegrity} HP
-                        </span>
-                      </span>
-                      <span>{hpPercentage}%</span>
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  disabled={currentHP >= maxIntegrity}
-                  onMouseDown={() =>
-                    liveModuleData &&
-                    startActiveRepairLoop(liveModuleData.instanceId)
-                  }
-                  onMouseUp={stopActiveRepairLoop}
-                  onMouseLeave={stopActiveRepairLoop}
-                  onTouchStart={() =>
-                    liveModuleData &&
-                    startActiveRepairLoop(liveModuleData.instanceId)
-                  }
-                  onTouchEnd={stopActiveRepairLoop}
-                  className={`w-full font-bold py-3 px-3 rounded text-center text-xs uppercase tracking-wider select-none transition-all duration-150 ${
-                    currentHP >= maxIntegrity
-                      ? "bg-neutral-800 text-neutral-500 border border-neutral-700 cursor-not-allowed"
-                      : "bg-orange-500 hover:bg-orange-400 text-black active:scale-[0.99] cursor-pointer"
-                  }`}
-                >
-                  {currentHP >= maxIntegrity
-                    ? "🔧 NOMINAL STATUS"
-                    : "✊ HOLD TO REPAIR"}
-                </button>
-              </div>
-            );
-          })()}
-
-        {/* 🪟 CENTRAL OPERATIONAL CONTROL OPTIONS TERMINAL BOX OVERLAY */}
-        {activeTab !== "none" && (
-          <OverlayLayout
-            title={activeTab}
-            moduleType="TERMINAL"
-            onClose={closeTab}
-          >
-            {activeTab === "build" && <BuildComponent closeTab={closeTab} />}
-            {activeTab === "inventory" && <InventoryComponent />}
-            {activeTab === "research" && <ResearchComponent />}
-            {activeTab === "logs" && (
-              <div className="h-full overflow-y-auto space-y-2 bg-black/50 p-3 rounded border border-neutral-900 text-xs text-green-400 font-mono">
-                {gameLogs
-                  .slice()
-                  .reverse()
-                  .map((log, index) => (
+            {/* 🛸 LAYER 2: INTERACTIVE REACT HUD INTERFACE LAYER (Highest Depth) */}
+            {/* We use global relative context here to punch through fixed canvasses */}
+            <div className="relative w-full h-full z-50 pointer-events-none">
+                {isOverlayOpen && (
                     <div
-                      key={index}
-                      className="border-b border-neutral-900 pb-1 last:border-0"
-                    >
-                      {log}
-                    </div>
-                  ))}
-              </div>
-            )}
-          </OverlayLayout>
-        )}
+                        aria-hidden="true"
+                        className="absolute inset-0 z-40 pointer-events-auto"
+                        onPointerDown={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                        }}
+                        onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                        }}
+                    />
+                )}
+                {/* 📊 CORE HUD STATUS DATA METRICS PANEL (Top Right) */}
+                <div className="pointer-events-auto">
+                    <BaseStatusHUD />
+                    <DebugTimeSkip />
+                </div>
 
-        {habitatModule && (
-          <OverlayLayout
-            title="HABITAT"
-            moduleType="TERMINAL"
-            onClose={() => setHabitatModule(null)}
-          >
-            <HabitatComponent instanceId={habitatModule.instanceId} />
-          </OverlayLayout>
-        )}
+                {/* 🛸 HUD TOP-CENTER FLOATING OVERLAY: ACTIVE BASE RESOURCE STOCKPILES BAR */}
+                <ResourceOverlay />
+
+                {/* 🟢 3. MOUNT THE FLOATING INSPECTION STAT OVERLAY CARD HERE */}
+                {/* 🟢 3. PLOP THIS SIMPLE FLOATING MODAL DIRECTLY HERE */}
+                {showStatusModal &&
+                    (() => {
+
+                        // 🟢 FIXED: Reads directly from static definitions to completely sandbox 0 HP testing bugs
 
         {uplinkModule && (
           <UplinkComponent
@@ -476,9 +429,7 @@ function App() {
             </button>
           ))}
         </div>
-      </div>
-    </div>
-  );
+    );
 }
 
 export default App;
