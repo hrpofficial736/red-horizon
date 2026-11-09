@@ -40,6 +40,7 @@ export class IsoScene extends Phaser.Scene {
   private nextUid = 1;
   private hoveredModuleUid: number | null = null;
   private selectedModuleUid: number | null = null;
+  private movingModuleUid: number | null = null;
 
   private gridOffsetX = 24;
   private gridOffsetY = -52;
@@ -222,8 +223,12 @@ export class IsoScene extends Phaser.Scene {
 
     // React -> Phaser:  game.events.emit("select-module", "panel")
     this.game.events.on("select-module", this.select, this);
+    this.game.events.on("begin-module-move", this.beginMove, this);
     this.events.once("shutdown", () =>
       this.game.events.off("select-module", this.select, this),
+    );
+    this.events.once("shutdown", () =>
+      this.game.events.off("begin-module-move", this.beginMove, this),
     );
     this.initiateGameStateWithDefaultModules();
   }
@@ -379,7 +384,11 @@ export class IsoScene extends Phaser.Scene {
     if (this.isOverlayOpen()) return;
     if (!this.dragged && !this.pinching) {
       if (p.button === 2) {
-        this.select(null);
+        if (this.movingModuleUid !== null) {
+          this.cancelMove();
+        } else if (this.hoveredModuleUid === null) {
+          this.select(null);
+        }
       } else if (this.hoveredModuleUid !== null) {
         // Module interaction is limited to the sprite/placeholder itself.
         // The hover ring and label are visual-only and must not affect placement.
@@ -467,7 +476,11 @@ export class IsoScene extends Phaser.Scene {
       return false;
     for (let c = col; c < col + def.w; c++)
       for (let r = row; r < row + def.h; r++)
-        if (this.occ[c][r] !== 0) return false;
+        if (
+          this.occ[c][r] !== 0 &&
+          this.occ[c][r] !== this.movingModuleUid
+        )
+          return false;
     return true;
   }
 
@@ -477,6 +490,9 @@ export class IsoScene extends Phaser.Scene {
      * placement data, and emits a module-placed event on success.
      ----------------------------------------------------------------------------------------------------------------*/
   private tryPlace(col: number, row: number) {
+    if (this.movingModuleUid !== null) {
+      return this.tryMove(col, row);
+    }
     // console.log(this.selected, this.nextUid);
     const def = this.selected;
     if (!def || !this.canPlace(def, col, row)) return false;
@@ -507,6 +523,94 @@ export class IsoScene extends Phaser.Scene {
 
     this.select(null);
     return true;
+  }
+
+  private beginMove(uid: number) {
+    const module = this.placed.get(uid);
+    if (!module) return;
+
+    this.movingModuleUid = uid;
+    this.selected = module.def;
+    this.selectedModuleUid = uid;
+    for (let c = module.col; c < module.col + module.def.w; c++) {
+      for (let r = module.row; r < module.row + module.def.h; r++) {
+        this.occ[c][r] = 0;
+      }
+    }
+    this.setModuleVisible(module.view, false);
+    module.label?.setVisible(false);
+    module.ring?.setVisible(false);
+    this.drawGhost();
+  }
+
+  private cancelMove() {
+    const module = this.movingModuleUid
+      ? this.placed.get(this.movingModuleUid)
+      : undefined;
+    if (!module) return;
+
+    for (let c = module.col; c < module.col + module.def.w; c++) {
+      for (let r = module.row; r < module.row + module.def.h; r++) {
+        this.occ[c][r] = module.uid;
+      }
+    }
+    this.setModuleVisible(module.view, true);
+    this.movingModuleUid = null;
+    this.selected = null;
+    this.drawGhost();
+  }
+
+  private tryMove(col: number, row: number) {
+    const uid = this.movingModuleUid;
+    if (uid === null) return false;
+    const module = this.placed.get(uid);
+    if (!module || !this.canPlace(module.def, col, row)) return false;
+
+    const oldView = module.view;
+    const oldLabel = module.label;
+    const oldRing = module.ring;
+    oldView.destroy();
+    oldLabel?.destroy();
+    oldRing?.destroy();
+
+    for (let c = col; c < col + module.def.w; c++) {
+      for (let r = row; r < row + module.def.h; r++) {
+        this.occ[c][r] = uid;
+      }
+    }
+    const created = this.createView(module.def, col, row);
+    const movedModule: Placed = {
+      ...module,
+      col,
+      row,
+      view: created.view,
+      label: created.label,
+      ring: created.ring,
+    };
+    this.placed.set(uid, movedModule);
+    this.attachModuleInteraction(movedModule);
+    this.game.events.emit("module-moved", {
+      id: module.def.id,
+      oldCol: module.col,
+      oldRow: module.row,
+      col,
+      row,
+    });
+    this.movingModuleUid = null;
+    this.selected = null;
+    this.selectedModuleUid = uid;
+    this.drawGhost();
+    return true;
+  }
+
+  private setModuleVisible(
+    view: Phaser.GameObjects.GameObject,
+    visible: boolean,
+  ) {
+    const visibleView = view as Phaser.GameObjects.GameObject & {
+      setVisible: (value: boolean) => Phaser.GameObjects.GameObject;
+    };
+    visibleView.setVisible(visible);
   }
 
   /**----------------------------------------------------------------------------------------------------------------
@@ -668,8 +772,21 @@ export class IsoScene extends Phaser.Scene {
       if (module.label) module.label.setVisible(false);
       this.placed.forEach((placed) => this.updateRingState(placed));
     });
-    target.on("pointerdown", () => {
+    target.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       if (this.isOverlayOpen()) return;
+      if (pointer.button === 2) {
+        if (this.movingModuleUid !== null) {
+          this.cancelMove();
+          return;
+        }
+        this.game.events.emit("module-move-requested", {
+          uid: module.uid,
+          id: module.def.id,
+          col: module.col,
+          row: module.row,
+        });
+        return;
+      }
       this.selectedModuleUid = module.uid;
       this.placed.forEach((placed) => this.updateRingState(placed));
       this.game.events.emit("module-clicked", {
