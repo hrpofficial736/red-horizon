@@ -47,12 +47,11 @@ export function StatsComponent() {
             );
             const displayedHp = Math.round(module.hp);
             const isPowerGenerator = config.powerDraw > 0;
+            const isCritical = isCriticalPowerModule(module.id);
             const isActive =
               module.active &&
               module.hp > 0 &&
-              (isPowerGenerator ||
-                isCriticalPowerModule(module.id) ||
-                hasPowerSurplus);
+              (isPowerGenerator || isCritical || hasPowerSurplus);
             const canActivate =
               module.hp > 0 &&
               (isPowerGenerator ||
@@ -67,7 +66,7 @@ export function StatsComponent() {
                 ));
             const canToggle =
               !isPowerGenerator &&
-              !isCriticalPowerModule(module.id) &&
+              !isCritical &&
               module.hp > 0 &&
               (module.active || canActivate);
             return (

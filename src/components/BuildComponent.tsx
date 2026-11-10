@@ -17,6 +17,9 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
   const hasResearchLab = placedModules.some(
     (module) => module.id === "researchLab",
   );
+  const hasKitchen = placedModules.some((module) => module.id === "kitchen");
+  const hasDrill = placedModules.some((module) => module.id === "drill");
+  const essentialsComplete = hasKitchen && hasDrill;
 
   const canAffordModule = selectedModule.buildCost.every((cost) => {
     const stockAvailable = inventory[cost.resource] ?? 0;
@@ -44,6 +47,7 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
   );
 
   const unlockedModules = defaultUnlockedModules.filter((mod) => {
+    if (mod.id === "researchLab" && !essentialsComplete) return false;
     if (mod.id !== "sample_extractor") return true;
     return hasResearchLab || unlockedModuleIds.includes(mod.id);
   });

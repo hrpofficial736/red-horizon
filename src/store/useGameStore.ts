@@ -204,6 +204,9 @@ export const getStorageCapacity = (
     0,
   );
 
+const isSampleExtractorRecipe = (recipe: CraftingRecipe) =>
+  recipe.output === "mars_sample";
+
 interface GameState {
   // --- STATE VARIABLES ---
   inventory: Record<ResourceType, number>;
@@ -249,6 +252,7 @@ interface GameState {
 
   // // NEW MECHANICS STATE
   isCommsEstablished: boolean; // Unlocks Sol 15 mission step
+  criticalSystemsBootstrapped: boolean;
   gameLogs: string[]; // Narration strings push here for UI console
 
   // --- ACTIONS (MUTATORS) ---
@@ -504,6 +508,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   // // NEW MECHANICS STATE
   fatigueLevel: 0,
   isCommsEstablished: false,
+  criticalSystemsBootstrapped: false,
   gameLogs: [
     "Sol 01: System online. Establish base foundations before environmental anomalies manifest.",
   ],
@@ -722,22 +727,23 @@ export const useGameStore = create<GameState>((set, get) => ({
   queueCrafting: (recipe) => {
     const { inventory, workshopQueue, placedModules, powerBankCharge, currentHour } =
       get();
-    const hasSampleExtractorActive = placedModules.some(
-      (module) =>
-        module.id === "sample_extractor" &&
-        module.hp > 0 &&
-        module.active &&
-        hasOperationalPower(placedModules, powerBankCharge, currentHour),
+    const workshopOperational = isProductionOperational(
+      placedModules,
+      powerBankCharge,
+      currentHour,
+      "workshop",
     );
-    if (
-      !isProductionOperational(
-        placedModules,
-        powerBankCharge,
-        currentHour,
-        "workshop",
-      ) &&
-      !hasSampleExtractorActive
-    ) {
+    const sampleExtractorOperational = isProductionOperational(
+      placedModules,
+      powerBankCharge,
+      currentHour,
+      "sample_extractor",
+    );
+    const canCraft = isSampleExtractorRecipe(recipe)
+      ? sampleExtractorOperational
+      : workshopOperational;
+
+    if (!canCraft) {
       return false;
     }
     const hasMaterials = recipe.cost.every(
@@ -841,30 +847,28 @@ export const useGameStore = create<GameState>((set, get) => ({
     );
 
     set((state) => {
-      const hasSampleExtractorActive = state.placedModules.some(
-        (module) =>
-          module.id === "sample_extractor" &&
-          module.hp > 0 &&
-          module.active &&
-          hasOperationalPower(
-            state.placedModules,
-            state.powerBankCharge,
-            state.currentHour,
-          ),
+      const workshopOperational = isProductionOperational(
+        state.placedModules,
+        state.powerBankCharge,
+        state.currentHour,
+        "workshop",
       );
-      if (
-        !isProductionOperational(
-          state.placedModules,
-          state.powerBankCharge,
-          state.currentHour,
-          "workshop",
-        ) &&
-        !hasSampleExtractorActive
-      ) {
-        return state;
-      }
+      const sampleExtractorOperational = isProductionOperational(
+        state.placedModules,
+        state.powerBankCharge,
+        state.currentHour,
+        "sample_extractor",
+      );
+
+      if (!workshopOperational && !sampleExtractorOperational) return state;
+
       const completedItems = state.workshopQueue.filter(
-        (item) => !item.completed && item.completesAt <= now,
+        (item) =>
+          !item.completed &&
+          item.completesAt <= now &&
+          (isSampleExtractorRecipe(item.recipe)
+            ? sampleExtractorOperational
+            : workshopOperational),
       );
       if (completedItems.length === 0) return state;
 
@@ -1076,8 +1080,20 @@ export const useGameStore = create<GameState>((set, get) => ({
 
     // Append to placed modules state tracking
     const instanceId = `${moduleId}-${Date.now()}`;
-    set((state) => ({
-      placedModules: [
+    set((state) => {
+      const isDaylightNow =
+        state.currentHour >= DAYLIGHT_START_HOUR &&
+        state.currentHour < DAYLIGHT_END_HOUR;
+      const shouldBootstrapCriticalSystems =
+        !state.criticalSystemsBootstrapped &&
+        moduleId === "solar" &&
+        isDaylightNow;
+
+      const provisionalActive = isCriticalPowerModule(moduleId)
+        ? shouldBootstrapCriticalSystems
+        : config.powerDraw <= 0 || isDaylightNow;
+
+      const provisionalModules = [
         ...state.placedModules,
         {
           id: moduleId,
@@ -1085,15 +1101,59 @@ export const useGameStore = create<GameState>((set, get) => ({
           x: gridX,
           y: gridY,
           hp: config.maxIntegrity,
-          active:
-            config.powerDraw <= 0 ||
-            (get().currentHour >= DAYLIGHT_START_HOUR &&
-              get().currentHour < DAYLIGHT_END_HOUR),
+          active: provisionalActive,
           powerSupplyEnabled: false,
           powerPausedAt: undefined,
         },
-      ],
-    }));
+      ];
+
+      const shouldDisableNewModuleForCriticalPower =
+        !isCriticalPowerModule(moduleId) &&
+        config.powerDraw < 0 &&
+        provisionalActive &&
+        !hasOperationalPower(
+          provisionalModules.map((module) =>
+            shouldBootstrapCriticalSystems &&
+            isCriticalPowerModule(module.id) &&
+            module.hp > 0
+              ? { ...module, active: true }
+              : module,
+          ),
+          state.powerBankCharge,
+          state.currentHour,
+        );
+
+      const nextPlacedModules = provisionalModules.map((module) =>
+        shouldBootstrapCriticalSystems &&
+        isCriticalPowerModule(module.id) &&
+        module.hp > 0
+          ? { ...module, active: true }
+          : shouldDisableNewModuleForCriticalPower &&
+              module.instanceId === instanceId
+            ? {
+                ...module,
+                active: false,
+                powerPausedAt: getGameHour(
+                  state.currentDay,
+                  state.currentHour,
+                  state.currentMinute,
+                ),
+              }
+          : module,
+      );
+
+      return {
+        placedModules: nextPlacedModules,
+        criticalSystemsBootstrapped:
+          state.criticalSystemsBootstrapped || shouldBootstrapCriticalSystems,
+        gameLogs: shouldBootstrapCriticalSystems
+          ? [
+              ...state.gameLogs,
+              "🔋 BOOTSTRAP: Habitat and life support came online after first solar power initialization.",
+            ]
+          : state.gameLogs,
+      };
+    });
 
     // Trigger an external event dispatch so Phaser knows to render the building!
     window.dispatchEvent(
@@ -1532,8 +1592,9 @@ export const useGameStore = create<GameState>((set, get) => ({
           ? {
               ...module,
               hp: config.maxIntegrity,
-              active:
-                config.powerDraw > 0
+              active: isCriticalPowerModule(module.id)
+                ? state.criticalSystemsBootstrapped
+                : config.powerDraw > 0
                   ? state.currentHour >= DAYLIGHT_START_HOUR &&
                     state.currentHour < DAYLIGHT_END_HOUR
                   : true,
@@ -1659,12 +1720,16 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   // 9. Narrative Progression Interaction
   establishComms: () => {
-    const { currentDay, placedModules } = get();
+    const { placedModules, isCommsEstablished } = get();
+    if (isCommsEstablished) return true;
     const hasRadar = placedModules.some(
       (m) => m.id === "radar" && m.hp > 0 && m.active,
     );
+    const hasUplink = placedModules.some(
+      (m) => m.id === "communication" && m.hp > 0 && m.active,
+    );
 
-    if (currentDay >= 15 && hasRadar) {
+    if (hasRadar && hasUplink) {
       set({ isCommsEstablished: true });
       set((state) => ({
         gameLogs: [
@@ -1692,6 +1757,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       let powerBankCharge = state.powerBankCharge;
       const healthModifier = 0;
       let lastRadiationWaveDay = state.lastRadiationWaveDay;
+      let criticalSystemsBootstrapped = state.criticalSystemsBootstrapped;
 
       // Active environmental modifiers based on timeline narrative context rules
       const isStormActive = nextDay >= 10 && nextDay <= 18;
@@ -1763,7 +1829,7 @@ export const useGameStore = create<GameState>((set, get) => ({
             active: hp <= 0
               ? false
               : isCriticalPowerModule(mod.id)
-                ? true
+                ? criticalSystemsBootstrapped
                 : hp < config.maxIntegrity * (REPAIR_CRITICAL_HEALTH / 100)
                   ? false
                   : mod.active,
@@ -1942,6 +2008,23 @@ export const useGameStore = create<GameState>((set, get) => ({
           if (config.id === "battery") activeBatteryCount += 1;
         });
 
+        if (!criticalSystemsBootstrapped && totalPowerGenerated > 0) {
+          criticalSystemsBootstrapped = true;
+          updatedModules = updatedModules.map((mod) =>
+            isCriticalPowerModule(mod.id) && mod.hp > 0
+              ? {
+                  ...mod,
+                  active: true,
+                  powerPausedAt: undefined,
+                  productionPausedAt: undefined,
+                }
+              : mod,
+          );
+          logs.push(
+            "🔋 BOOTSTRAP: Habitat and life support came online after first solar power initialization.",
+          );
+        }
+
         const hasActiveBattery = updatedModules.some(
           (mod) => mod.id === "battery" && mod.hp > 0 && mod.active,
         );
@@ -2079,6 +2162,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         currentHour: nextHour,
         currentDay: nextDay,
         lastRadiationWaveDay,
+        criticalSystemsBootstrapped,
         placedModules: updatedModules,
         inventory: updatedInventory,
         powerBankCharge,

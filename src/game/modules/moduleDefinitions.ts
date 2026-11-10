@@ -155,7 +155,7 @@ export const MODULES: Record<string, ModuleDef> = {
     maxIntegrity: 100,
     baseDecayRate: 4,
     powerDraw: -10,
-    productionOutputs: [{ resource: "water", amountPerTick: 2 }],
+    productionOutputs: [{ resource: "water", amountPerTick: 4 }],
     maxModules: 4, // Only one water extractor can be built at a time
   },
   drill: {
@@ -234,7 +234,7 @@ export const MODULES: Record<string, ModuleDef> = {
     ],
     maxIntegrity: 100,
     baseDecayRate: 4,
-    powerDraw: 25, // Positive value: generates 25 units of energy during standard daylight
+    powerDraw: 30, // Positive value: generates 25 units of energy during standard daylight
     maxModules: 4, // Only four solar arrays can be built at a time
   },
   battery: {
@@ -260,7 +260,7 @@ export const MODULES: Record<string, ModuleDef> = {
     baseDecayRate: 2,
     powerDraw: 0, // Handles storage capacity changes through game context logic
     maxModules: 2, // Only two battery banks can be built at a time
-    powerCapacity: 200,
+    powerCapacity: 250,
   },
 
   // --- 4. TECHNOLOGY & TECH LOGS ---

@@ -14,6 +14,7 @@ import { ResearchComponent } from "./components/ResearchComponent";
 import { HabitatComponent } from "./components/HabitatComponent";
 import { SleepTransitionOverlay } from "./components/SleepTransitionOverlay";
 import { UplinkComponent } from "./components/UplinkComponent";
+import { QuestPanel } from "./components/QuestPanel";
 
 type ActiveTab = "none" | "build" | "inventory" | "research" | "logs";
 type CraftingModuleId = "workshop" | "kitchen" | "greenhouse";
@@ -191,6 +192,7 @@ function App() {
         {/* 📊 CORE HUD STATUS DATA METRICS PANEL (Top Right) */}
         <div className="pointer-events-auto">
           <BaseStatusHUD />
+          <QuestPanel />
           <DebugTimeSkip />
         </div>
 

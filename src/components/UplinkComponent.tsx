@@ -9,6 +9,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { OverlayLayout } from "./OverlayLayout";
+import { useGameStore } from "../store/useGameStore";
 
 interface UplinkComponentProps {
   onClose: () => void;
@@ -48,8 +49,10 @@ export function UplinkComponent({ onClose, hasRadar }: UplinkComponentProps) {
   const [transmissionIndex, setTransmissionIndex] = useState(-1);
   const [milestones, setMilestones] = useState<Record<string, boolean>>({});
   const [rescueStarted, setRescueStarted] = useState(false);
+  const establishComms = useGameStore((state) => state.establishComms);
+  const isCommsEstablished = useGameStore((state) => state.isCommsEstablished);
 
-  const isConnected = connectionProgress >= 100;
+  const isConnected = connectionProgress >= 100 || isCommsEstablished;
   const allMilestonesComplete = MILESTONES.every(
     (milestone) => milestones[milestone.id],
   );
@@ -62,7 +65,9 @@ export function UplinkComponent({ onClose, hasRadar }: UplinkComponentProps) {
   }, [connectionProgress]);
 
   const establishConnection = () => {
-    if (hasRadar && !isConnected) setConnectionProgress(2);
+    if (!hasRadar || isConnected) return;
+    setConnectionProgress(2);
+    establishComms();
   };
 
   return (
