@@ -144,9 +144,9 @@ export function HabitatComponent({ instanceId }: { instanceId: string }) {
               </div>
             </div>
 
-            <div className="text-xs text-neutral-400">
+            {/*<div className="text-xs text-neutral-400">
               Grid position: ({placedModule.x}, {placedModule.y})
-            </div>
+            </div>*/}
           </div>
         </section>
 

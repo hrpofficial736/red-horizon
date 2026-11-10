@@ -15,7 +15,7 @@ export default function ResourceOverlay() {
   const isStorageNearFull =
     totalCapacity > 0 && currentCapacity / totalCapacity >= 0.8;
   return (
-    <div className="absolute top-4 left-1/2 -translate-x-1/2 flex flex-row min-w-6xl items-center gap-4 bg-neutral-900/95 border border-neutral-700 px-6 py-3 rounded-full backdrop-blur shadow-2xl pointer-events-auto">
+    <div className="absolute top-4 left-1/2 -translate-x-1/2 flex flex-row min-w-max items-center gap-4 bg-neutral-900/95 border border-neutral-700 px-6 py-3 rounded-full backdrop-blur shadow-2xl pointer-events-auto">
       <div
         className={`flex flex-col items-center border-r pr-6 ${
           isStorageFull
@@ -57,12 +57,12 @@ export default function ResourceOverlay() {
           className={`w-6 aspect-square object-contain pointer-events-none`}
         />
         <div className="flex flex-col gap-1 items-center">
-          <span className="text-[10px] text-neutral-400 text-center block leading-none  tracking-wider">
+          {/* <span className="text-[10px] text-neutral-400 text-center block leading-none  tracking-wider">
             IRON ORE
-          </span>
+          </span>*/}
           <strong className="text-xs w-full text-center">
             x{inventory.iron_ore ?? 0}
-          </strong>
+          </strong> 
         </div>
       </div>
       <div className="w-px bg-neutral-700 h-6 my-auto" />
@@ -73,9 +73,9 @@ export default function ResourceOverlay() {
           className={`w-6 aspect-square object-contain pointer-events-none`}
         />
         <div className="flex flex-col gap-1 items-center">
-          <span className="text-[10px] text-neutral-400 text-center block leading-none tracking-wider">
+          {/*<span className="text-[10px] text-neutral-400 text-center block leading-none tracking-wider">
             SILICATE
-          </span>
+          </span>*/}
           <strong className="text-xs w-full text-center">
             x{inventory.silicates ?? 0}
           </strong>
@@ -89,9 +89,9 @@ export default function ResourceOverlay() {
           className={`w-6 aspect-square object-contain pointer-events-none`}
         />
         <div className="flex flex-col gap-1 items-center">
-          <span className="text-[10px] text-neutral-400 text-center block leading-none tracking-wider">
+          {/*<span className="text-[10px] text-neutral-400 text-center block leading-none tracking-wider">
             IRON PLATE
-          </span>
+          </span>*/}
           <strong className="text-xs w-full text-center">
             x{inventory.iron_plate ?? 0}
           </strong>
@@ -105,9 +105,9 @@ export default function ResourceOverlay() {
           className={`w-6 aspect-square object-contain pointer-events-none`}
         />
         <div className="flex flex-col gap-1 items-center">
-          <span className="text-[10px] text-neutral-400 text-center block leading-none tracking-wider">
+          {/*<span className="text-[10px] text-neutral-400 text-center block leading-none tracking-wider">
             GLASS PANEL
-          </span>
+          </span>*/}
           <strong className="text-xs w-full text-center">
             x{inventory.glass_panel ?? 0}
           </strong>
@@ -121,9 +121,9 @@ export default function ResourceOverlay() {
           className={`w-6 aspect-square object-contain pointer-events-none`}
         />
         <div className="flex flex-col gap-1 items-center">
-          <span className="text-[10px] text-neutral-400 text-center block leading-none tracking-wider">
+          {/*<span className="text-[10px] text-neutral-400 text-center block leading-none tracking-wider">
             ELECTRONICS
-          </span>
+          </span>*/}
           <strong className="text-xs w-full text-center">
             x{inventory.electronics ?? 0}
           </strong>
@@ -138,9 +138,9 @@ export default function ResourceOverlay() {
           className={`w-6 aspect-square object-contain pointer-events-none`}
         />
         <div className="flex flex-col gap-1 items-center">
-          <span className="text-[10px] text-neutral-400 text-center block leading-none tracking-wider">
+          {/*<span className="text-[10px] text-neutral-400 text-center block leading-none tracking-wider">
             REPAIR KIT
-          </span>
+          </span>*/}
           <strong className="text-xs w-full text-center">
             x{inventory.repair_kit ?? 0}
           </strong>
@@ -155,9 +155,9 @@ export default function ResourceOverlay() {
           className={`w-6 aspect-square object-contain pointer-events-none`}
         />
         <div className="flex flex-col gap-1 items-center">
-          <span className="text-[10px] text-neutral-400 text-center block leading-none tracking-wider">
+          {/*<span className="text-[10px] text-neutral-400 text-center block leading-none tracking-wider">
             RAW FOOD
-          </span>
+          </span>*/}
           <strong className="text-xs w-full text-center">
             x{inventory.raw_food ?? 0}
           </strong>
@@ -172,9 +172,9 @@ export default function ResourceOverlay() {
           className={`w-6 aspect-square object-contain pointer-events-none`}
         />
         <div className="flex flex-col gap-1 items-center">
-          <span className="text-[10px] text-neutral-400 text-center block leading-none tracking-wider">
+          {/*<span className="text-[10px] text-neutral-400 text-center block leading-none tracking-wider">
             SOUP
-          </span>
+          </span>*/}
           <strong className="text-xs w-full text-center">
             x{inventory.soup ?? 0}
           </strong>
@@ -188,9 +188,9 @@ export default function ResourceOverlay() {
           className={`w-6 aspect-square object-contain pointer-events-none`}
         />
         <div className="flex flex-col gap-1 items-center">
-          <span className="text-[10px] text-neutral-400 text-center block leading-none tracking-wider">
+          {/*<span className="text-[10px] text-neutral-400 text-center block leading-none tracking-wider">
             WATER
-          </span>
+          </span>*/}
           <strong className="text-xs w-full text-center">
             x{inventory.water ?? 0}
           </strong>

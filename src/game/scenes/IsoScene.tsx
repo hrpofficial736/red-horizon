@@ -387,6 +387,7 @@ export class IsoScene extends Phaser.Scene {
         if (this.movingModuleUid !== null) {
           this.cancelMove();
         } else if (this.hoveredModuleUid === null) {
+          this.selectedModuleUid = null;
           this.select(null);
         }
       } else if (this.hoveredModuleUid !== null) {
@@ -397,6 +398,9 @@ export class IsoScene extends Phaser.Scene {
         this.updateHover(p);
         const a = this.anchor();
         if (a) this.tryPlace(a.col, a.row);
+        this.drawGhost();
+      } else {
+        this.selectedModuleUid = null;
         this.drawGhost();
       }
     }
@@ -613,6 +617,16 @@ export class IsoScene extends Phaser.Scene {
     visibleView.setVisible(visible);
   }
 
+  private setModuleAlpha(
+    view: Phaser.GameObjects.GameObject,
+    alpha: number,
+  ) {
+    const alphaView = view as Phaser.GameObjects.GameObject & {
+      setAlpha: (value: number) => Phaser.GameObjects.GameObject;
+    };
+    alphaView.setAlpha(alpha);
+  }
+
   /**----------------------------------------------------------------------------------------------------------------
      * Retrieves the placed module occupying a specified grid tile.
      * Returns null when the tile is unoccupied or no matching module exists.
@@ -726,21 +740,8 @@ export class IsoScene extends Phaser.Scene {
   }
 
   private updateRingState(module: Placed) {
-    const shouldShow =
-      module.uid === this.hoveredModuleUid ||
-      module.uid === this.selectedModuleUid;
-
     if (module.ring) {
-      module.ring.setVisible(shouldShow);
-      if (shouldShow) {
-        const fp = this.footprint(
-          module.col,
-          module.row,
-          module.def.w,
-          module.def.h,
-        );
-        this.drawSelectionRing(module.ring, fp, module.def);
-      }
+      module.ring.setVisible(false);
     }
   }
 
@@ -761,16 +762,15 @@ export class IsoScene extends Phaser.Scene {
       this.hoveredModuleUid = module.uid;
       if (module.label) module.label.setVisible(true);
       this.placed.forEach((placed) => this.updateRingState(placed));
+      this.drawGhost();
     });
     target.on("pointerout", () => {
       if (this.hoveredModuleUid === module.uid) {
         this.hoveredModuleUid = null;
       }
-      if (this.selectedModuleUid === module.uid) {
-        this.selectedModuleUid = null;
-      }
       if (module.label) module.label.setVisible(false);
       this.placed.forEach((placed) => this.updateRingState(placed));
+      this.drawGhost();
     });
     target.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       if (this.isOverlayOpen()) return;
@@ -789,6 +789,7 @@ export class IsoScene extends Phaser.Scene {
       }
       this.selectedModuleUid = module.uid;
       this.placed.forEach((placed) => this.updateRingState(placed));
+      this.drawGhost();
       this.game.events.emit("module-clicked", {
         uid: module.uid,
         id: module.def.id,
@@ -924,6 +925,25 @@ export class IsoScene extends Phaser.Scene {
     const g = this.ghost;
     g.clear();
     this.ghostImg.setVisible(false);
+
+    const highlightedUid =
+      this.movingModuleUid === null
+        ? (this.hoveredModuleUid ?? this.selectedModuleUid)
+        : null;
+    this.placed.forEach((module) => {
+      const isHighlighted = module.uid === highlightedUid;
+      this.setModuleAlpha(module.view, isHighlighted ? 0.7 : 1);
+      this.updateRingState(module);
+      if (isHighlighted) {
+        const fp = this.footprint(
+          module.col,
+          module.row,
+          module.def.w,
+          module.def.h,
+        );
+        this.poly(g, [fp.top, fp.right, fp.bottom, fp.left], 0x44ff88, 0.5);
+      }
+    });
 
     if (!this.selected) {
       if (this.hoverTile) {
