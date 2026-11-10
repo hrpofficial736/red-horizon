@@ -265,6 +265,10 @@ interface GameState {
 
   // // NEW MECHANICS STATE
   isCommsEstablished: boolean; // Unlocks Sol 15 mission step
+  uplinkConnectionStartedAt: number | null;
+  earthReportSent: boolean;
+  stormAlertReceived: boolean;
+  rescueMissionInitialized: boolean;
   criticalSystemsBootstrapped: boolean;
   gameLogs: string[]; // Narration strings push here for UI console
   foodStockpileTaskStartDay: number | null;
@@ -309,6 +313,10 @@ interface GameState {
   repairModule: (instanceId: string) => boolean;
   completeRepair: (instanceId: string) => boolean;
   establishComms: () => boolean;
+  startUplinkConnection: () => boolean;
+  processUplinkConnection: () => void;
+  sendEarthReport: () => boolean;
+  initializeRescueMission: () => boolean;
   advanceHour: (
     hours: number,
     options?: { pauseWorkshop?: boolean; applyRadiation?: boolean },
@@ -346,6 +354,10 @@ interface GameSaveState {
   activeRepairInstanceId: string | null;
   repairJobs: Record<string, RepairJob>;
   isCommsEstablished: boolean;
+  uplinkConnectionStartedAt: number | null;
+  earthReportSent: boolean;
+  stormAlertReceived: boolean;
+  rescueMissionInitialized: boolean;
   criticalSystemsBootstrapped: boolean;
   gameLogs: string[];
   foodStockpileTaskStartDay: number | null;
@@ -445,6 +457,10 @@ const getSaveState = (state: GameState): GameSaveState => ({
   activeRepairInstanceId: state.activeRepairInstanceId,
   repairJobs: state.repairJobs,
   isCommsEstablished: state.isCommsEstablished,
+  uplinkConnectionStartedAt: state.uplinkConnectionStartedAt,
+  earthReportSent: state.earthReportSent,
+  stormAlertReceived: state.stormAlertReceived,
+  rescueMissionInitialized: state.rescueMissionInitialized,
   criticalSystemsBootstrapped: state.criticalSystemsBootstrapped,
   gameLogs: state.gameLogs,
   foodStockpileTaskStartDay: state.foodStockpileTaskStartDay,
@@ -673,6 +689,10 @@ export const useGameStore = create<GameState>((set, get) => ({
   // // NEW MECHANICS STATE
   fatigueLevel: 0,
   isCommsEstablished: false,
+  uplinkConnectionStartedAt: null,
+  earthReportSent: false,
+  stormAlertReceived: false,
+  rescueMissionInitialized: false,
   criticalSystemsBootstrapped: true,
   foodStockpileTaskStartDay: null,
   gameLogs: [
@@ -731,6 +751,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       ...save.state,
       placedModules,
       foodStockpileTaskStartDay: save.state.foodStockpileTaskStartDay ?? null,
+      uplinkConnectionStartedAt: save.state.uplinkConnectionStartedAt ?? null,
+      earthReportSent: save.state.earthReportSent ?? false,
+      stormAlertReceived: save.state.stormAlertReceived ?? false,
+      rescueMissionInitialized: save.state.rescueMissionInitialized ?? false,
       sleepOverlayPhase: "fadeOut",
       sleepOverlayDay: save.state.currentDay,
       sleepOverlayMode: "load",
@@ -1882,6 +1906,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           store.advanceHour(1);
         }
         set({ currentMinute: 0 });
+        store.processUplinkConnection();
         store.processWorkshopQueue();
         store.processKitchenQueue();
         store.processGreenhouseQueue();
@@ -1893,6 +1918,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         store.processKitchenQueue();
         store.processGreenhouseQueue();
         store.processResearchQueue();
+        store.processUplinkConnection();
       }
     }, 1000);
 
@@ -1966,26 +1992,103 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   // 9. Narrative Progression Interaction
   establishComms: () => {
-    const { placedModules, isCommsEstablished } = get();
+    return get().startUplinkConnection();
+  },
+
+  startUplinkConnection: () => {
+    const { placedModules, isCommsEstablished, uplinkConnectionStartedAt } =
+      get();
     if (isCommsEstablished) return true;
+    if (uplinkConnectionStartedAt !== null) return true;
     const hasRadar = placedModules.some(
-      (m) => m.id === "radar" && m.hp > 0 && m.active,
+      (m) =>
+        m.id === "radar" &&
+        m.hp > 0 &&
+        m.active &&
+        (m.constructionHoursRemaining ?? 0) <= 0,
     );
     const hasUplink = placedModules.some(
-      (m) => m.id === "communication" && m.hp > 0 && m.active,
+      (m) =>
+        m.id === "communication" &&
+        m.hp > 0 &&
+        m.active &&
+        (m.constructionHoursRemaining ?? 0) <= 0,
     );
 
     if (hasRadar && hasUplink) {
-      set({ isCommsEstablished: true });
-      set((state) => ({
+      const startedAt = getGameHour(
+        get().currentDay,
+        get().currentHour,
+        get().currentMinute,
+      ) * 60;
+      set({
+        uplinkConnectionStartedAt: startedAt,
         gameLogs: [
-          ...state.gameLogs,
-          `📡 UPLINK CONNECTED: Earth received data. Warning issued: Lethal solar storm hitting Sol 29. Outpost Beta heavy rover dispatched for Sol 30 rescue extraction!`,
+          ...get().gameLogs,
+          "📡 UPLINK HANDSHAKE: Radar lock acquired. Establishing a 30-minute encrypted channel with Earth.",
         ],
-      }));
+      });
       return true;
     }
     return false;
+  },
+
+  processUplinkConnection: () => {
+    const { uplinkConnectionStartedAt, isCommsEstablished } = get();
+    if (isCommsEstablished || uplinkConnectionStartedAt === null) return;
+    const now =
+      getGameHour(get().currentDay, get().currentHour, get().currentMinute) *
+      60;
+    if (now - uplinkConnectionStartedAt < 30) return;
+    set((state) => ({
+      isCommsEstablished: true,
+      uplinkConnectionStartedAt: null,
+      gameLogs: [
+        ...state.gameLogs,
+        "📡 UPLINK ESTABLISHED: Earth confirms the channel is stable. Send the outpost status report to receive mission control guidance.",
+      ],
+    }));
+  },
+
+  sendEarthReport: () => {
+    const { isCommsEstablished, earthReportSent } = get();
+    if (!isCommsEstablished || earthReportSent) return earthReportSent;
+    set((state) => ({
+      earthReportSent: true,
+      stormAlertReceived: true,
+      gameLogs: [
+        ...state.gameLogs,
+        "🌍 EARTH REPORT RECEIVED: Mission Control confirms a severe radiation storm will reach the outpost soon. Research and build a sample extractor, secure one sample, and deploy a rescue beacon.",
+      ],
+    }));
+    return true;
+  },
+
+  initializeRescueMission: () => {
+    const { stormAlertReceived, rescueMissionInitialized, inventory, placedModules } =
+      get();
+    const hasBeacon = placedModules.some(
+      (module) =>
+        module.id === "beacon" &&
+        module.hp > 0 &&
+        (module.constructionHoursRemaining ?? 0) <= 0,
+    );
+    if (
+      !stormAlertReceived ||
+      rescueMissionInitialized ||
+      (inventory.mars_sample ?? 0) < 1 ||
+      !hasBeacon
+    ) {
+      return false;
+    }
+    set((state) => ({
+      rescueMissionInitialized: true,
+      gameLogs: [
+        ...state.gameLogs,
+        "🚀 ARES-7 RESCUE INITIALIZED: Sample manifest received and beacon is transmitting. Hold the outpost through the evacuation window.",
+      ],
+    }));
+    return true;
   },
 
   // 6. Shift Time Progression Handling
@@ -2011,6 +2114,8 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       // Loop hourly to process state changes sequentially
       for (let i = 0; i < hours; i++) {
+        const wasDaylight =
+          nextHour >= DAYLIGHT_START_HOUR && nextHour < DAYLIGHT_END_HOUR;
         nextHour += 1;
         updatedModules = updatedModules.map((mod) => {
           const remaining = mod.constructionHoursRemaining;
@@ -2137,8 +2242,9 @@ export const useGameStore = create<GameState>((set, get) => ({
 
         const isDaylight =
           nextHour >= DAYLIGHT_START_HOUR && nextHour < DAYLIGHT_END_HOUR;
-        const isNightPowerInterval =
-          !isDaylight || nextHour === DAYLIGHT_START_HOUR;
+        const isNightPowerInterval = !isDaylight;
+        const isNightfall = wasDaylight && !isDaylight;
+        const isWakeup = !wasDaylight && isDaylight;
         updatedModules = updatedModules.map((mod) => {
           const config = MODULES[mod.id];
           if (mod.constructionHoursRemaining && mod.constructionHoursRemaining > 0) {
@@ -2155,6 +2261,7 @@ export const useGameStore = create<GameState>((set, get) => ({
             };
           }
           if (!isCriticalPowerModule(mod.id) && mod.id !== "battery") {
+            if (!isNightfall && !isWakeup) return mod;
             return {
               ...mod,
               active: false,
@@ -2166,7 +2273,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           }
           return mod;
         });
-        if (isDaylight && nextHour === DAYLIGHT_START_HOUR) {
+        if (isWakeup) {
           updatedModules = updatedModules.map((mod) =>
             isCriticalPowerModule(mod.id) || mod.id === "battery"
               ? mod
@@ -2185,53 +2292,6 @@ export const useGameStore = create<GameState>((set, get) => ({
         }
 
         const elapsedHour = getGameHour(nextDay, nextHour);
-        if (isDaylight) {
-          updatedModules = updatedModules.map((mod) => {
-            if (
-              mod.powerPausedAt === undefined ||
-              mod.hp <= 0 ||
-              isCriticalPowerModule(mod.id)
-            ) {
-              return mod;
-            }
-
-            const elapsedPausedHours = Math.max(
-              0,
-              elapsedHour - mod.powerPausedAt,
-            );
-            if (elapsedPausedHours > 0) {
-              if (mod.id === "workshop") {
-                workshopQueue = shiftPendingQueue(
-                  workshopQueue,
-                  elapsedPausedHours,
-                );
-              } else if (mod.id === "kitchen") {
-                kitchenQueue = shiftPendingQueue(
-                  kitchenQueue,
-                  elapsedPausedHours,
-                );
-              } else if (mod.id === "greenhouse") {
-                greenhouseQueue = shiftPendingQueue(
-                  greenhouseQueue,
-                  elapsedPausedHours,
-                );
-              } else if (mod.id === "researchLab") {
-                researchQueue = shiftPendingResearch(
-                  researchQueue,
-                  elapsedPausedHours,
-                );
-              }
-            }
-            return {
-              ...mod,
-              active: mod.active,
-              powerPausedAt: mod.active ? undefined : mod.powerPausedAt,
-              productionPausedAt: mod.active
-                ? undefined
-                : mod.productionPausedAt,
-            };
-          });
-        }
         const workshopOperational = isProductionOperational(
           updatedModules,
           powerBankCharge,
@@ -2469,6 +2529,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         gameLogs: logs,
       };
     });
+    get().processUplinkConnection();
     if (get().currentDay > previousDay) {
       get().saveGameAtDayStart(get().currentDay);
     }

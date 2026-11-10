@@ -16,6 +16,7 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
   const unlockedModuleIds = useGameStore((state) => state.unlockedModuleIds);
   const researchedNodeIds = useGameStore((state) => state.researchedNodeIds);
   const isCommsEstablished = useGameStore((state) => state.isCommsEstablished);
+  const stormAlertReceived = useGameStore((state) => state.stormAlertReceived);
   const hasBuilt = (moduleId: string) =>
     placedModules.some(
       (module) =>
@@ -56,6 +57,12 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
     foodStockpileTaskStartDay !== null &&
     currentDay > foodStockpileTaskStartDay &&
     foodCount >= 7;
+  const extractorResearchComplete = researchedNodeIds.includes(
+    "tech_sample_extractor",
+  );
+  const hasSampleExtractor = hasBuilt("sample_extractor");
+  const hasBeacon = hasBuilt("beacon");
+  const hasSample = (inventory.mars_sample ?? 0) >= 1;
 
   const taskCompletion = [
     hasSolar,
@@ -76,9 +83,28 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
     [],
     ["researchLab"],
     [],
+    ...(stormAlertReceived
+      ? [
+          [],
+          ["sample_extractor"],
+          [],
+          ["beacon"],
+          [],
+        ]
+      : []),
   ];
+  const missionTaskCompletion = stormAlertReceived
+    ? [
+        extractorResearchComplete,
+        hasSampleExtractor,
+        hasSample,
+        hasBeacon,
+        false,
+      ]
+    : [];
 
-  const activeTaskIndex = taskCompletion.findIndex((complete) => !complete);
+  const allTaskCompletion = [...taskCompletion, ...missionTaskCompletion];
+  const activeTaskIndex = allTaskCompletion.findIndex((complete) => !complete);
   const previouslyAssignedModuleIds = taskModuleIds
     .slice(0, activeTaskIndex < 0 ? taskModuleIds.length : activeTaskIndex)
     .flat();
@@ -89,7 +115,10 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
     ...activeTaskModuleIds,
   ]);
 
-  if (activeTaskIndex < 0 && !placedModules.some((module) => module.id === "radiation_tower")) {
+  if (
+    activeTaskIndex < 0 &&
+    !placedModules.some((module) => module.id === "radiation_tower")
+  ) {
     assignedModuleIds.add("radiation_tower");
   }
   if (
@@ -126,7 +155,9 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
   const defaultUnlockedModules = Object.values(MODULES).filter(
     (mod) =>
       assignedModuleIds.has(mod.id) &&
-      (mod.isUnlockedByDefault || unlockedModuleIds.includes(mod.id)) &&
+      (mod.isUnlockedByDefault ||
+        unlockedModuleIds.includes(mod.id) ||
+        (stormAlertReceived && mod.id === "beacon")) &&
       mod.id !== "habitat",
   );
 

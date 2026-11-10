@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Check,
   Circle,
@@ -45,29 +45,71 @@ const MILESTONES = [
 ];
 
 export function UplinkComponent({ onClose, hasRadar }: UplinkComponentProps) {
-  const [connectionProgress, setConnectionProgress] = useState(0);
   const [transmissionIndex, setTransmissionIndex] = useState(-1);
-  const [milestones, setMilestones] = useState<Record<string, boolean>>({});
-  const [rescueStarted, setRescueStarted] = useState(false);
-  const establishComms = useGameStore((state) => state.establishComms);
-  const isCommsEstablished = useGameStore((state) => state.isCommsEstablished);
-
-  const isConnected = connectionProgress >= 100 || isCommsEstablished;
-  const allMilestonesComplete = MILESTONES.every(
-    (milestone) => milestones[milestone.id],
+  const startUplinkConnection = useGameStore(
+    (state) => state.startUplinkConnection,
   );
-  useEffect(() => {
-    if (connectionProgress <= 0 || connectionProgress >= 100) return;
-    const timer = window.setInterval(() => {
-      setConnectionProgress((progress) => Math.min(100, progress + 2));
-    }, 120);
-    return () => window.clearInterval(timer);
-  }, [connectionProgress]);
+  const sendEarthReport = useGameStore((state) => state.sendEarthReport);
+  const initializeRescueMission = useGameStore(
+    (state) => state.initializeRescueMission,
+  );
+  const isCommsEstablished = useGameStore((state) => state.isCommsEstablished);
+  const uplinkConnectionStartedAt = useGameStore(
+    (state) => state.uplinkConnectionStartedAt,
+  );
+  const earthReportSent = useGameStore((state) => state.earthReportSent);
+  const rescueMissionInitialized = useGameStore(
+    (state) => state.rescueMissionInitialized,
+  );
+  const inventory = useGameStore((state) => state.inventory);
+  const placedModules = useGameStore((state) => state.placedModules);
+  const currentDay = useGameStore((state) => state.currentDay);
+  const currentHour = useGameStore((state) => state.currentHour);
+  const currentMinute = useGameStore((state) => state.currentMinute);
 
+  const currentGameMinutes =
+    (currentDay * 24 + currentHour) * 60 + currentMinute;
+  const connectionStartedMinutes = uplinkConnectionStartedAt ?? 0;
+  const elapsedConnectionMinutes =
+    currentGameMinutes - connectionStartedMinutes;
+  const isConnected =
+    isCommsEstablished ||
+    (uplinkConnectionStartedAt !== null && elapsedConnectionMinutes >= 30);
+  const calculatedProgress =
+    isConnected || isCommsEstablished
+      ? 100
+      : uplinkConnectionStartedAt !== null
+        ? Math.min(99, Math.max(0, (elapsedConnectionMinutes / 30) * 100))
+        : 0;
+  const hasSample = (inventory.mars_sample ?? 0) >= 1;
+  const hasBeacon = placedModules.some(
+    (module) =>
+      module.id === "beacon" &&
+      module.hp > 0 &&
+      (module.constructionHoursRemaining ?? 0) <= 0,
+  );
+  const displayedTransmissionIndex = earthReportSent
+    ? TRANSMISSIONS.length - 1
+    : transmissionIndex;
   const establishConnection = () => {
-    if (!hasRadar || isConnected) return;
-    setConnectionProgress(2);
-    establishComms();
+    startUplinkConnection();
+  };
+
+  const advanceTransmission = () => {
+    if (transmissionIndex < 0) {
+      setTransmissionIndex(0);
+      return;
+    }
+    const nextIndex = Math.min(
+      TRANSMISSIONS.length - 1,
+      transmissionIndex + 1,
+    );
+    setTransmissionIndex(nextIndex);
+    if (nextIndex === TRANSMISSIONS.length - 1) sendEarthReport();
+  };
+
+  const startRescue = () => {
+    initializeRescueMission();
   };
 
   return (
@@ -106,14 +148,14 @@ export function UplinkComponent({ onClose, hasRadar }: UplinkComponentProps) {
             <div className="rounded-lg border border-neutral-800 bg-neutral-950/80 p-3">
               <div className="mb-2 flex justify-between text-[10px] uppercase text-neutral-400">
                 <span>Signal handshake</span>
-                <span>{connectionProgress}%</span>
+                <span>{Math.round(calculatedProgress)}%</span>
               </div>
               <div className="h-2 overflow-hidden rounded-full bg-neutral-800">
                 <div
                   className={`h-full transition-all duration-150 ${
                     isConnected ? "bg-emerald-400" : "bg-cyan-400"
                   }`}
-                  style={{ width: `${connectionProgress}%` }}
+                  style={{ width: `${calculatedProgress}%` }}
                 />
               </div>
             </div>
@@ -121,7 +163,7 @@ export function UplinkComponent({ onClose, hasRadar }: UplinkComponentProps) {
             <button
               type="button"
               onClick={establishConnection}
-              disabled={!hasRadar || isConnected || connectionProgress > 0}
+              disabled={!hasRadar || isConnected || uplinkConnectionStartedAt !== null}
               className={`rounded-lg px-4 py-3 text-xs font-bold uppercase tracking-widest transition ${
                 isConnected
                   ? "cursor-default border border-emerald-400/50 bg-emerald-500/20 text-emerald-300"
@@ -132,7 +174,7 @@ export function UplinkComponent({ onClose, hasRadar }: UplinkComponentProps) {
             >
               {isConnected
                 ? "✓ CONNECTION ESTABLISHED // ONLINE"
-                : connectionProgress > 0
+                : uplinkConnectionStartedAt !== null
                   ? "CALIBRATING ARRAY..."
                   : "ESTABLISH CONNECTION WITH EARTH"}
             </button>
@@ -152,26 +194,23 @@ export function UplinkComponent({ onClose, hasRadar }: UplinkComponentProps) {
                 RESCUE READINESS
               </p>
               <div className="space-y-2">
-                {MILESTONES.map((milestone) => (
-                  <button
-                    type="button"
-                    key={milestone.id}
-                    onClick={() =>
-                      setMilestones((current) => ({
-                        ...current,
-                        [milestone.id]: !current[milestone.id],
-                      }))
-                    }
-                    className="flex w-full items-center gap-2 text-left text-[11px] text-neutral-300 hover:text-white"
-                  >
-                    {milestones[milestone.id] ? (
+                {MILESTONES.map((milestone) => {
+                  const complete =
+                    milestone.id === "sample" ? hasSample : hasBeacon;
+                  return (
+                    <div
+                      key={milestone.id}
+                      className="flex items-center gap-2 text-[11px] text-neutral-300"
+                    >
+                    {complete ? (
                       <Check size={14} className="text-emerald-400" />
                     ) : (
                       <Circle size={14} className="text-neutral-600" />
                     )}
                     {milestone.label}
-                  </button>
-                ))}
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </section>
@@ -201,7 +240,7 @@ export function UplinkComponent({ onClose, hasRadar }: UplinkComponentProps) {
                   </p>
                 </div>
               )}
-              {TRANSMISSIONS.slice(0, transmissionIndex + 1).map(
+              {TRANSMISSIONS.slice(0, displayedTransmissionIndex + 1).map(
                 (transmission, index) => (
                   <div
                     key={transmission.message}
@@ -225,31 +264,38 @@ export function UplinkComponent({ onClose, hasRadar }: UplinkComponentProps) {
 
             <button
               type="button"
-              disabled={!isConnected || transmissionIndex >= TRANSMISSIONS.length - 1}
-              onClick={() => setTransmissionIndex((index) => index + 1)}
+              disabled={
+                !isConnected ||
+                displayedTransmissionIndex >= TRANSMISSIONS.length - 1
+              }
+              onClick={advanceTransmission}
               className="mt-3 flex items-center justify-center gap-2 rounded-lg border border-cyan-500/40 bg-cyan-500/10 px-4 py-3 text-xs font-bold uppercase tracking-widest text-cyan-200 transition hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-40"
             >
               <Send size={14} />
-              {transmissionIndex < 0 ? "SEND OMEGA REPORT" : "NEXT TRANSMISSION"}
+              {displayedTransmissionIndex < 0
+                ? "SEND OMEGA REPORT"
+                : "NEXT TRANSMISSION"}
             </button>
           </section>
         </div>
 
-        {isConnected && transmissionIndex >= TRANSMISSIONS.length - 1 && (
+        {isConnected && earthReportSent && (
           <button
             type="button"
-            disabled={!allMilestonesComplete || rescueStarted}
-            onClick={() => setRescueStarted(true)}
+            disabled={!hasSample || !hasBeacon || rescueMissionInitialized}
+            onClick={startRescue}
             className={`flex items-center justify-center gap-2 rounded-lg px-4 py-3 text-xs font-bold uppercase tracking-[0.2em] transition ${
-              rescueStarted
+              rescueMissionInitialized
                 ? "bg-emerald-500/20 text-emerald-300"
-                : allMilestonesComplete
+                : hasSample && hasBeacon
                   ? "animate-pulse bg-orange-400 text-black hover:bg-orange-300"
                   : "cursor-not-allowed bg-neutral-800 text-neutral-500"
             }`}
           >
             <Sparkles size={14} />
-            {rescueStarted ? "RESCUE MISSION ARES-7 INITIATED" : "START RESCUE"}
+            {rescueMissionInitialized
+              ? "RESCUE MISSION ARES-7 INITIALIZED"
+              : "INITIALIZE RESCUE MISSION"}
           </button>
         )}
       </div>

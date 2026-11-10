@@ -33,6 +33,13 @@ export function QuestPanel() {
   const researchedNodeIds = useGameStore((state) => state.researchedNodeIds);
   const inventory = useGameStore((state) => state.inventory);
   const isCommsEstablished = useGameStore((state) => state.isCommsEstablished);
+  const earthReportSent = useGameStore((state) => state.earthReportSent);
+  const stormAlertReceived = useGameStore(
+    (state) => state.stormAlertReceived,
+  );
+  const rescueMissionInitialized = useGameStore(
+    (state) => state.rescueMissionInitialized,
+  );
   const foodStockpileTaskStartDay = useGameStore(
     (state) => state.foodStockpileTaskStartDay,
   );
@@ -73,6 +80,12 @@ export function QuestPanel() {
     foodCount >= 7;
   const task7Complete = hasResearchLab;
   const task8Complete = researchedNodeIds.length > 0;
+  const extractorResearchComplete = researchedNodeIds.includes(
+    "tech_sample_extractor",
+  );
+  const hasSampleExtractor = hasBuilt(placedModules, "sample_extractor");
+  const hasBeacon = hasBuilt(placedModules, "beacon");
+  const hasSample = (inventory.mars_sample ?? 0) >= 1;
 
   useEffect(() => {
     if (task5Complete) startFoodStockpileTask();
@@ -199,7 +212,8 @@ export function QuestPanel() {
       id: "task-friendly",
       taskLabel: "TASK9",
       heading: "Friendly Connection",
-      complete: hasRadar && hasUplink && isCommsEstablished,
+      complete:
+        hasRadar && hasUplink && isCommsEstablished && earthReportSent,
       lines: [
         { text: "Build radar module", done: hasRadar },
         { text: "Build uplink module", done: hasUplink },
@@ -207,11 +221,69 @@ export function QuestPanel() {
           text: "Establish connection with Earth",
           done: isCommsEstablished,
         },
+        { text: "Send the outpost status report", done: earthReportSent },
       ],
     };
 
     if (!optionalBlock.complete) blocks.push(optionalBlock);
     if (!friendlyBlock.complete) blocks.push(friendlyBlock);
+
+    if (stormAlertReceived && earthReportSent && friendlyBlock.complete) {
+      const missionBlocks: QuestBlock[] = [
+        {
+          id: "storm-research",
+          taskLabel: "TASK10",
+          heading: "Storm Response Research",
+          complete: extractorResearchComplete,
+          lines: [
+            {
+              text: "Research the sample extractor technology",
+              done: extractorResearchComplete,
+            },
+          ],
+        },
+        {
+          id: "storm-extractor",
+          taskLabel: "TASK11",
+          heading: "Sample Extractor",
+          complete: hasSampleExtractor,
+          lines: [
+            {
+              text: "Construct the sample extractor",
+              done: hasSampleExtractor,
+            },
+          ],
+        },
+        {
+          id: "storm-sample",
+          taskLabel: "TASK12",
+          heading: "Martian Sample",
+          complete: hasSample,
+          lines: [{ text: "Extract 1 Martian sample", done: hasSample }],
+        },
+        {
+          id: "storm-beacon",
+          taskLabel: "TASK13",
+          heading: "Rescue Beacon",
+          complete: hasBeacon,
+          lines: [{ text: "Build the rescue beacon", done: hasBeacon }],
+        },
+        {
+          id: "storm-rescue",
+          taskLabel: "TASK14",
+          heading: "Evacuation",
+          complete: rescueMissionInitialized,
+          lines: [
+            {
+              text: "Initialize the rescue mission from the uplink",
+              done: rescueMissionInitialized,
+            },
+          ],
+        },
+      ];
+      const nextMissionBlock = missionBlocks.find((block) => !block.complete);
+      if (nextMissionBlock) blocks.push(nextMissionBlock);
+    }
   }
 
   const currentBlock = blocks[0] ?? null;
