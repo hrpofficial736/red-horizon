@@ -29,7 +29,7 @@ export const WORKSHOP_RECIPES: CraftingRecipe[] = [
     craftHours: 2,
     cost: [
       { resource: "iron_plate", amount: 1 },
-      { resource: "electronics", amount: 1 },
+      { resource: "electronics", amount: 2 },
     ],
   },
   {
@@ -39,8 +39,8 @@ export const WORKSHOP_RECIPES: CraftingRecipe[] = [
       "Fused silicates and iron wiring required for computer arrays and radars.",
     craftHours: 2,
     cost: [
-      { resource: "iron_ore", amount: 1 },
-      { resource: "silicates", amount: 2 },
+      { resource: "iron_ore", amount: 2 },
+      { resource: "silicates", amount: 3 },
     ],
   },
   {
@@ -49,7 +49,7 @@ export const WORKSHOP_RECIPES: CraftingRecipe[] = [
     description:
       "Refined structural iron used as the baseline framing for all base modules.",
     craftHours: 1,
-    cost: [{ resource: "iron_ore", amount: 3 }],
+    cost: [{ resource: "iron_ore", amount: 4 }],
   },
   {
     output: "glass_panel",
@@ -57,7 +57,7 @@ export const WORKSHOP_RECIPES: CraftingRecipe[] = [
     description:
       "Heavy treated glass used to build Greenhouses and Solar Array surfaces.",
     craftHours: 1,
-    cost: [{ resource: "silicates", amount: 3 }],
+    cost: [{ resource: "silicates", amount: 4 }],
   },
   {
     output: "water_filter",
@@ -66,8 +66,8 @@ export const WORKSHOP_RECIPES: CraftingRecipe[] = [
       "A replaceable filtration cartridge that purifies contaminated water for the colony.",
     craftHours: 1,
     cost: [
-      { resource: "iron_plate", amount: 1 },
-      { resource: "silicates", amount: 1 },
+      { resource: "iron_plate", amount: 2 },
+      { resource: "silicates", amount: 2 },
     ],
   },
   {
@@ -77,8 +77,8 @@ export const WORKSHOP_RECIPES: CraftingRecipe[] = [
       "A sealed filter cartridge that removes dust and harmful particles from the habitat air.",
     craftHours: 1,
     cost: [
-      { resource: "iron_plate", amount: 1 },
-      { resource: "electronics", amount: 1 },
+      { resource: "iron_plate", amount: 2 },
+      { resource: "electronics", amount: 2 },
     ],
   },
 ];

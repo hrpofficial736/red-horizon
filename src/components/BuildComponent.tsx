@@ -43,8 +43,10 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
   const foodStockpileTaskStartDay = useGameStore(
     (state) => state.foodStockpileTaskStartDay,
   );
+  const foodStockpileTaskCompleted = useGameStore(
+    (state) => state.foodStockpileTaskCompleted,
+  );
   const foodResources: ResourceType[] = [
-    "raw_food",
     "soup",
     "meal",
     "good_meal",
@@ -54,9 +56,10 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
     0,
   );
   const task6Complete =
-    foodStockpileTaskStartDay !== null &&
-    currentDay > foodStockpileTaskStartDay &&
-    foodCount >= 7;
+    foodStockpileTaskCompleted ||
+    (foodStockpileTaskStartDay !== null &&
+      currentDay > foodStockpileTaskStartDay &&
+      foodCount >= 7);
   const extractorResearchComplete = researchedNodeIds.includes(
     "tech_sample_extractor",
   );

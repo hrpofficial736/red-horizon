@@ -46,6 +46,12 @@ export function QuestPanel() {
   const startFoodStockpileTask = useGameStore(
     (state) => state.startFoodStockpileTask,
   );
+  const foodStockpileTaskCompleted = useGameStore(
+    (state) => state.foodStockpileTaskCompleted,
+  );
+  const completeFoodStockpileTask = useGameStore(
+    (state) => state.completeFoodStockpileTask,
+  );
 
   const hasSolar = hasBuilt(placedModules, "solar");
   const hasBattery = hasBuilt(placedModules, "battery");
@@ -65,7 +71,6 @@ export function QuestPanel() {
   const task4Complete = hasWaterExtractor && hasDrill;
   const task5Complete = hasKitchen && hasGreenhouse;
   const foodResources: ResourceType[] = [
-    "raw_food",
     "soup",
     "meal",
     "good_meal",
@@ -75,9 +80,10 @@ export function QuestPanel() {
     0,
   );
   const task6Complete =
-    foodStockpileTaskStartDay !== null &&
-    currentDay > foodStockpileTaskStartDay &&
-    foodCount >= 7;
+    foodStockpileTaskCompleted ||
+    (foodStockpileTaskStartDay !== null &&
+      currentDay > foodStockpileTaskStartDay &&
+      foodCount >= 7);
   const task7Complete = hasResearchLab;
   const task8Complete = researchedNodeIds.length > 0;
   const extractorResearchComplete = researchedNodeIds.includes(
@@ -90,6 +96,16 @@ export function QuestPanel() {
   useEffect(() => {
     if (task5Complete) startFoodStockpileTask();
   }, [startFoodStockpileTask, task5Complete]);
+
+  useEffect(() => {
+    if (task6Complete && !foodStockpileTaskCompleted) {
+      completeFoodStockpileTask();
+    }
+  }, [
+    completeFoodStockpileTask,
+    foodStockpileTaskCompleted,
+    task6Complete,
+  ]);
 
   const foodStockpileDueDay = (foodStockpileTaskStartDay ?? currentDay) + 3;
   const foodStockpileExpired =

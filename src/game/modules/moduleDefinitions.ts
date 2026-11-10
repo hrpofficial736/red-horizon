@@ -202,8 +202,8 @@ export const MODULES: Record<string, ModuleDef> = {
     originY: 0.65,
     scale: 0.24,
     buildCost: [
-      { resource: "iron_plate", amount: 10 },
-      { resource: "electronics", amount: 5 },
+      { resource: "iron_plate", amount: 13 },
+      { resource: "electronics", amount: 7 },
     ],
     maxIntegrity: 100,
     baseDecayRate: 3,

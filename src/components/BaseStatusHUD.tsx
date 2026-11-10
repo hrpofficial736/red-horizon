@@ -14,6 +14,7 @@ export const BaseStatusHUD: React.FC<BaseStatusHUDProps> = ({ onOpenMenu }) => {
   const currentHour = useGameStore((state) => state.currentHour);
   const currentMinute = useGameStore((state) => state.currentMinute);
   const astronautHealth = useGameStore((state) => state.astronautHealth);
+  const oxygenSpO2 = useGameStore((state) => state.oxygenSpO2);
   const fatigueLevel = useGameStore((state) => state.fatigueLevel);
   const sleepUntilMorning = useGameStore((state) => state.sleepUntilMorning);
   const workOvertime = useGameStore((state) => state.workOvertime);
@@ -27,11 +28,23 @@ export const BaseStatusHUD: React.FC<BaseStatusHUDProps> = ({ onOpenMenu }) => {
   const powerBankCapacity = getPowerBankCapacity(placedModules);
   const formattedHour = String(currentHour).padStart(2, "0");
   const formattedMinute = String(currentMinute).padStart(2, "0");
+  const oxygenDisplay =
+    oxygenSpO2 >= 90
+      ? oxygenSpO2 +
+        Math.sin((currentDay * 1440 + currentHour * 60 + currentMinute) / 8) *
+          0.4
+      : oxygenSpO2;
 
   const healthColor =
     astronautHealth < 30
       ? "text-red-500 font-bold"
       : "text-green-400 font-bold";
+  const oxygenColor =
+    oxygenSpO2 < 90
+      ? "text-red-400 font-bold"
+      : oxygenSpO2 < 94
+        ? "text-amber-300 font-bold"
+        : "text-cyan-300 font-bold";
 
   return (
     <div className="absolute top-4 right-4 z-20 bg-neutral-950/90 border border-neutral-800 text-white p-4 rounded-xl font-mono min-w-[240px] backdrop-blur shadow-2xl pointer-events-auto">
@@ -59,7 +72,11 @@ export const BaseStatusHUD: React.FC<BaseStatusHUDProps> = ({ onOpenMenu }) => {
         </div>
         <div className="flex justify-between">
           <span className="text-neutral-400">VITALS HP:</span>
-          <span className={healthColor}>{astronautHealth}%</span>
+          <span className={healthColor}>{astronautHealth.toFixed(1)}%</span>
+        </div>
+        <div className="flex justify-between">
+          <span className="text-neutral-400">SpO2:</span>
+          <span className={oxygenColor}>{oxygenDisplay.toFixed(1)}%</span>
         </div>
         <div className="flex justify-between">
           <span className="text-neutral-400">EXHAUSTION:</span>

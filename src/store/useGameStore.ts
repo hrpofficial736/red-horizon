@@ -28,7 +28,15 @@ const FOOD_HEALTH_RECOVERY = {
 const FOOD_PRIORITY = ["good_meal", "meal", "soup"] as const;
 const OVERTIME_FATIGUE_PER_HOUR = 10;
 const NO_FOOD_HEALTH_LOSS = 10;
+const INITIAL_PREPARED_FOOD = 4;
+const INITIAL_OXYGEN_SPO2 = 98;
+const OXYGEN_CRITICAL_THRESHOLD = 90;
+const OXYGEN_DRAIN_PER_HOUR = 5;
+const OXYGEN_VITALS_LOSS_PER_HOUR = 8;
+const OXYGEN_RECOVERY_PER_MINUTE = 0.1;
+const CRITICAL_POWER_DEMAND = 17;
 const SAVE_STORAGE_KEY = "project-tharsis-day-saves";
+const NEW_GAME_TRANSITION_KEY = "project-tharsis-new-game-transition";
 const SAVE_VERSION = 1;
 export const REPAIR_TIME_SPEED = 15;
 export const REPAIR_THRESHOLD_HEALTH = 80;
@@ -235,6 +243,7 @@ interface GameState {
     powerPausedAt?: number;
   }>;
   astronautHealth: number;
+  oxygenSpO2: number;
   powerBankCharge: number;
   currentDay: number;
   lastRadiationWaveDay: number;
@@ -242,6 +251,8 @@ interface GameState {
   currentMinute: number;
   fatigueLevel: number;
   isFainted: boolean;
+  gameFailed: boolean;
+  failureCause: string | null;
   nextWakeHour: number;
   overtimeHours: number;
   sleepOverlayPhase: "none" | "fadeOut" | "day" | "fadeIn";
@@ -272,7 +283,9 @@ interface GameState {
   criticalSystemsBootstrapped: boolean;
   gameLogs: string[]; // Narration strings push here for UI console
   foodStockpileTaskStartDay: number | null;
+  foodStockpileTaskCompleted: boolean;
   startFoodStockpileTask: () => void;
+  completeFoodStockpileTask: () => void;
   saveGameAtDayStart: (day?: number) => void;
   getAvailableSaves: () => SavedGame[];
   loadGameSave: (day: number) => boolean;
@@ -319,8 +332,13 @@ interface GameState {
   initializeRescueMission: () => boolean;
   advanceHour: (
     hours: number,
-    options?: { pauseWorkshop?: boolean; applyRadiation?: boolean },
+    options?: {
+      pauseWorkshop?: boolean;
+      applyRadiation?: boolean;
+      processOxygen?: boolean;
+    },
   ) => void;
+  processOxygenMinute: () => void;
   startPassiveTimer: () => void;
   stopPassiveTimer: () => void;
 }
@@ -336,6 +354,7 @@ interface GameSaveState {
   discoveredResourceTypes: ResourceType[];
   placedModules: GameState["placedModules"];
   astronautHealth: number;
+  oxygenSpO2: number;
   powerBankCharge: number;
   currentDay: number;
   lastRadiationWaveDay: number;
@@ -343,6 +362,8 @@ interface GameSaveState {
   currentMinute: number;
   fatigueLevel: number;
   isFainted: boolean;
+  gameFailed: boolean;
+  failureCause: string | null;
   nextWakeHour: number;
   overtimeHours: number;
   workshopQueue: CraftQueueItem[];
@@ -361,6 +382,7 @@ interface GameSaveState {
   criticalSystemsBootstrapped: boolean;
   gameLogs: string[];
   foodStockpileTaskStartDay: number | null;
+  foodStockpileTaskCompleted: boolean;
 }
 
 const INITIAL_PLACED_MODULES: GameState["placedModules"] = [
@@ -439,6 +461,7 @@ const getSaveState = (state: GameState): GameSaveState => ({
   discoveredResourceTypes: state.discoveredResourceTypes,
   placedModules: state.placedModules,
   astronautHealth: state.astronautHealth,
+  oxygenSpO2: state.oxygenSpO2,
   powerBankCharge: state.powerBankCharge,
   currentDay: state.currentDay,
   lastRadiationWaveDay: state.lastRadiationWaveDay,
@@ -446,6 +469,8 @@ const getSaveState = (state: GameState): GameSaveState => ({
   currentMinute: state.currentMinute,
   fatigueLevel: state.fatigueLevel,
   isFainted: state.isFainted,
+  gameFailed: state.gameFailed,
+  failureCause: state.failureCause,
   nextWakeHour: state.nextWakeHour,
   overtimeHours: state.overtimeHours,
   workshopQueue: state.workshopQueue,
@@ -464,6 +489,7 @@ const getSaveState = (state: GameState): GameSaveState => ({
   criticalSystemsBootstrapped: state.criticalSystemsBootstrapped,
   gameLogs: state.gameLogs,
   foodStockpileTaskStartDay: state.foodStockpileTaskStartDay,
+  foodStockpileTaskCompleted: state.foodStockpileTaskCompleted,
 });
 
 const notifyPhaserOfModules = (placedModules: GameState["placedModules"]) => {
@@ -478,17 +504,17 @@ const notifyPhaserOfModules = (placedModules: GameState["placedModules"]) => {
 export const useGameStore = create<GameState>((set, get) => ({
   // 1. Initial State Definitions
   inventory: {
-    iron_ore: 24,
-    silicates: 24,
-    iron_plate: 58,
-    glass_panel: 32,
-    electronics: 36,
+    iron_ore: 16,
+    silicates: 18,
+    iron_plate: 34,
+    glass_panel: 14,
+    electronics: 24,
     repair_kit: 3,
     water_filter: 0,
     air_filter: 0,
     water: 18,
     raw_food: 8,
-    soup: 2,
+    soup: INITIAL_PREPARED_FOOD,
     meal: 0,
     good_meal: 0,
     mars_sample: 0,
@@ -665,12 +691,15 @@ export const useGameStore = create<GameState>((set, get) => ({
   ],
   placedModules: INITIAL_PLACED_MODULES,
   astronautHealth: 100,
+  oxygenSpO2: INITIAL_OXYGEN_SPO2,
   powerBankCharge: 0,
   currentDay: 1,
   lastRadiationWaveDay: 1,
   currentHour: 7, // The ideal work day starts at 07:00
   currentMinute: 0,
   isFainted: false,
+  gameFailed: false,
+  failureCause: null,
   nextWakeHour: IDEAL_WAKE_HOUR,
   overtimeHours: 0,
   sleepOverlayPhase: "none",
@@ -695,6 +724,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   rescueMissionInitialized: false,
   criticalSystemsBootstrapped: true,
   foodStockpileTaskStartDay: null,
+  foodStockpileTaskCompleted: false,
   gameLogs: [
     "Sol 01: System online. Establish base foundations before environmental anomalies manifest.",
   ],
@@ -702,6 +732,11 @@ export const useGameStore = create<GameState>((set, get) => ({
   startFoodStockpileTask: () => {
     if (get().foodStockpileTaskStartDay !== null) return;
     set({ foodStockpileTaskStartDay: get().currentDay });
+  },
+
+  completeFoodStockpileTask: () => {
+    if (get().foodStockpileTaskCompleted) return;
+    set({ foodStockpileTaskCompleted: true });
   },
 
   saveGameAtDayStart: (day) => {
@@ -718,8 +753,9 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   getAvailableSaves: () => {
     const currentDay = get().currentDay;
+    const includeCurrentDay = get().gameFailed;
     return getSaveList()
-      .filter((save) => save.day < currentDay)
+      .filter((save) => (includeCurrentDay ? save.day <= currentDay : save.day < currentDay))
       .sort((a, b) => b.day - a.day);
   },
 
@@ -736,6 +772,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   startNewGame: () => {
     if (isBrowser()) {
       window.localStorage.removeItem(SAVE_STORAGE_KEY);
+      window.localStorage.setItem(NEW_GAME_TRANSITION_KEY, "true");
       window.location.reload();
     }
   },
@@ -751,6 +788,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       ...save.state,
       placedModules,
       foodStockpileTaskStartDay: save.state.foodStockpileTaskStartDay ?? null,
+      foodStockpileTaskCompleted:
+        save.state.foodStockpileTaskCompleted ?? false,
+      gameFailed: false,
+      failureCause: null,
       uplinkConnectionStartedAt: save.state.uplinkConnectionStartedAt ?? null,
       earthReportSent: save.state.earthReportSent ?? false,
       stormAlertReceived: save.state.stormAlertReceived ?? false,
@@ -765,16 +806,28 @@ export const useGameStore = create<GameState>((set, get) => ({
       set({ sleepOverlayPhase: "day" });
       window.setTimeout(() => {
         set({ sleepOverlayPhase: "fadeIn" });
-        window.setTimeout(() => set({ sleepOverlayPhase: "none" }), 1000);
+        window.setTimeout(() => {
+          set({ sleepOverlayPhase: "none" });
+          if (!get().gameFailed) get().startPassiveTimer();
+        }, 1000);
       }, 1500);
     }, 700);
     return true;
   },
 
   initializeGameSaves: () => {
+    const newGameTransition =
+      isBrowser() &&
+      window.localStorage.getItem(NEW_GAME_TRANSITION_KEY) === "true";
+    if (newGameTransition) {
+      window.localStorage.removeItem(NEW_GAME_TRANSITION_KEY);
+    }
     const saves = getSaveList();
     if (saves.length === 0) {
       get().saveGameAtDayStart(1);
+      if (newGameTransition) {
+        get().loadGameSave(1);
+      }
       return;
     }
     const latestSave = [...saves].sort((a, b) => b.day - a.day)[0];
@@ -1615,11 +1668,23 @@ export const useGameStore = create<GameState>((set, get) => ({
         : currentHour + 24 - IDEAL_SLEEP_HOUR;
     const sleepHours = (24 - currentHour + IDEAL_WAKE_HOUR) % 24 || 24;
     window.setTimeout(() => {
-      get().advanceHour(sleepHours, { pauseWorkshop: true });
+      get().advanceHour(sleepHours, {
+        pauseWorkshop: true,
+        processOxygen: true,
+      });
 
       set((state) => {
         const selectedFood = FOOD_PRIORITY.find(
           (food) => (state.inventory[food] || 0) > 0,
+        );
+        const hasFoodInfrastructure = ["kitchen", "greenhouse"].every(
+          (moduleId) =>
+            state.placedModules.some(
+              (module) =>
+                module.id === moduleId &&
+                module.hp > 0 &&
+                (module.constructionHoursRemaining ?? 0) <= 0,
+            ),
         );
         const nextWakeHour = IDEAL_WAKE_HOUR + overtimeHours;
         const nextInventory = { ...state.inventory };
@@ -1628,6 +1693,15 @@ export const useGameStore = create<GameState>((set, get) => ({
           nextInventory[selectedFood] -= 1;
         }
 
+        const nextHealth = selectedFood
+          ? Math.min(
+              100,
+              state.astronautHealth + FOOD_HEALTH_RECOVERY[selectedFood],
+            )
+          : hasFoodInfrastructure
+            ? state.astronautHealth
+            : Math.max(0, state.astronautHealth - NO_FOOD_HEALTH_LOSS);
+        const failedFromStarvation = nextHealth <= 0;
         return {
           currentHour: nextWakeHour,
           currentMinute: 0,
@@ -1640,21 +1714,27 @@ export const useGameStore = create<GameState>((set, get) => ({
                 state.fatigueLevel - FOOD_FATIGUE_RECOVERY[selectedFood],
               )
             : state.fatigueLevel,
-          astronautHealth: selectedFood
-            ? Math.min(
-                100,
-                state.astronautHealth + FOOD_HEALTH_RECOVERY[selectedFood],
-              )
-            : Math.max(0, state.astronautHealth - NO_FOOD_HEALTH_LOSS),
+          astronautHealth: nextHealth,
+          gameFailed: failedFromStarvation,
+          failureCause: failedFromStarvation
+            ? "The astronaut exhausted the prepared food reserve and could not survive another night without a meal."
+            : state.failureCause,
           sleepOverlayPhase: "day",
           gameLogs: [
             ...state.gameLogs,
             selectedFood
               ? `🍽️ Night meal: ${selectedFood.replace("_", " ")} consumed.`
-              : "🚨 No meal available. Astronaut health decreased.",
+              : hasFoodInfrastructure
+                ? "🥬 No prepared meal available. Food production systems are online; continue cultivating and processing supplies."
+                : "🚨 No meal available. Astronaut health decreased.",
             overtimeHours > 0
               ? `😴 Recovery delayed by ${overtimeHours} overtime hour${overtimeHours === 1 ? "" : "s"}. Wake time: ${String(nextWakeHour).padStart(2, "0")}:00.`
               : "😴 Optimal sleep cycle complete. Wake time: 07:00.",
+            ...(failedFromStarvation
+              ? [
+                  "💀 MISSION FAILED: Astronaut health reached zero after the food reserve was exhausted.",
+                ]
+              : []),
           ],
         };
       });
@@ -1664,7 +1744,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         set({ sleepOverlayPhase: "fadeIn" });
         window.setTimeout(() => {
           set({ sleepOverlayPhase: "none" });
-          startPassiveTimer();
+          if (!get().gameFailed) startPassiveTimer();
         }, 1000);
       }, 2500);
     }, 1000);
@@ -1677,7 +1757,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       return false;
     }
 
-    advanceHour(1);
+    advanceHour(1, { processOxygen: true });
     const nextHour = get().currentHour;
 
     set((state) => ({
@@ -1706,6 +1786,68 @@ export const useGameStore = create<GameState>((set, get) => ({
     }
 
     return true;
+  },
+
+  processOxygenMinute: () => {
+    set((state) => {
+      if (state.gameFailed) return state;
+      const habitat = state.placedModules.find(
+        (module) => module.id === "habitat",
+      );
+      const lifeSupport = state.placedModules.find(
+        (module) => module.id === "life_support",
+      );
+      const criticalModulesOnline =
+        habitat !== undefined &&
+        habitat.hp > 0 &&
+        habitat.active &&
+        lifeSupport !== undefined &&
+        lifeSupport.hp > 0 &&
+        lifeSupport.active;
+      const solarGeneration = state.placedModules.reduce((total, module) => {
+        const config = MODULES[module.id];
+        return config &&
+          config.powerDraw > 0 &&
+          module.active &&
+          module.hp > 0 &&
+          state.currentHour >= DAYLIGHT_START_HOUR &&
+          state.currentHour < DAYLIGHT_END_HOUR
+          ? total + config.powerDraw
+          : total;
+      }, 0);
+      const criticalDemand =
+        Math.abs(MODULES.habitat.powerDraw) +
+        Math.abs(MODULES.life_support.powerDraw);
+      const criticalPowerAvailable =
+        solarGeneration >= criticalDemand ||
+        state.powerBankCharge >= criticalDemand;
+      const powered = criticalModulesOnline && criticalPowerAvailable;
+      const oxygenSpO2 = Math.max(
+        0,
+        Math.min(
+          100,
+          state.oxygenSpO2 +
+            (powered
+              ? OXYGEN_RECOVERY_PER_MINUTE
+              : -OXYGEN_DRAIN_PER_HOUR / 60),
+        ),
+      );
+      const belowThreshold =
+        oxygenSpO2 < OXYGEN_CRITICAL_THRESHOLD;
+      const astronautHealth = belowThreshold
+        ? Math.max(0, state.astronautHealth - OXYGEN_VITALS_LOSS_PER_HOUR / 60)
+        : state.astronautHealth;
+      const gameFailed = astronautHealth <= 0;
+      return {
+        oxygenSpO2,
+        astronautHealth,
+        gameFailed,
+        failureCause: gameFailed
+          ? "Life support remained without sufficient power. SpO2 fell below the safe limit and the astronaut's vitals reached zero."
+          : state.failureCause,
+      };
+    });
+    if (get().gameFailed) get().stopPassiveTimer();
   },
 
   // 8. Module Maintenance Action Function
@@ -1901,8 +2043,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       if (nextMinute >= 60) {
         // 60 minutes have passed! Advance the base automation engine by 1 full hour
         if (store.currentHour === FAINT_HOUR - 1) {
+          store.processOxygenMinute();
           store.workOvertime();
         } else {
+          store.processOxygenMinute();
           store.advanceHour(1);
         }
         set({ currentMinute: 0 });
@@ -1913,6 +2057,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         store.processResearchQueue();
       } else {
         // Just increment the active clock minutes
+        store.processOxygenMinute();
         set({ currentMinute: nextMinute });
         store.processWorkshopQueue();
         store.processKitchenQueue();
@@ -2108,6 +2253,9 @@ export const useGameStore = create<GameState>((set, get) => ({
       const healthModifier = 0;
       let lastRadiationWaveDay = state.lastRadiationWaveDay;
       let criticalSystemsBootstrapped = state.criticalSystemsBootstrapped;
+      let oxygenSpO2 = state.oxygenSpO2;
+      let astronautHealth = state.astronautHealth;
+      let oxygenFailureCause = state.failureCause;
 
       // Active environmental modifiers based on timeline narrative context rules
       const isStormActive = nextDay >= 10 && nextDay <= 18;
@@ -2490,6 +2638,40 @@ export const useGameStore = create<GameState>((set, get) => ({
         });
 
         // --- PHASE 3: ASTRONAUT ENVIRONMENTAL EXPOSURE DAMAGE MATRIX ---
+        if (options?.processOxygen) {
+          const hasCriticalSystems = updatedModules.some((mod) =>
+            isCriticalPowerModule(mod.id),
+          );
+          const criticalSystemsOnline =
+            hasCriticalSystems &&
+            updatedModules.every(
+              (mod) =>
+                !isCriticalPowerModule(mod.id) ||
+                (mod.hp > 0 && mod.active),
+            );
+          const criticalPowerAvailable =
+            criticalSystemsOnline &&
+            totalPowerGenerated + batteryDischarge >=
+              CRITICAL_POWER_DEMAND;
+          if (criticalPowerAvailable) {
+            oxygenSpO2 = Math.min(
+              100,
+              oxygenSpO2 + OXYGEN_RECOVERY_PER_MINUTE * 60,
+            );
+          } else {
+            oxygenSpO2 = Math.max(0, oxygenSpO2 - OXYGEN_DRAIN_PER_HOUR);
+            if (oxygenSpO2 < OXYGEN_CRITICAL_THRESHOLD) {
+              astronautHealth = Math.max(
+                0,
+                astronautHealth - OXYGEN_VITALS_LOSS_PER_HOUR,
+              );
+              if (astronautHealth <= 0) {
+                oxygenFailureCause =
+                  "The outpost lost critical life-support power. Oxygen levels fell too low and the astronaut's vitals failed.";
+              }
+            }
+          }
+        }
       }
 
       // --- PHASE 4: TIMELINE NARRATIVE EVENT TRACKER LOGS ---
@@ -2510,6 +2692,18 @@ export const useGameStore = create<GameState>((set, get) => ({
           "🎉 MISSION ACCOMPLISHED: Outpost Beta heavy pressurized rover crossed the ridge grid! Evacuation protocol initialized. You survived Mars.",
         );
 
+      const failedCriticalSystem = updatedModules.find(
+        (module) =>
+          isCriticalPowerModule(module.id) && module.hp <= 0,
+      );
+      const nextGameFailed =
+        state.gameFailed ||
+        failedCriticalSystem !== undefined ||
+        astronautHealth <= 0;
+      const nextFailureCause = failedCriticalSystem
+        ? `${MODULES[failedCriticalSystem.id]?.name ?? failedCriticalSystem.id} was destroyed, leaving the outpost without a critical life-support system.`
+        : oxygenFailureCause;
+
       return {
         currentHour: nextHour,
         currentDay: nextDay,
@@ -2522,14 +2716,15 @@ export const useGameStore = create<GameState>((set, get) => ({
         kitchenQueue,
         greenhouseQueue,
         researchQueue,
-        astronautHealth: Math.max(
-          0,
-          Math.min(100, state.astronautHealth + healthModifier),
-        ),
+        astronautHealth: Math.max(0, Math.min(100, astronautHealth + healthModifier)),
+        oxygenSpO2,
+        gameFailed: nextGameFailed,
+        failureCause: nextFailureCause,
         gameLogs: logs,
       };
     });
     get().processUplinkConnection();
+    if (get().gameFailed) get().stopPassiveTimer();
     if (get().currentDay > previousDay) {
       get().saveGameAtDayStart(get().currentDay);
     }

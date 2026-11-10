@@ -35,6 +35,7 @@ export const DebugTimeSkip: React.FC = () => {
     skipIntervalRef.current = setInterval(() => {
       const store = useGameStore.getState();
       const nextMinute = store.currentMinute + 1;
+      store.processOxygenMinute();
 
       if (nextMinute >= 60) {
         if (store.currentHour === 22) {

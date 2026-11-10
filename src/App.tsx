@@ -16,6 +16,7 @@ import { SleepTransitionOverlay } from "./components/SleepTransitionOverlay";
 import { UplinkComponent } from "./components/UplinkComponent";
 import { QuestPanel } from "./components/QuestPanel";
 import { SaveMenu } from "./components/SaveMenu";
+import { GameFailureOverlay } from "./components/GameFailureOverlay";
 
 type ActiveTab = "none" | "build" | "inventory" | "research" | "logs";
 type CraftingModuleId = "workshop" | "kitchen" | "greenhouse";
@@ -24,6 +25,9 @@ function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("none");
   const [showSaveMenu, setShowSaveMenu] = useState(false);
   const gameLogs = useGameStore((state) => state.gameLogs);
+  const gameFailed = useGameStore((state) => state.gameFailed);
+  const failureCause = useGameStore((state) => state.failureCause);
+  const startNewGame = useGameStore((state) => state.startNewGame);
 
   const [showStatusModal, setShowStatusModal] = useState<any>(null);
   const [moveRequest, setMoveRequest] = useState<{
@@ -52,7 +56,8 @@ function App() {
     craftingModule !== null ||
     habitatModule !== null ||
     uplinkModule !== null ||
-    showSaveMenu;
+    showSaveMenu ||
+    gameFailed;
 
   useEffect(() => {
     (
@@ -173,6 +178,13 @@ function App() {
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-[#1a0f0a] select-none text-white">
       <SleepTransitionOverlay />
+      {gameFailed && failureCause && !showSaveMenu && (
+        <GameFailureOverlay
+          cause={failureCause}
+          onLoadGame={() => setShowSaveMenu(true)}
+          onNewGame={startNewGame}
+        />
+      )}
       {/* 🎮 LAYER 1: PHASER CANVAS BACKGROUND CONTAINER (Lowest Depth) */}
       <div
         className={`absolute inset-0 z-0 ${
