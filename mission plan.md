@@ -1,676 +1,395 @@
 # Project Tharsis: Outpost Alpha Mission Plan
 
-## 1. Mission Brief
+## 1. Mission Premise
 
-The player is the lone engineer assigned to Outpost Alpha, one of three
-independent Martian research outposts. Alpha was designed to collect geological
-samples and transmit them to Earth, but a planet-wide Solar Particle Event on
-Sol 10 destroyed primary communications and damaged the atmosphere.
+The player is the engineer assigned to a newly landed Martian outpost. The
+outpost's long-term mission is to extract a geological sample and transmit it
+to Earth. The player must first make the outpost self-sufficient, then restore
+long-range communications, learn about an approaching storm, prepare the
+sample and beacon, and request evacuation before the storm arrives.
 
-On Sol 15, after the Communication Radar Array is realigned, Earth confirms
-that a terminal radiation wave will reach Alpha on Sol 29. Outpost Beta,
-protected inside a volcanic lava tube 1,200 km away, dispatches an automated
-pressurized rover. The rover is already travelling toward Alpha and can
-complete the evacuation before Sol 30 once the final rescue signal is sent.
+The opening should feel like an in-game mission rather than a static
+instruction page. Objectives appear as task-log entries, are acknowledged as
+the player completes them, and are replaced by the next relevant objective.
 
-The engineer must:
+The player does not begin with a known evacuation deadline. The deadline is
+revealed only after the Radar and Uplink establish a connection with Earth.
 
-1. Keep the habitat and life-support chain operational.
-2. Mine and refine enough material to expand the base.
-3. Research and construct radiation protection.
-4. Recover a Martian sample using the late-game Sample Extractor.
-5. Establish the Radar + Mission Control Uplink communications chain.
-6. Deploy the final beacon and tell Earth that the sample is ready.
-7. Deploy the beacon and send the rescue signal around Sol 25-26.
-8. Trigger the rover evacuation cutscene before Sol 30.
+## 2. Opening Sequence
 
-The primary failure condition is missing the final readiness transmission before
-the Sol 29 radiation event.
+### 2.1 Intro cutscene
 
-## 2. Player-Facing Victory Condition
-
-The player wins only when all of the following are true:
-
-- The Mars sample has been extracted and secured.
-- The Rad-Shield Tower is built and operational.
-- The Comms Radar is built, repaired, and active.
-- The Mission Control Uplink is built, repaired, and active.
-- The final beacon has been deployed through the communication chain.
-- The player has sent the `READY_FOR_RESCUE` transmission.
-- The player has clicked the final `REQUEST_RESCUE` interaction.
-- The rover evacuation cutscene has completed before Sol 30.
-
-The final sequence is:
-
-1. The uplink locks onto Earth.
-2. Earth confirms receipt of the Mars sample telemetry.
-3. The engineer receives the rover's final approach signal.
-4. The player clicks **REQUEST RESCUE**.
-5. A cutscene shows the rover arriving at Alpha and evacuating the engineer.
-6. The engineer loads the Mars sample and the rover begins the return journey.
-7. The game ends with the successful rescue ending; Sol 30 is not played as
-   an additional gameplay day.
-
-## 3. Initial State: Sol 1
-
-### 3.1 Story opening cutscene
-
-> **OUTPOST ALPHA // SOL 01 // LANDING COMPLETE**
+> **OUTPOST ALPHA // LANDING COMPLETE**
 >
-> The landing capsule settles into the red dust. Alpha is intact, and the
-> engineer has already assembled the Habitat before the game begins. The
-> shelter is pressurized, but almost everything else must be built.
+> Welcome to Mars, Engineer.
 >
-> The mission clock begins. Build enough infrastructure to survive, then
-> recover a sample worthy of bringing home.
-
-### 3.2 Current and recommended starting inventory
-
-These are the quantities currently defined by the game state:
-
-| Item | Starting quantity | Initial use |
-|---|---:|---|
-| Iron Ore | 15 | Iron Plates and Electronics |
-| Silicates | 15 | Glass Panels and Electronics |
-| Iron Plate | 35 | Initial construction |
-| Glass Panel | 20 | Habitat, greenhouse, solar, and uplink construction |
-| Electronics | 20 | Power, production, research, and communications |
-| Repair Kit | 2 | Emergency module repairs |
-| Water Filter | 0 | Workshop craft; reserve for future filter systems |
-| Air Filter | 0 | Workshop craft; reserve for future filter systems |
-| Water | 10 | Life support, hydration, and greenhouse food production |
-| Raw Food | 5 | Kitchen recipes |
-| Soup | 1 | Initial fatigue recovery |
-| Meal | 0 | Unlocked by Food: Meal Preparation |
-| Good Meal | 0 | Unlocked by Food: Nutritional Optimization |
-| Mars Sample | 0 | New late-game objective item |
-
-`Mars Sample` is a planned resource and must be added to the inventory model.
-It should not be available from the starting inventory or ordinary crafting.
-
-#### Recommended smooth-start values
-
-The current inventory is enough to place the first power, water, and mining
-modules, but it leaves only `1 Electronics` after Solar Array, Battery, Water
-Extractor, and Regolith Extractor construction. That is too tight for a
-smooth opening because the player cannot absorb an early repair, build the
-Workshop, or recover from a power mistake.
-
-The following values are the recommended launch balance. They assume Habitat
-and Life Support are prebuilt and their construction costs are not deducted:
-
-| Item | Recommended quantity | Reason |
-|---|---:|---|
-| Iron Ore | 24 | Early Workshop conversion and reserve refining |
-| Silicates | 24 | Early glass/electronics production and first research |
-| Iron Plate | 42 | Solar, Battery, Water, Drill, Workshop, and repair reserve |
-| Glass Panel | 24 | Early power, Life Support reserve, Kitchen, and Greenhouse |
-| Electronics | 30 | Early power chain, Workshop, Lab, and emergency reserve |
-| Repair Kit | 3 | One early repair plus two reserved for radiation preparation |
-| Water Filter | 0 | Crafted only when the filter system is introduced |
-| Air Filter | 0 | Crafted only when the filter system is introduced |
-| Water | 18 | Life Support buffer, hydration, and first greenhouse queues |
-| Raw Food | 8 | Prevents immediate starvation while Greenhouse is built |
-| Soup | 2 | Initial fatigue recovery and one emergency reserve |
-| Meal | 0 | Unlocked through Meal Preparation research |
-| Good Meal | 0 | Unlocked through Nutritional Optimization research |
-| Mars Sample | 0 | Must only be created by the Sample Extractor |
-
-The first four player-built modules cost `19 Iron Plate`, `4 Glass Panel`, and
-`13 Electronics`. The recommended values leave enough material for the
-Workshop and at least one early repair without requiring perfect play.
-Starting values should not be increased to cover every later module; mining
-and Workshop production must remain meaningful.
-
-### 3.3 Initial placed modules
-
-The game starts with two prebuilt and fully repaired critical modules:
-
-1. Habitat — `100/100 HP`, active.
-2. Life Support — `100/100 HP`, active.
-
-Their construction costs are not deducted from the starting inventory. The
-engineer completed both systems before the intro cutscene ends. Life Support is
-the primary survival system and is never optional in the mission plan.
-
-Recommended first placement order:
-
-1. Solar Array 1
-2. Solar Array 2
-3. Battery
-4. Water Extractor
-5. Regolith Extractor
-6. Workshop
-7. Research Lab
-8. Kitchen
-9. Greenhouse
-
-Habitat and Life Support should be represented in `placedModules` before the
-first game tick. The player should not be forced to build every recommended
-module on a single day. The order is a priority guide that protects survival
-before expansion.
-
-## 4. Module Priority and Resource Plan
-
-### 4.1 Survival priority
-
-| Priority | Module | Why it matters | Current build cost |
-|---:|---|---|---|
-| 1 | Life Support | Main survival system; regulates air, pressure, and water circulation | Prebuilt |
-| 2 | Habitat | Provides shelter and the engineer's safe operating base | Prebuilt |
-| 3 | Solar Array | Generates 25 power during daylight for the survival grid | 2 Iron Plate, 4 Glass Panel, 2 Electronics |
-| 4 | Battery | Stores power for Life Support and Habitat through the night | 6 Iron Plate, 6 Electronics |
-| 5 | Water Extractor | Produces 2 Water per production tick for Life Support and food | 5 Iron Plate, 2 Electronics |
-| 6 | Regolith Extractor | Produces 3 Iron Ore and 2 Silicates per tick | 6 Iron Plate, 3 Electronics |
-| 7 | Workshop | Converts raw materials into construction supplies | 10 Iron Plate, 5 Electronics |
-| 8 | Research Lab | Unlocks technology and mission-critical blueprints | 6 Iron Plate, 6 Glass Panel, 8 Electronics |
-| 9 | Kitchen | Converts Raw Food into fatigue recovery meals | 6 Iron Plate, 2 Glass Panel, 2 Electronics |
-| 10 | Greenhouse | Produces food packs using Water | 4 Iron Plate, 8 Glass Panel |
-
-### 4.2 Mandatory survival power rule
-
-Habitat and Life Support are critical modules and cannot be manually
-deactivated. They must remain active during daylight and must remain active
-overnight using Battery power. A power deficit is a failure state to resolve
-through additional Solar Arrays, Batteries, or reduced optional production; it
-must never silently switch off Habitat or Life Support.
-
-The power controller should enforce this invariant:
-
-- Daylight: Solar Arrays supply Habitat and Life Support first.
-- Night: Battery supplies Habitat and Life Support first.
-- Optional modules are disabled or paused before either critical module.
-- The player may not toggle either critical module off.
-- If the Battery cannot cover the night load, show an explicit critical power
-  warning and pause optional modules.
-
-The current power values explain why two Solar Arrays are the optimal opening:
-Habitat consumes `5`, Life Support consumes `12`, Water consumes `10`, and the
-Regolith Extractor consumes `18` power. One Solar Array generates only `25`
-power, while that first operating group would consume `45`. Two Solar Arrays
-generate `50`, leaving a daylight surplus to charge the Battery. At night,
-optional production should pause first so the Battery protects the combined
-`17` power draw of Habitat and Life Support.
-
-With the recommended starting inventory, the cost of the two-Array opening
-(`21 Iron Plate`, `8 Glass Panel`, and `15 Electronics`) is affordable and
-leaves a meaningful reserve for Water, Regolith, and the first repair.
-
-### 4.3 Expansion priority
-
-After the survival chain is online, build toward:
-
-1. A second Solar Array before increasing heavy power consumption.
-2. A second Battery if night-time power deficits occur.
-3. A second Regolith Extractor for construction and research throughput.
-4. Small Storage Depots when inventory capacity becomes a bottleneck.
-5. A second Water Extractor only if greenhouse and life-support demand require it.
-6. The Rad-Shield Tower before Sol 25.
-7. The Comms Radar and Mission Control Uplink before the final beacon event.
-8. The beacon and final rescue interaction on Sol 25 or Sol 26.
-
-The player should reserve Electronics for the radar, uplink, tower, and repairs.
-Do not spend all Electronics on optional production queues before Sol 15.
-
-## 5. Research and Unlock Sequence
-
-The research queue has two slots. Research costs Silicates and consumes lab time.
-The following is the recommended sequence, not a requirement that every node be
-completed in the exact order:
-
-| Order | Research node | Cost | Time | Unlock | Recommended window |
-|---:|---|---:|---:|---|---|
-| 1 | Meal Preparation | 3 Silicates | 1 hour | Meal recipe | Sol 3-6 |
-| 2 | Nutritional Optimization | 6 Silicates | 2 hours | Good Meal recipe | Sol 6-10 |
-| 3 | Rad-Shield Tower | 15 Silicates | 4 hours | Rad-Shield Tower blueprint | Sol 11-17 |
-| 4 | Comms Radar | 10 Silicates | 3 hours | Comms Radar blueprint | Sol 12-15 |
-| 5 | Mission Control Uplink | 12 Silicates | 3 hours | Communication blueprint | Sol 16-21 |
-| 6 | Automated Logistics | 8 Silicates | 3 hours | Large Storage blueprint | Sol 18-23 |
-| 7 | Sample Recovery Protocol | 20 Silicates | 6 hours | Sample Extractor blueprint | Sol 18-24 |
-
-`Sample Recovery Protocol` is a planned research node. It should be added to
-the research tree and should unlock the `sample_extractor` module.
-
-The Sample Extractor should cost approximately:
-
-- 18 Iron Plate
-- 10 Electronics
-- 6 Glass Panel
-
-It should have 100 maximum integrity, consume approximately 25 power, and
-require an 8-hour extraction job. These are balancing recommendations and
-should be tuned after a complete Sol 1-30 playtest.
-
-## 6. Communication and Rescue Logic
-
-### 6.1 Early distress transmission: Sol 15
-
-The early communication is a progress checkpoint, not the victory condition.
-It requires:
-
-- Comms Radar placed and active.
-- Mission Control Uplink placed and active.
-- Sufficient power for both modules.
-- Radar alignment interaction completed.
-
-Transmission text:
-
-> **EARTH UPLINK ESTABLISHED**
+> The landing was successful, but Outpost Alpha is still only a shell. Your
+> mission is to turn this site into a working outpost, extract the geological
+> sample, and send the sample home.
 >
-> Alpha has survived the communications blackout. We have confirmed a
-> terminal radiation wave on Sol 29. Beta acknowledges the emergency and
-> dispatches a pressurized rescue rover. Estimated arrival: Sol 30.
+> Start with the essentials. Keep the outpost powered, supplied, and alive.
+> Earth will receive your report when communications are restored.
 
-This event sets `isCommsEstablished` and unlocks the rescue countdown.
+The player then receives the first task-log batch. The log should be displayed
+in the HUD or mission overlay and should not require the player to open a
+separate planning document.
 
-### 6.2 Final readiness transmission and rescue request: Sol 25-26
+### 2.2 Initial task-log batch: build the essentials
 
-The final transmission requires:
+**Task log: `MISSION_01_ESSENTIALS`**
 
-- Sample Extractor completed.
-- `Mars Sample` stored in the inventory.
-- Rad-Shield Tower placed and active.
-- Comms Radar placed and active.
-- Mission Control Uplink placed and active.
-- Final beacon deployed.
-- All critical modules have enough HP to remain operational until rescue.
-
-The beacon is the final deployment state of the Radar + Mission Control Uplink
-chain. It should be represented as a separate interaction/state so the player
-must actively prepare the communication system, without requiring a third
-large permanent module.
-
-Transmission text:
-
-> **EARTH // FINAL EXTRACTION REQUEST**
+> **INITIALIZE OUTPOST SYSTEMS**
 >
-> Mars sample secured. Beacon deployed. Outpost Alpha requests immediate
-> extraction at the Sol 30 rescue coordinate. Confirm rover approach.
-
-The player clicks `REQUEST RESCUE` after the beacon is deployed. The click
-records the final signal and immediately starts the rover-arrival cutscene.
-If the player has not clicked it by the start of Sol 29, trigger the hard-fail
-ending.
-
-## 7. Sol-by-Sol Mission Progression
-
-### Phase 0: Landing and stabilization — Sol 1-3
-
-#### Mission M01: Establish a survivable shelter
-
-- **Window:** Sol 1-2
-- **Objective:** Verify the prebuilt Habitat and Life Support, then place the
-  Solar Array, Battery, and Water Extractor.
-- **Success condition:** Habitat and Life Support remain active, Water
-  production has begun, and the base has enough power to operate through one
-  night.
-- **Reward:** Unlocks the normal build loop; Habitat and Life Support
-  construction is already complete.
-- **Failure pressure:** Without water and power, later food and life-support
-  tasks cannot be sustained.
-
-#### Mission M02: Open the regolith supply chain
-
-- **Window:** Sol 2-3
-- **Objective:** Place the Regolith Extractor and collect Iron Ore and Silicates.
-- **Success condition:** At least 12 additional Iron Ore and 8 additional
-  Silicates have been produced.
-- **Recommended action:** Keep one Repair Kit unused for an emergency.
-
-### Phase 1: Build the industrial base — Sol 3-9
-
-#### Mission M03: Restore fabrication
-
-- **Window:** Sol 3-6
-- **Objective:** Place the Workshop and Research Lab, then craft Iron Plates,
-  Glass Panels, and Electronics while keeping Life Support powered.
-- **Success condition:** Workshop operational and at least 8 Electronics
-  available after construction.
-- **Priority:** Craft construction materials before optional Repair Kits.
-
-#### Mission M04: Protect the engineer's shift cycle
-
-- **Window:** Sol 4-8
-- **Objective:** Place Kitchen and Greenhouse; craft Soup and research Meal
-  Preparation.
-- **Success condition:** Maintain at least two prepared food items and avoid
-  exhausting all Raw Food.
-- **Recommended rationing:** Use Soup for ordinary fatigue and reserve Good
-  Meals for extended work or emergency recovery.
-
-#### Mission M05: Start the technology program
-
-- **Window:** Sol 6-9
-- **Objective:** Place the Research Lab and research Meal Preparation followed
-  by Nutritional Optimization.
-- **Success condition:** At least one advanced meal recipe is unlocked and the
-  lab can operate without disabling life support.
-
-### Phase 2: Discover the threat — Sol 10-15
-
-#### Cutscene C02: The Solar Particle Event — Sol 10
-
-> The sky turns white-red. Instruments saturate. The primary communications
-> mast tears itself apart under the particle load. Atmospheric readings fall
-> outside every survival model.
+> Alpha's survival systems are waiting for deployment. Place the essential
+> modules and bring the outpost online.
 >
-> Alpha is alive, but Earth can no longer hear the outpost.
-
-Gameplay consequences:
-
-- Radiation damage continues according to the normal decay model.
-- The player must preserve Electronics and Repair Kits.
-- Production may be paused to protect power and inventory.
-
-#### Mission M06: Survive the blackout
-
-- **Window:** Sol 10-14
-- **Objective:** Keep Habitat, life support, water, and power operational while
-  preparing the research and communications chain.
-- **Success condition:** No critical module reaches zero HP and the Research Lab
-  remains usable.
-
-#### Mission M07: Re-align the sky
-
-- **Window:** Sol 12-15
-- **Objective:** Research and construct the Comms Radar, then complete its
-  alignment interaction.
-- **Success condition:** Radar active and alignment complete on or before Sol 15.
-- **Reward:** Enables the Earth distress transmission and reveals the Sol 29
-  radiation deadline.
-
-#### Cutscene C03: Earth Answers — Sol 15
-
-> The radar dish locks onto a weak carrier wave. Earth answers in fragments.
-> The message contains one clear number: **29**.
+> Essential modules to establish:
 >
-> Beta has survived underground. Their rover can reach Alpha on Sol 30.
-> There is no second rescue window.
+> - Greenhouse
+> - Kitchen
+> - Workshop
+> - Driller / Regolith Extractor
+> - Solar Panel / Solar Array
+> - Water Extractor
+> - Research Lab
 
-### Phase 3: Prepare for radiation — Sol 16-23
+These modules are available in the Build menu from the start. They are not
+research-gated and should not be hidden behind later technology progression.
+This task log is guidance and progress tracking, not a prerequisite chain:
+the player can place these modules, place the Research Lab, start research, or
+pursue other available actions in any order. The exact Build menu names may
+use the existing module names, but the mission log should use player-readable
+names.
 
-#### Mission M08: Build the shield
+The player may place the modules in any position and in any order. The
+recommended survival order is Solar Panel, Water Extractor, Driller,
+Workshop, Greenhouse, Kitchen, and Research Lab, but the game must not reject
+another order.
 
-- **Window:** Sol 16-21
-- **Objective:** Research and construct the Rad-Shield Tower.
-- **Success condition:** Tower is placed within coverage range of the critical
-  base modules and remains active.
-- **Priority:** Place it so the Habitat, Research Lab, Radar, and Uplink are
-  inside its radius.
-- **Failure pressure:** A tower built too late may not protect the base before
-  the next radiation wave.
+### 2.3 Essential systems completion
 
-#### Mission M09: Establish the uplink chain
+When every required module in `MISSION_01_ESSENTIALS` has been placed, the
+game should:
 
-- **Window:** Sol 16-22
-- **Objective:** Research and construct the Mission Control Uplink.
-- **Success condition:** Radar and Uplink are both active and have sufficient
-  power reserves.
-- **Recommended reserve:** Keep at least 8 Electronics and 6 Iron Plates for
-  emergency repairs after construction.
+1. Mark the task log complete.
+2. Show a short acknowledgement:
 
-#### Mission M10: Expand logistics
+   > **ESSENTIAL MODULES PLACED**
+   >
+   > Power, water, food, fabrication, drilling, and research systems are
+   > online. System optimal.
 
-- **Window:** Sol 18-23
-- **Objective:** Research Automated Logistics and build at least one Large
-  Storage Depot if inventory limits are reached.
-- **Success condition:** Required tower, uplink, sample-extractor, and repair
-  materials can be stored without blocking production.
-- **Optional:** Build a second Battery or Regolith Extractor if power or
-  material throughput is insufficient.
+3. Unlock the next task-log batch.
 
-### Phase 4: Recover the sample — Sol 18-25
+The completion check is based on module placement, not on a specific order or
+on the player having completed every available recipe. This completion is a
+progress acknowledgement only; it is not a prerequisite for research,
+communications, sample extraction, or any other player action.
 
-#### Mission M11: Recover the Martian sample
+## 3. Basic Outpost and Research
 
-- **Window:** Sol 20-25
-- **Objective:** Research Sample Recovery Protocol, build the Sample Extractor,
-  and complete one extraction operation.
-- **Success condition:** `Mars Sample >= 1`.
-- **Extraction rules:**
-  - Sample Extractor must be active and powered.
-  - Extraction takes 8 active hours.
-  - Progress pauses when the module is inactive or without power.
-  - The sample is awarded only when the extraction job completes.
-  - The sample cannot be consumed by ordinary recipes.
+### 3.1 Research availability
 
-#### Mission M12: Stabilize for the final wave
+The Research Lab is available in the Build menu from the start. The player
+chooses when and where to place it. As soon as the Research Lab is placed and
+operational, its research controls are available; no other essential module
+or mission task must be completed first.
 
-- **Window:** Sol 23-28
-- **Objective:** Repair and maintain the tower, radar, uplink, habitat, and
-  power infrastructure.
-- **Success condition:** All critical modules are active, powered, and above
-  the final-event safety threshold.
-- **Recommended stockpile by Sol 28:**
-  - 18 Iron Plate
-  - 10 Electronics
-  - 2 Repair Kits
-  - 6 Water
-  - 2 prepared meals
-  - Enough stored power for one full night cycle
-
-### Phase 5: Final transmission and rescue — Sol 25-26
-
-#### Mission M13: Deploy the beacon and request rescue
-
-- **Window:** Sol 25-26
-- **Objective:** Use the active Radar + Mission Control Uplink chain to deploy
-  the final beacon, send the readiness signal, and click `REQUEST RESCUE`.
-- **Success condition:** Beacon deployment state is active, the Mars Sample is
-  secured, and the rescue interaction is accepted.
-- **Interaction rules:**
-  - The button is disabled until all rescue requirements are satisfied.
-  - Clicking the button records `READY_FOR_RESCUE` and immediately starts the
-    rover-arrival cutscene.
-  - The player cannot cancel the request after clicking it.
-  - The mission ends after the evacuation cutscene; no additional Sol 27-30
-    gameplay is required.
-
-#### Cutscene C04: Rover arrival and evacuation — Sol 25-26
-
-> The beacon changes frequency. Earth confirms the sample manifest and Beta
-> answers with a final approach vector.
+> **RESEARCH SYSTEM AVAILABLE**
 >
-> Through the dust, the heavy pressurized rover reaches Alpha. The engineer
-> seals the sample container, uploads the mission logs, and climbs aboard.
-> Outpost Alpha disappears behind the rover as it begins the journey home.
+> Alpha's laboratory is online. You can research available technology in any
+> order. Choose the upgrades that best support your plan.
 
-Victory requirements when `REQUEST RESCUE` is clicked:
+Research is player-directed. The mission does not force Meal Preparation,
+Nutritional Optimization, the shield, communications, logistics, or sample
+technology into one fixed sequence. Any prerequisite declared by the research
+tree must still be respected, but there is no story-imposed order and no
+requirement to complete the essential-module task first.
 
-- `Mars Sample >= 1`
-- Rad-Shield Tower is built and active.
-- Comms Radar is built and active.
-- Mission Control Uplink is built and active.
-- Final beacon is deployed.
-- `READY_FOR_RESCUE` is recorded.
-- Current Sol is 25 or 26.
+The Research Lab should show all currently available technologies and should
+show locked technologies with their prerequisite instead of silently hiding
+them.
 
-#### Mission M14: Survive if rescue was delayed
+### 3.2 Research guidance
 
-- **Window:** Sol 27-28
-- **Objective:** Continue maintaining the base if the player has not yet
-  requested rescue.
-- **Success condition:** Reach the rescue interaction with all requirements
-  intact.
-- **Failure pressure:** The terminal radiation event occurs on Sol 29. The
-  player must request rescue before then.
+The initial research tree may include:
 
-#### Cutscene C05: The Terminal Wave — Sol 29
+| Research | Purpose |
+|---|---|
+| Meal Preparation | Unlocks improved kitchen recipes |
+| Nutritional Optimization | Improves food efficiency and recovery |
+| Rad-Shield Tower | Unlocks radiation protection |
+| Comms Radar | Unlocks the Radar module |
+| Mission Control Uplink | Unlocks the Uplink module |
+| Automated Logistics | Unlocks expanded storage |
+| Sample Recovery Protocol | Unlocks the Sample Extractor |
 
-> The horizon disappears behind a wall of charged dust. The Rad-Shield Tower
-> bends the worst of the wave away from the habitat, but every alarm in Alpha
-> begins to sound.
+The beacon blueprint is intentionally excluded from this initial list. It must
+not be visible as an available research option before Earth reports the storm.
+
+## 4. Restoring Communication
+
+### 4.1 Communication modules
+
+The player must research and place both communication modules:
+
+1. **Comms Radar / Radar**
+2. **Mission Control Uplink / Uplink**
+
+Both modules must be powered and operational. The player may research and
+place them in either order. Placing only one of them does not establish
+communication.
+
+The existing Build menu and module UI should continue to expose each module
+through its normal definition. The mission system should listen for their
+placement and operational state rather than duplicating build logic.
+
+### 4.2 Earth connection task
+
+After both Radar and Uplink are operational, the task log becomes:
+
+> **RE-ESTABLISH EARTH CONNECTION**
 >
-> The beacon continues transmitting, but the rescue window has already closed.
-> Alpha's systems fall silent beneath the terminal wave.
+> Align the Radar and activate the Mission Control Uplink. Restore the link
+> so Earth can receive Alpha's status.
 
-Gameplay rules:
+When the communication check succeeds, the game should:
 
-- The wave applies the configured radiation damage.
-- The tower reduces damage within its coverage radius.
-- Critical module destruction causes mission failure.
-- If `REQUEST RESCUE` was not clicked before Sol 29, show the hard-fail ending.
+1. Set `isCommsEstablished = true`.
+2. Complete the communication task.
+3. Play the Earth connection notification or short transmission cutscene.
+4. Reveal the storm warning and evacuation deadline.
+5. Reveal the Beacon blueprint in the Research Lab.
+6. Create the final preparation task log.
 
-#### Cutscene C06: Return to Earth
+Suggested transmission:
 
-> The rover's navigation system clears the dust front and locks onto the
-> return corridor. The Mars sample is safe, the Alpha logs are transmitted,
-> and the engineer is finally on the way back to Earth.
+> **EARTH CONNECTION ESTABLISHED**
+>
+> Alpha, we read you. Your outpost is stable, but a severe radiation storm is
+> forming on your route. The storm will reach your position on **Storm Day
+> 30**. You must extract the sample, deploy the emergency beacon, and request
+> evacuation before the safety margin closes.
 
-The successful game ending occurs immediately after the evacuation sequence.
-Sol 30 remains part of the story's original rescue estimate, but it is no
-longer a playable deadline or required end-state.
+The storm day should be a named configuration value, not a magic number in
+the UI or rescue handler. The default story value is `30`; balance tests may
+change it without changing the mission text generator.
 
-## 8. Radiation and Module Integrity Management
+## 5. Beacon Unlock and Final Objective
 
-### 8.1 Current integrity values
+### 5.1 Beacon blueprint visibility
 
-All current modules have `maxIntegrity: 100`. Their `baseDecayRate` values are:
+The beacon blueprint is hidden from the Research Lab until Earth connection is
+established. Specifically:
 
-| Module | Base decay rate | Management priority |
-|---|---:|---|
-| Habitat | 4 | Critical |
-| Greenhouse | 5 | High |
-| Kitchen | 3 | Medium |
-| Life Support | 4 | Critical |
-| Water Extractor | 4 | High |
-| Regolith Extractor | 6 | High |
-| Workshop | 3 | Medium |
-| Solar Array | 4 | High |
-| Battery | 2 | Critical for night power |
-| Research Lab | 3 | High until all required research is complete |
-| Rad-Shield Tower | 8 | Critical after construction |
-| Comms Radar | 5 | Critical from Sol 15 onward |
-| Mission Control Uplink | 4 | Critical from Sol 16 onward |
-| Small Storage Depot | 2 | Low |
-| Large Storage Depot | 3 | Medium |
-| Sample Extractor | 6 recommended | Critical during extraction |
+- Before `isCommsEstablished`: Beacon is not visible as researchable or
+  buildable.
+- After `isCommsEstablished`: Beacon appears in the Research Lab as an
+  available research option.
+- After Beacon research completes: Beacon appears in the Build menu.
+- After Beacon is placed: the final task can use it for the rescue request.
 
-### 8.2 Current radiation formula and event schedule
+This is a story reveal, not just a disabled button. The player should learn
+from Earth that the beacon is needed, then discover and research the newly
+available blueprint.
 
-The current game constants are:
+### 5.2 Earth storm warning task log
 
-- Day decay: `5%` per Sol constant.
-- Night decay: `7.5%` per Sol constant.
-- Radiation wave damage: `7.5%` of maximum integrity.
-- Radiation wave interval: every `3` Sols.
-- Tower reduction: `65%` during both day and night.
-- Tower coverage radius: `4` grid units.
+After the Earth response, show:
 
-There are two different radiation systems:
+> **STORM WARNING: PREPARE FOR EVACUATION**
+>
+> A high-radiation storm is approaching. Research the Beacon, extract and
+> secure the Martian sample, place the Beacon, and request rescue before the
+> evacuation margin closes.
 
-1. **Continuous integrity decay:** applied during every hourly time advance,
-   using the day/night rates above.
-2. **Periodic radiation waves:** currently scheduled every three Sols. With
-   `currentDay = 1` and `lastRadiationWaveDay = 1`, the current implementation
-   produces wave events on approximately:
+The task log should show:
 
-   `Sol 4, Sol 7, Sol 10, Sol 13, Sol 16, Sol 19, Sol 22, Sol 25, and Sol 28`.
+- Current Sol / day.
+- Storm arrival day.
+- Remaining safe margin.
+- Sample status.
+- Beacon research status.
+- Beacon placement status.
+- Rescue request status.
 
-The story's major Solar Particle Event is the scripted **Sol 10** event. The
-terminal story event is the scripted **Sol 29** radiation event. The periodic
-Sol 28 wave is the last normal wave before the terminal event. If the design
-requires the terminal event itself to be the only wave on Sol 29, the
-implementation should explicitly schedule or rename the Sol 29 event rather
-than relying only on the periodic three-Sol calculation.
+### 5.3 Sample extraction
 
-The hourly update applies the day/night rates proportionally. Because the game
-uses separate day and night hours, the observed integrity loss per Sol is
-approximately:
+The player must research Sample Recovery Protocol, build the Sample Extractor,
+and finish its extraction job.
+
+Rules:
+
+- The Sample Extractor is unavailable until its research is complete.
+- Extraction consumes power while active.
+- Extraction progress advances only during active powered time.
+- Progress pauses when the module is disabled or lacks power.
+- Completion adds one `Mars Sample` to inventory.
+- `Mars Sample` cannot be produced by ordinary recipes or consumed by other
+  systems before rescue.
+
+The sample may be extracted before or after the Earth connection, provided the
+player has access to its research prerequisites.
+
+## 6. Rescue Mission Flow
+
+### 6.1 Rescue readiness requirements
+
+The Uplink displays a **REQUEST RESCUE** button after the Beacon has been
+placed. The button must remain disabled until all required conditions are
+true:
+
+- Radar is placed, powered, and operational.
+- Uplink is placed, powered, and operational.
+- Earth connection has been established.
+- Beacon research is complete.
+- Beacon is placed and operational.
+- `Mars Sample >= 1`.
+- The current day is before the configured rescue cutoff.
+- The outpost has no blocking critical failure, such as a destroyed required
+  module.
+
+The exact margin is configuration-driven. The default is:
 
 ```text
-(daylight hours / 24 * 5%)
-+ (night hours / 24 * 7.5%)
-+ radiation wave damage when a wave is due
+stormArrivalDay = 30
+rescueCutoffDay = stormArrivalDay - 2
 ```
 
-The exact result depends on the hour at which the Sol begins and whether a
-module is inside the tower radius. The mission plan should treat the constants
-above as the source of truth rather than promising a fixed HP loss per Sol.
+Therefore the player must submit the request by the end of Storm Day 28 in
+the default balance. The handler must compare the current time to the cutoff
+using the same clock used by the storm event, so the player cannot bypass the
+margin by changing screens or pausing.
 
-### 8.3 Repair policy
+### 6.2 Rescue request interaction
 
-Repair Kits are consumed when a repair begins. Current repair durations are:
+When the player presses **REQUEST RESCUE**, the game performs one complete
+validation before changing state. It must not show a success result when a
+requirement is missing. If validation fails, the button remains available and
+the UI identifies the missing requirement.
 
-| Module HP percentage | Repair duration |
-|---:|---:|
-| 80% or higher | 1 hour |
-| 16%-50% | 2 hours |
-| Below 16% | 4 hours |
+When validation succeeds:
 
-Recommended policy:
+1. Record `event_rescue_requested`.
+2. Record `event_ready_for_rescue`.
+3. Lock the request so it cannot be submitted twice.
+4. Stop ordinary gameplay input.
+5. Start the evacuation cutscene.
+6. End the game after the cutscene completes.
 
-1. Repair Habitat, Life Support, Radar, Uplink, and Tower first.
-2. Repair power generation and Battery before optional production.
-3. Pause non-critical production during emergency repairs.
-4. Keep two Repair Kits reserved for Sol 28-29 unless the base is otherwise
-   unable to operate.
+Suggested final transmission:
 
-## 9. Mission State and Event IDs
+> **RESCUE REQUEST ACCEPTED**
+>
+> Sample secured. Beacon online. Alpha is ready for evacuation.
+>
+> Earth confirms the rescue corridor. Hold position while the recovery vehicle
+> approaches.
 
-The implementation should expose stable IDs so saves, UI, and cutscenes can
-refer to the same progression:
+### 6.3 Evacuation ending
+
+> **EVACUATION IN PROGRESS**
+>
+> The beacon cuts through the storm static. A pressurized rescue vehicle
+> reaches Alpha, and the engineer secures the sample container before boarding.
+> The outpost fades behind the dust as the vehicle begins the journey home.
+
+The evacuation cutscene is the successful game ending. No additional playable
+days are required after `REQUEST RESCUE` succeeds.
+
+## 7. Failure and Deadline Rules
+
+The player should not fail merely because research was done in a different
+order. Failure is tied to survival and the revealed storm deadline.
+
+If the storm reaches the outpost before a valid rescue request:
+
+1. Trigger the storm event.
+2. Apply the configured radiation effects.
+3. Show the failure ending if the required systems or engineer cannot survive.
+4. Record `ending_alpha_lost`.
+
+If the player has an intact outpost but misses the rescue cutoff, keep the
+storm warning visible and explain that the rescue corridor is no longer safe.
+Do not silently accept a late request. Whether a late request immediately
+fails or remains disabled is a balance decision, but the default plan is to
+reject it and proceed to the storm failure state.
+
+## 8. Mission State and Event IDs
+
+Use stable IDs so saves, UI, and cutscenes share one progression model:
 
 | ID | Meaning |
 |---|---|
-| `story_landing_complete` | Opening cutscene completed |
-| `mission_survival_chain` | Habitat, power, and water operational |
-| `mission_regolith_chain` | Mining and refining operational |
-| `event_solar_particle_event` | Sol 10 blackout event |
-| `mission_radar_alignment` | Radar aligned on or before Sol 15 |
-| `event_earth_distress_response` | Earth/Beta rescue response received |
-| `mission_radiation_shield` | Rad-Shield Tower built and active |
-| `mission_uplink_ready` | Radar and Mission Control Uplink active |
-| `research_sample_recovery` | Sample Recovery Protocol completed |
-| `mission_sample_recovered` | Mars sample extracted |
-| `mission_beacon_deployed` | Final beacon deployed |
-| `event_ready_for_rescue` | Final readiness transmission sent |
-| `event_terminal_radiation` | Sol 29 radiation event |
-| `event_rover_arrival` | Sol 25-26 rescue cutscene after `REQUEST_RESCUE` |
-| `ending_alpha_rescued` | Victory ending completed |
-| `ending_alpha_lost` | Hard-fail ending completed |
+| `story_landing_complete` | Intro cutscene completed |
+| `mission_essentials_started` | Initial module task log shown |
+| `mission_essentials_complete` | All essential modules placed |
+| `research_lab_operational` | Research Lab placed and operational |
+| `mission_communication_started` | Radar/Uplink communication task shown |
+| `event_earth_connection_established` | Radar and Uplink linked to Earth |
+| `storm_warning_revealed` | Storm day and rescue margin revealed |
+| `research_beacon_unlocked` | Beacon visible in the Research Lab |
+| `research_beacon_complete` | Beacon blueprint researched |
+| `mission_sample_recovered` | Mars sample extracted and secured |
+| `mission_beacon_deployed` | Beacon placed and operational |
+| `event_rescue_requested` | Player passed final validation and pressed button |
+| `event_ready_for_rescue` | Final readiness signal recorded |
+| `event_storm_arrival` | Configured storm day reached |
+| `event_evacuation_cutscene` | Successful ending cutscene started |
+| `ending_alpha_rescued` | Successful ending completed |
+| `ending_alpha_lost` | Storm/deadline failure ending completed |
 
-## 10. Required Content and Code Additions
+Recommended state fields:
 
-This document describes the intended mission design. The current codebase does
-not yet contain every required gameplay object. The following additions are
-required to implement the complete plan:
+```text
+isCommsEstablished: boolean
+stormWarningRevealed: boolean
+stormArrivalDay: number
+rescueCutoffDay: number
+beaconResearchUnlocked: boolean
+beaconResearchComplete: boolean
+beaconPlaced: boolean
+sampleRecovered: boolean
+rescueRequested: boolean
+```
 
-1. Add `mars_sample` to `ResourceType`, inventory initialization, icons, and
-   storage handling.
-2. Start every new game with fully repaired Habitat and Life Support entries in
-   `placedModules`; do not charge their construction costs.
-3. Add the `sample_extractor` module definition and texture.
-4. Add the `research_sample_recovery` research node.
-5. Add an extraction queue/job with active-time-only progress.
-6. Enforce the critical power rule: Habitat and Life Support cannot be toggled
-   off, and Battery power is reserved for them at night.
-7. Add mission state, event IDs, and save-state persistence.
-8. Add radar alignment and beacon deployment interactions.
-9. Require both Radar and Mission Control Uplink for the final transmission.
-10. Add Sol 10, Sol 15, Sol 25-26, and Sol 29 cutscenes.
-11. Add the hard-fail ending when readiness is missing before Sol 29.
-12. Add the victory ending immediately when the rover arrives on Sol 25-26
-    with the sample.
-13. Add mission HUD indicators for the next objective, deadline, sample state,
-    beacon state, and rescue readiness.
-14. Add a complete Sol 1-30 playtest using the inventory and build priorities
-    in this document.
+## 9. Required Implementation Changes
 
-## 11. Recommended Playtest Checkpoints
+1. Add the opening intro and task-log presentation for the essentials.
+2. Track completion of the essential module set independently of placement
+   order.
+3. Make research available as soon as the player places an operational
+   Research Lab; do not gate it behind the essentials task.
+4. Keep normal initial research player-directed rather than forcing a story
+   sequence.
+5. Require operational Radar and Uplink before setting
+   `isCommsEstablished`.
+6. Add the Earth connection notification and storm-warning event.
+7. Hide the Beacon blueprint until the storm-warning event is received.
+8. Add Beacon research completion and Build-menu availability.
+9. Add the Sample Extractor and `Mars Sample` resource if not already present.
+10. Add final rescue validation, including the configurable cutoff margin.
+11. Add the `REQUEST RESCUE` interaction to the Uplink.
+12. Add rescue-request, storm-arrival, evacuation, and failure state
+    persistence.
+13. Add the evacuation cutscene and successful ending.
+14. Add HUD feedback for the active task, storm day, cutoff, sample, beacon,
+    and missing rescue requirements.
 
-| Checkpoint | Expected state |
+## 10. Acceptance Checkpoints
+
+| Checkpoint | Expected result |
 |---|---|
-| Start of Sol 1 | Habitat already built; initial inventory available |
-| End of Sol 3 | Solar, Battery, Water, and Drill operational |
-| End of Sol 9 | Workshop, Kitchen, Greenhouse, and Research Lab operational |
-| End of Sol 15 | Radar aligned; Earth distress response received |
-| End of Sol 21 | Rad-Shield Tower and Mission Control Uplink built |
-| End of Sol 25 | Mars Sample secured; beacon ready or deployed |
-| Sol 25-26 | Beacon deployed, `REQUEST RESCUE` clicked, evacuation ending plays |
-| End of Sol 28 | Only relevant if rescue was delayed; base remains operational |
-| Sol 29 | Hard-fail radiation event if rescue was not requested |
-
-If a normal player cannot reach the Sol 28 checkpoint while prioritizing
-survival, reduce research costs or increase early material throughput before
-reducing the hard deadline.
+| New game | Intro plays; first task log asks for essential modules |
+| Essentials partially placed | Task remains incomplete; other actions remain available |
+| All essentials placed | “Essential modules placed / System optimal” notification appears |
+| Research Lab placed | Research is available immediately, independent of the essentials task |
+| Only Radar or only Uplink active | Earth connection is not established |
+| Radar and Uplink operational | Earth response plays and storm warning is revealed |
+| Before Earth response | Beacon is absent from the Research Lab |
+| After Earth response | Beacon blueprint is visible in the Research Lab |
+| Beacon researched | Beacon becomes available in Build |
+| Sample missing | Rescue request fails with a clear missing-sample message |
+| Beacon missing | Rescue request fails with a clear missing-beacon message |
+| After cutoff | Rescue request is rejected; storm failure remains possible |
+| All requirements met before cutoff | Request succeeds and evacuation cutscene ends the game |
