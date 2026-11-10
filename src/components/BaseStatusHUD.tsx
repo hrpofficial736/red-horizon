@@ -1,10 +1,15 @@
 import React from "react";
+import { Menu } from "lucide-react";
 import {
   getPowerBankCapacity,
   useGameStore,
 } from "../store/useGameStore";
 
-export const BaseStatusHUD: React.FC = () => {
+interface BaseStatusHUDProps {
+  onOpenMenu: () => void;
+}
+
+export const BaseStatusHUD: React.FC<BaseStatusHUDProps> = ({ onOpenMenu }) => {
   const currentDay = useGameStore((state) => state.currentDay);
   const currentHour = useGameStore((state) => state.currentHour);
   const currentMinute = useGameStore((state) => state.currentMinute);
@@ -17,13 +22,6 @@ export const BaseStatusHUD: React.FC = () => {
   const repairKitCount = useGameStore(
     (state) => state.inventory.repair_kit || 0,
   );
-  const ironPlateCount = useGameStore(
-    (state) => state.inventory.iron_plate || 0,
-  );
-  const glassPanelCount = useGameStore(
-    (state) => state.inventory.glass_panel || 0,
-  );
-  const soupCount = useGameStore((state) => state.inventory.soup || 0);
   const powerBankCharge = useGameStore((state) => state.powerBankCharge);
   const placedModules = useGameStore((state) => state.placedModules);
   const powerBankCapacity = getPowerBankCapacity(placedModules);
@@ -37,9 +35,20 @@ export const BaseStatusHUD: React.FC = () => {
 
   return (
     <div className="absolute top-4 right-4 z-20 bg-neutral-950/90 border border-neutral-800 text-white p-4 rounded-xl font-mono min-w-[240px] backdrop-blur shadow-2xl pointer-events-auto">
-      <h3 className="text-xs font-bold tracking-widest text-orange-400 border-b border-neutral-800 pb-2 mb-2 uppercase">
-        🚀 CONSOLE UPLINK
-      </h3>
+      <div className="mb-2 flex items-center justify-between border-b border-neutral-800 pb-2">
+        <h3 className="text-xs font-bold tracking-widest text-orange-400 uppercase">
+          🚀 CONSOLE UPLINK
+        </h3>
+        <button
+          type="button"
+          aria-label="Open mission menu"
+          title="Mission menu"
+          onClick={onOpenMenu}
+          className="rounded p-1 text-neutral-400 hover:bg-neutral-800 hover:text-white"
+        >
+          <Menu size={16} />
+        </button>
+      </div>
       <div className="space-y-1.5 text-xs">
         <div className="flex justify-between">
           <span className="text-neutral-400">SOL TIME:</span>

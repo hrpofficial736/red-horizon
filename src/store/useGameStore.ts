@@ -28,6 +28,8 @@ const FOOD_HEALTH_RECOVERY = {
 const FOOD_PRIORITY = ["good_meal", "meal", "soup"] as const;
 const OVERTIME_FATIGUE_PER_HOUR = 10;
 const NO_FOOD_HEALTH_LOSS = 10;
+const SAVE_STORAGE_KEY = "project-tharsis-day-saves";
+const SAVE_VERSION = 1;
 export const REPAIR_TIME_SPEED = 15;
 export const REPAIR_THRESHOLD_HEALTH = 80;
 export const REPAIR_WARNING_HEALTH = 51;
@@ -45,12 +47,18 @@ export const RADIATION_TOWER_NIGHT_REDUCTION = 0.65;
 export const RADIATION_TOWER_COVERAGE_RADIUS = 4;
 
 export const getPowerBankCapacity = (
-  placedModules: Array<{ id: string; hp: number }>,
+  placedModules: Array<{
+    id: string;
+    hp: number;
+    constructionHoursRemaining?: number;
+  }>,
 ) =>
   placedModules.reduce(
     (capacity, module) =>
       capacity +
-      (module.hp > 0 ? (MODULES[module.id]?.powerCapacity ?? 0) : 0),
+      (module.hp > 0 && (module.constructionHoursRemaining ?? 0) <= 0
+        ? (MODULES[module.id]?.powerCapacity ?? 0)
+        : 0),
     0,
   );
 
@@ -196,11 +204,14 @@ export const getInventoryTotal = (
 ) => Object.values(inventory).reduce((total, amount) => total + amount, 0);
 
 export const getStorageCapacity = (
-  placedModules: Array<{ id: string }>,
+  placedModules: Array<{ id: string; constructionHoursRemaining?: number }>,
 ) =>
   placedModules.reduce(
     (capacity, module) =>
-      capacity + (MODULES[module.id]?.moduleCapacity ?? 0),
+      capacity +
+      ((module.constructionHoursRemaining ?? 0) <= 0
+        ? (MODULES[module.id]?.moduleCapacity ?? 0)
+        : 0),
     0,
   );
 
@@ -219,6 +230,7 @@ interface GameState {
     hp: number;
     active: boolean;
     powerSupplyEnabled: boolean;
+    constructionHoursRemaining?: number;
     productionPausedAt?: number;
     powerPausedAt?: number;
   }>;
@@ -234,6 +246,7 @@ interface GameState {
   overtimeHours: number;
   sleepOverlayPhase: "none" | "fadeOut" | "day" | "fadeIn";
   sleepOverlayDay: number;
+  sleepOverlayMode: "save" | "load";
   timerIntervalId: null | ReturnType<typeof setInterval>;
   workshopQueue: CraftQueueItem[];
   kitchenQueue: CraftQueueItem[];
@@ -254,6 +267,15 @@ interface GameState {
   isCommsEstablished: boolean; // Unlocks Sol 15 mission step
   criticalSystemsBootstrapped: boolean;
   gameLogs: string[]; // Narration strings push here for UI console
+  foodStockpileTaskStartDay: number | null;
+  startFoodStockpileTask: () => void;
+  saveGameAtDayStart: (day?: number) => void;
+  getAvailableSaves: () => SavedGame[];
+  loadGameSave: (day: number) => boolean;
+  deleteSavedGames: (days: number[]) => void;
+  deleteAllSavedGames: () => void;
+  startNewGame: () => void;
+  initializeGameSaves: () => void;
 
   // --- ACTIONS (MUTATORS) ---
   unlockResource: (resource: ResourceType) => void;
@@ -294,6 +316,148 @@ interface GameState {
   startPassiveTimer: () => void;
   stopPassiveTimer: () => void;
 }
+
+export interface SavedGame {
+  day: number;
+  savedAt: string;
+  state: GameSaveState;
+}
+
+interface GameSaveState {
+  inventory: Record<ResourceType, number>;
+  discoveredResourceTypes: ResourceType[];
+  placedModules: GameState["placedModules"];
+  astronautHealth: number;
+  powerBankCharge: number;
+  currentDay: number;
+  lastRadiationWaveDay: number;
+  currentHour: number;
+  currentMinute: number;
+  fatigueLevel: number;
+  isFainted: boolean;
+  nextWakeHour: number;
+  overtimeHours: number;
+  workshopQueue: CraftQueueItem[];
+  kitchenQueue: CraftQueueItem[];
+  greenhouseQueue: CraftQueueItem[];
+  researchQueue: ResearchQueueItem[];
+  researchedNodeIds: string[];
+  unlockedModuleIds: string[];
+  activeRepairInstanceId: string | null;
+  repairJobs: Record<string, RepairJob>;
+  isCommsEstablished: boolean;
+  criticalSystemsBootstrapped: boolean;
+  gameLogs: string[];
+  foodStockpileTaskStartDay: number | null;
+}
+
+const INITIAL_PLACED_MODULES: GameState["placedModules"] = [
+  {
+    id: "habitat",
+    instanceId: "starting-habitat",
+    x: 8,
+    y: 9,
+    hp: MODULES.habitat.maxIntegrity,
+    active: true,
+    powerSupplyEnabled: false,
+  },
+  {
+    id: "life_support",
+    instanceId: "starting-life-support",
+    x: 8,
+    y: 11,
+    hp: MODULES.life_support.maxIntegrity,
+    active: true,
+    powerSupplyEnabled: false,
+  },
+];
+
+const isBrowser = () => typeof window !== "undefined";
+
+const readSavedGames = (): SavedGame[] => {
+  if (!isBrowser()) return [];
+  try {
+    const raw = window.localStorage.getItem(SAVE_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed.filter(
+      (save): save is SavedGame =>
+        typeof save === "object" &&
+        save !== null &&
+        typeof (save as SavedGame).day === "number" &&
+        typeof (save as SavedGame).savedAt === "string" &&
+        typeof (save as SavedGame).state === "object",
+    );
+  } catch {
+    return [];
+  }
+};
+
+const writeSavedGames = (saves: SavedGame[]) => {
+  if (!isBrowser()) return;
+  window.localStorage.setItem(
+    SAVE_STORAGE_KEY,
+    JSON.stringify({ version: SAVE_VERSION, saves }),
+  );
+};
+
+const getSaveList = (): SavedGame[] => {
+  if (!isBrowser()) return [];
+  try {
+    const raw = window.localStorage.getItem(SAVE_STORAGE_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    if (
+      typeof parsed === "object" &&
+      parsed !== null &&
+      "saves" in parsed &&
+      Array.isArray(parsed.saves)
+    ) {
+      return parsed.saves as SavedGame[];
+    }
+  } catch {
+    return [];
+  }
+  return readSavedGames();
+};
+
+const getSaveState = (state: GameState): GameSaveState => ({
+  inventory: state.inventory,
+  discoveredResourceTypes: state.discoveredResourceTypes,
+  placedModules: state.placedModules,
+  astronautHealth: state.astronautHealth,
+  powerBankCharge: state.powerBankCharge,
+  currentDay: state.currentDay,
+  lastRadiationWaveDay: state.lastRadiationWaveDay,
+  currentHour: state.currentHour,
+  currentMinute: state.currentMinute,
+  fatigueLevel: state.fatigueLevel,
+  isFainted: state.isFainted,
+  nextWakeHour: state.nextWakeHour,
+  overtimeHours: state.overtimeHours,
+  workshopQueue: state.workshopQueue,
+  kitchenQueue: state.kitchenQueue,
+  greenhouseQueue: state.greenhouseQueue,
+  researchQueue: state.researchQueue,
+  researchedNodeIds: state.researchedNodeIds,
+  unlockedModuleIds: state.unlockedModuleIds,
+  activeRepairInstanceId: state.activeRepairInstanceId,
+  repairJobs: state.repairJobs,
+  isCommsEstablished: state.isCommsEstablished,
+  criticalSystemsBootstrapped: state.criticalSystemsBootstrapped,
+  gameLogs: state.gameLogs,
+  foodStockpileTaskStartDay: state.foodStockpileTaskStartDay,
+});
+
+const notifyPhaserOfModules = (placedModules: GameState["placedModules"]) => {
+  if (!isBrowser()) return;
+  window.dispatchEvent(
+    new CustomEvent("PHASER_SYNC_MODULES", {
+      detail: { modules: placedModules },
+    }),
+  );
+};
 
 export const useGameStore = create<GameState>((set, get) => ({
   // 1. Initial State Definitions
@@ -483,7 +647,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     "solar",
     "battery",
   ],
-  placedModules: [],
+  placedModules: INITIAL_PLACED_MODULES,
   astronautHealth: 100,
   powerBankCharge: 0,
   currentDay: 1,
@@ -495,6 +659,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   overtimeHours: 0,
   sleepOverlayPhase: "none",
   sleepOverlayDay: 1,
+  sleepOverlayMode: "save",
 
   timerIntervalId: null,
   workshopQueue: [],
@@ -508,10 +673,89 @@ export const useGameStore = create<GameState>((set, get) => ({
   // // NEW MECHANICS STATE
   fatigueLevel: 0,
   isCommsEstablished: false,
-  criticalSystemsBootstrapped: false,
+  criticalSystemsBootstrapped: true,
+  foodStockpileTaskStartDay: null,
   gameLogs: [
     "Sol 01: System online. Establish base foundations before environmental anomalies manifest.",
   ],
+
+  startFoodStockpileTask: () => {
+    if (get().foodStockpileTaskStartDay !== null) return;
+    set({ foodStockpileTaskStartDay: get().currentDay });
+  },
+
+  saveGameAtDayStart: (day) => {
+    const state = get();
+    const saveDay = day ?? state.currentDay;
+    const save: SavedGame = {
+      day: saveDay,
+      savedAt: new Date().toISOString(),
+      state: getSaveState(state),
+    };
+    const saves = getSaveList().filter((entry) => entry.day !== saveDay);
+    writeSavedGames([...saves, save].sort((a, b) => a.day - b.day));
+  },
+
+  getAvailableSaves: () => {
+    const currentDay = get().currentDay;
+    return getSaveList()
+      .filter((save) => save.day < currentDay)
+      .sort((a, b) => b.day - a.day);
+  },
+
+  deleteSavedGames: (days) => {
+    if (days.length === 0) return;
+    const daysToDelete = new Set(days);
+    writeSavedGames(getSaveList().filter((save) => !daysToDelete.has(save.day)));
+  },
+
+  deleteAllSavedGames: () => {
+    if (isBrowser()) window.localStorage.removeItem(SAVE_STORAGE_KEY);
+  },
+
+  startNewGame: () => {
+    if (isBrowser()) {
+      window.localStorage.removeItem(SAVE_STORAGE_KEY);
+      window.location.reload();
+    }
+  },
+
+  loadGameSave: (day) => {
+    const save = getSaveList().find((entry) => entry.day === day);
+    if (!save) return false;
+    const placedModules =
+      save.day === 1 && save.state.placedModules.length === 0
+        ? INITIAL_PLACED_MODULES
+        : save.state.placedModules;
+    set((state) => ({
+      ...save.state,
+      placedModules,
+      foodStockpileTaskStartDay: save.state.foodStockpileTaskStartDay ?? null,
+      sleepOverlayPhase: "fadeOut",
+      sleepOverlayDay: save.state.currentDay,
+      sleepOverlayMode: "load",
+      timerIntervalId: state.timerIntervalId,
+    }));
+    notifyPhaserOfModules(save.state.placedModules);
+    window.setTimeout(() => {
+      set({ sleepOverlayPhase: "day" });
+      window.setTimeout(() => {
+        set({ sleepOverlayPhase: "fadeIn" });
+        window.setTimeout(() => set({ sleepOverlayPhase: "none" }), 1000);
+      }, 1500);
+    }, 700);
+    return true;
+  },
+
+  initializeGameSaves: () => {
+    const saves = getSaveList();
+    if (saves.length === 0) {
+      get().saveGameAtDayStart(1);
+      return;
+    }
+    const latestSave = [...saves].sort((a, b) => b.day - a.day)[0];
+    get().loadGameSave(latestSave.day);
+  },
 
   unlockModuleBlueprint: (moduleId: string) =>
     set((state: any) => {
@@ -1087,11 +1331,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       const shouldBootstrapCriticalSystems =
         !state.criticalSystemsBootstrapped &&
         moduleId === "solar" &&
-        isDaylightNow;
+        isDaylightNow &&
+        (config.constructionHours ?? 4) <= 0;
 
-      const provisionalActive = isCriticalPowerModule(moduleId)
-        ? shouldBootstrapCriticalSystems
-        : config.powerDraw <= 0 || isDaylightNow;
+      const provisionalActive = false;
 
       const provisionalModules = [
         ...state.placedModules,
@@ -1103,6 +1346,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           hp: config.maxIntegrity,
           active: provisionalActive,
           powerSupplyEnabled: false,
+          constructionHoursRemaining: config.constructionHours ?? 4,
           powerPausedAt: undefined,
         },
       ];
@@ -1339,6 +1583,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     set({
       sleepOverlayPhase: "fadeOut",
       sleepOverlayDay: targetDay,
+      sleepOverlayMode: "save",
     });
     const overtimeHours =
       currentHour >= IDEAL_SLEEP_HOUR
@@ -1389,6 +1634,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           ],
         };
       });
+      get().saveGameAtDayStart(get().currentDay);
 
       window.setTimeout(() => {
         set({ sleepOverlayPhase: "fadeIn" });
@@ -1743,7 +1989,8 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   // 6. Shift Time Progression Handling
-  advanceHour: (hours, options) =>
+  advanceHour: (hours, options) => {
+    const previousDay = get().currentDay;
     set((state) => {
       let nextHour = state.currentHour;
       let nextDay = state.currentDay;
@@ -1765,6 +2012,36 @@ export const useGameStore = create<GameState>((set, get) => ({
       // Loop hourly to process state changes sequentially
       for (let i = 0; i < hours; i++) {
         nextHour += 1;
+        updatedModules = updatedModules.map((mod) => {
+          const remaining = mod.constructionHoursRemaining;
+          if (remaining === undefined || remaining <= 0) return mod;
+          const nextRemaining = Math.max(0, remaining - 1);
+          if (nextRemaining > 0) {
+            return { ...mod, active: false, constructionHoursRemaining: nextRemaining };
+          }
+          const config = MODULES[mod.id];
+          const isDaylight =
+            nextHour >= DAYLIGHT_START_HOUR && nextHour < DAYLIGHT_END_HOUR;
+          return {
+            ...mod,
+            constructionHoursRemaining: 0,
+            active: isCriticalPowerModule(mod.id)
+              ? true
+              : config?.powerDraw > 0
+                ? isDaylight
+                : mod.id === "battery",
+          };
+        });
+        if (
+          !criticalSystemsBootstrapped &&
+          updatedModules.some(
+            (mod) =>
+              mod.id === "solar" &&
+              (mod.constructionHoursRemaining ?? 0) <= 0,
+          )
+        ) {
+          criticalSystemsBootstrapped = true;
+        }
 
         const radiationDay = nextHour >= 24 ? nextDay + 1 : nextDay;
         const radiationHour = nextHour >= 24 ? 0 : nextHour;
@@ -1864,6 +2141,9 @@ export const useGameStore = create<GameState>((set, get) => ({
           !isDaylight || nextHour === DAYLIGHT_START_HOUR;
         updatedModules = updatedModules.map((mod) => {
           const config = MODULES[mod.id];
+          if (mod.constructionHoursRemaining && mod.constructionHoursRemaining > 0) {
+            return { ...mod, active: false };
+          }
           if (config?.powerDraw > 0) {
             return { ...mod, active: mod.hp > 0 && isDaylight };
           }
@@ -1874,7 +2154,7 @@ export const useGameStore = create<GameState>((set, get) => ({
               powerSupplyEnabled: !isDaylight,
             };
           }
-          if (!isDaylight && !isCriticalPowerModule(mod.id)) {
+          if (!isCriticalPowerModule(mod.id) && mod.id !== "battery") {
             return {
               ...mod,
               active: false,
@@ -1888,9 +2168,19 @@ export const useGameStore = create<GameState>((set, get) => ({
         });
         if (isDaylight && nextHour === DAYLIGHT_START_HOUR) {
           updatedModules = updatedModules.map((mod) =>
-            mod.id === "battery"
-              ? { ...mod, powerSupplyEnabled: false }
-              : mod,
+            isCriticalPowerModule(mod.id) || mod.id === "battery"
+              ? mod
+              : MODULES[mod.id]?.powerDraw > 0
+                ? { ...mod, active: true }
+                : {
+                    ...mod,
+                    active: false,
+                    powerPausedAt:
+                      mod.powerPausedAt ?? getGameHour(nextDay, nextHour),
+                    productionPausedAt:
+                      mod.productionPausedAt ??
+                      getGameHour(nextDay, nextHour),
+                  },
           );
         }
 
@@ -1934,9 +2224,11 @@ export const useGameStore = create<GameState>((set, get) => ({
             }
             return {
               ...mod,
-              active: true,
-              powerPausedAt: undefined,
-              productionPausedAt: undefined,
+              active: mod.active,
+              powerPausedAt: mod.active ? undefined : mod.powerPausedAt,
+              productionPausedAt: mod.active
+                ? undefined
+                : mod.productionPausedAt,
             };
           });
         }
@@ -2176,5 +2468,9 @@ export const useGameStore = create<GameState>((set, get) => ({
         ),
         gameLogs: logs,
       };
-    }),
+    });
+    if (get().currentDay > previousDay) {
+      get().saveGameAtDayStart(get().currentDay);
+    }
+  },
 }));

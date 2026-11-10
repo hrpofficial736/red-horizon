@@ -79,6 +79,7 @@ export interface ModuleDef {
   // Power consumption or generation per operational hour
   // Positive = Generates power (Solar Panel), Negative = Consumes power (Drill)
   powerDraw: number;
+  constructionHours?: number;
   powerCapacity?: number; // Stored energy capacity for battery modules
 
   // Direct resource inputs and outputs when active during a shift.
@@ -100,4 +101,6 @@ export interface Placed {
   view: Phaser.GameObjects.GameObject;
   label?: Phaser.GameObjects.Text;
   ring?: Phaser.GameObjects.Graphics;
+  instanceId?: string;
+  constructionHoursRemaining?: number;
 }

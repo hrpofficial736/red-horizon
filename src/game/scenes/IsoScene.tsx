@@ -11,6 +11,7 @@ import {
 
 import type { Footprint, Pt, Placed, ModuleDef } from "../modules/module.types";
 import { MODULES } from "../modules/moduleDefinitions";
+import { useGameStore } from "../../store/useGameStore";
 // import windmillspriteIMG from "../assets/spritesheet.png";
 // import windmillspritejson from "../assets/spritesheet.json";
 
@@ -39,7 +40,6 @@ export class IsoScene extends Phaser.Scene {
   private placed = new Map<number, Placed>();
   private nextUid = 1;
   private hoveredModuleUid: number | null = null;
-  private selectedModuleUid: number | null = null;
   private movingModuleUid: number | null = null;
 
   private gridOffsetX = 24;
@@ -188,6 +188,7 @@ export class IsoScene extends Phaser.Scene {
       if (this.textures.exists(key)) {
         this.textures.get(key).setFilter(Phaser.Textures.FilterMode.LINEAR);
       }
+
     }
 
     this.occ = Array.from({ length: GRID.cols }, () =>
@@ -224,13 +225,75 @@ export class IsoScene extends Phaser.Scene {
     // React -> Phaser:  game.events.emit("select-module", "panel")
     this.game.events.on("select-module", this.select, this);
     this.game.events.on("begin-module-move", this.beginMove, this);
+    this.game.events.on("sync-modules", this.syncModules, this);
     this.events.once("shutdown", () =>
       this.game.events.off("select-module", this.select, this),
     );
     this.events.once("shutdown", () =>
       this.game.events.off("begin-module-move", this.beginMove, this),
     );
-    this.initiateGameStateWithDefaultModules();
+    const savedModules = useGameStore.getState().placedModules;
+    if (savedModules.length > 0) {
+      this.syncModules(savedModules);
+    } else {
+      this.initiateGameStateWithDefaultModules();
+    }
+    this.time.delayedCall(0, () => {
+      const currentModules = useGameStore.getState().placedModules;
+      this.syncModules(currentModules);
+    });
+  }
+
+  private syncModules(
+    modules: Array<{
+      id: string;
+      instanceId?: string;
+      x: number;
+      y: number;
+      constructionHoursRemaining?: number;
+    }>,
+  ) {
+    for (const module of this.placed.values()) {
+      module.view.destroy();
+      module.label?.destroy();
+      module.ring?.destroy();
+    }
+    this.placed.clear();
+    this.occ = Array.from({ length: GRID.cols }, () =>
+      new Array<number>(GRID.rows).fill(0),
+    );
+    this.nextUid = 1;
+    this.movingModuleUid = null;
+    this.selected = null;
+
+    for (const savedModule of modules) {
+      const def = MODULES[savedModule.id];
+      const col = savedModule.y;
+      const row = savedModule.x;
+      if (!def || !this.canPlace(def, col, row)) continue;
+
+      const uid = this.nextUid++;
+      for (let occupiedCol = col; occupiedCol < col + def.w; occupiedCol++) {
+        for (let occupiedRow = row; occupiedRow < row + def.h; occupiedRow++) {
+          this.occ[occupiedCol][occupiedRow] = uid;
+        }
+      }
+      const created = this.createView(def, col, row);
+      const placedEntry: Placed = {
+        uid,
+        def,
+        col,
+        row,
+        instanceId: savedModule.instanceId,
+        constructionHoursRemaining: savedModule.constructionHoursRemaining,
+        view: created.view,
+        label: created.label,
+        ring: created.ring,
+      };
+      this.placed.set(uid, placedEntry);
+      this.attachModuleInteraction(placedEntry);
+    }
+    this.drawGhost();
   }
 
   /**----------------------------------------------------------------------------------------------------------------
@@ -238,6 +301,7 @@ export class IsoScene extends Phaser.Scene {
      * Prevents the camera from moving beyond the grid and its configured margins.
      ----------------------------------------------------------------------------------------------------------------*/
   update() {
+    this.syncConstructionStatus();
     const cam = this.cameras.main;
     const viewW = cam.width / cam.zoom;
     const viewH = cam.height / cam.zoom;
@@ -387,7 +451,6 @@ export class IsoScene extends Phaser.Scene {
         if (this.movingModuleUid !== null) {
           this.cancelMove();
         } else if (this.hoveredModuleUid === null) {
-          this.selectedModuleUid = null;
           this.select(null);
         }
       } else if (this.hoveredModuleUid !== null) {
@@ -400,7 +463,6 @@ export class IsoScene extends Phaser.Scene {
         if (a) this.tryPlace(a.col, a.row);
         this.drawGhost();
       } else {
-        this.selectedModuleUid = null;
         this.drawGhost();
       }
     }
@@ -432,6 +494,10 @@ export class IsoScene extends Phaser.Scene {
   private updateHover(p: Phaser.Input.Pointer) {
     const w = this.screenToWorld(p.x, p.y);
     this.hoverTile = this.worldToTile(w.x, w.y);
+    const hoveredModule = this.hoverTile
+      ? this.getModuleAt(this.hoverTile.col, this.hoverTile.row)
+      : null;
+    this.hoveredModuleUid = hoveredModule?.uid ?? null;
     this.drawGhost();
   }
 
@@ -535,7 +601,6 @@ export class IsoScene extends Phaser.Scene {
 
     this.movingModuleUid = uid;
     this.selected = module.def;
-    this.selectedModuleUid = uid;
     for (let c = module.col; c < module.col + module.def.w; c++) {
       for (let r = module.row; r < module.row + module.def.h; r++) {
         this.occ[c][r] = 0;
@@ -602,7 +667,6 @@ export class IsoScene extends Phaser.Scene {
     });
     this.movingModuleUid = null;
     this.selected = null;
-    this.selectedModuleUid = uid;
     this.drawGhost();
     return true;
   }
@@ -621,6 +685,18 @@ export class IsoScene extends Phaser.Scene {
     view: Phaser.GameObjects.GameObject,
     alpha: number,
   ) {
+    if (view instanceof Phaser.GameObjects.Container) {
+      view.list.forEach((child) => {
+        if (child instanceof Phaser.GameObjects.Text) {
+          child.setAlpha(1);
+        } else if ("setAlpha" in child) {
+          (child as Phaser.GameObjects.GameObject & {
+            setAlpha: (value: number) => Phaser.GameObjects.GameObject;
+          }).setAlpha(alpha);
+        }
+      });
+      return;
+    }
     const alphaView = view as Phaser.GameObjects.GameObject & {
       setAlpha: (value: number) => Phaser.GameObjects.GameObject;
     };
@@ -758,20 +834,6 @@ export class IsoScene extends Phaser.Scene {
     if (!(target instanceof Phaser.GameObjects.GameObject)) return;
 
     target.setInteractive({ useHandCursor: true });
-    target.on("pointerover", () => {
-      this.hoveredModuleUid = module.uid;
-      if (module.label) module.label.setVisible(true);
-      this.placed.forEach((placed) => this.updateRingState(placed));
-      this.drawGhost();
-    });
-    target.on("pointerout", () => {
-      if (this.hoveredModuleUid === module.uid) {
-        this.hoveredModuleUid = null;
-      }
-      if (module.label) module.label.setVisible(false);
-      this.placed.forEach((placed) => this.updateRingState(placed));
-      this.drawGhost();
-    });
     target.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       if (this.isOverlayOpen()) return;
       if (pointer.button === 2) {
@@ -779,6 +841,7 @@ export class IsoScene extends Phaser.Scene {
           this.cancelMove();
           return;
         }
+
         this.game.events.emit("module-move-requested", {
           uid: module.uid,
           id: module.def.id,
@@ -787,7 +850,6 @@ export class IsoScene extends Phaser.Scene {
         });
         return;
       }
-      this.selectedModuleUid = module.uid;
       this.placed.forEach((placed) => this.updateRingState(placed));
       this.drawGhost();
       this.game.events.emit("module-clicked", {
@@ -803,6 +865,31 @@ export class IsoScene extends Phaser.Scene {
         col: module.col,
         row: module.row,
       });
+    });
+  }
+
+  private syncConstructionStatus() {
+    const stateModules = useGameStore.getState().placedModules;
+    this.placed.forEach((module) => {
+      const stateModule = stateModules.find(
+        (candidate) =>
+          candidate.instanceId === module.instanceId ||
+          (candidate.id === module.def.id &&
+            candidate.x === module.row &&
+            candidate.y === module.col),
+      );
+      const remaining = stateModule?.constructionHoursRemaining ?? 0;
+      module.constructionHoursRemaining = remaining;
+      if (module.label) {
+        module.label.setText(
+          remaining > 0
+            ? `${module.def.name}\nIN CONSTRUCTION • ${remaining}h`
+            : module.def.name,
+        );
+        module.label.setVisible(
+          remaining > 0 || module.uid === this.hoveredModuleUid,
+        );
+      }
     });
   }
 
@@ -927,22 +1014,17 @@ export class IsoScene extends Phaser.Scene {
     this.ghostImg.setVisible(false);
 
     const highlightedUid =
-      this.movingModuleUid === null
-        ? (this.hoveredModuleUid ?? this.selectedModuleUid)
-        : null;
+      this.movingModuleUid === null ? this.hoveredModuleUid : null;
     this.placed.forEach((module) => {
       const isHighlighted = module.uid === highlightedUid;
-      this.setModuleAlpha(module.view, isHighlighted ? 0.7 : 1);
+      const isConstructing =
+        (module.constructionHoursRemaining ?? 0) > 0;
+      this.setModuleAlpha(
+        module.view,
+        isConstructing || isHighlighted ? 0.55 : 1,
+      );
+      module.label?.setVisible(isConstructing || isHighlighted);
       this.updateRingState(module);
-      if (isHighlighted) {
-        const fp = this.footprint(
-          module.col,
-          module.row,
-          module.def.w,
-          module.def.h,
-        );
-        this.poly(g, [fp.top, fp.right, fp.bottom, fp.left], 0x44ff88, 0.5);
-      }
     });
 
     if (!this.selected) {

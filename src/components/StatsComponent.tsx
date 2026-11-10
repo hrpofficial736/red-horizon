@@ -13,14 +13,6 @@ export function StatsComponent() {
   const currentHour = useGameStore((state) => state.currentHour);
   const toggleModule = useGameStore((state) => state.toggleModule);
   const togglePowerSupply = useGameStore((state) => state.togglePowerSupply);
-  const hasPowerSurplus = useGameStore((state) => {
-    return hasOperationalPower(
-      state.placedModules,
-      state.powerBankCharge,
-      state.currentHour,
-    );
-  });
-
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 overflow-hidden text-white">
       <div className="flex flex-row justify-between gap-3 border-b border-neutral-800 px-4 pb-3 text-[10px] font-bold uppercase tracking-widest text-neutral-500">
@@ -48,10 +40,12 @@ export function StatsComponent() {
             const displayedHp = Math.round(module.hp);
             const isPowerGenerator = config.powerDraw > 0;
             const isCritical = isCriticalPowerModule(module.id);
+            const isConstructing =
+              (module.constructionHoursRemaining ?? 0) > 0;
             const isActive =
+              !isConstructing &&
               module.active &&
-              module.hp > 0 &&
-              (isPowerGenerator || isCritical || hasPowerSurplus);
+              module.hp > 0;
             const canActivate =
               module.hp > 0 &&
               (isPowerGenerator ||
@@ -67,6 +61,7 @@ export function StatsComponent() {
             const canToggle =
               !isPowerGenerator &&
               !isCritical &&
+              !isConstructing &&
               module.hp > 0 &&
               (module.active || canActivate);
             return (
@@ -90,7 +85,11 @@ export function StatsComponent() {
                         : "border-red-500/50 text-red-300"
                     }`}
                   >
-                    {isActive ? "Active" : "Inactive"}
+                    {isConstructing
+                      ? "In Construction"
+                      : isActive
+                        ? "Active"
+                        : "Inactive"}
                   </span>
                   <button
                     type="button"

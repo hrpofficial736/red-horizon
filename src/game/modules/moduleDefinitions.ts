@@ -234,7 +234,7 @@ export const MODULES: Record<string, ModuleDef> = {
     ],
     maxIntegrity: 100,
     baseDecayRate: 4,
-    powerDraw: 30, // Positive value: generates 25 units of energy during standard daylight
+    powerDraw: 35, // Positive value: generates 25 units of energy during standard daylight
     maxModules: 4, // Only four solar arrays can be built at a time
   },
   battery: {

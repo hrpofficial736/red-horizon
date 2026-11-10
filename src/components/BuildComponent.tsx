@@ -3,7 +3,7 @@ import { useGameStore } from "../store/useGameStore";
 import { MODULES } from "../game/modules/moduleDefinitions";
 import { TEXTURE_IMPORTS } from "../game/utils/textureImports";
 import gridIcon from "../assets/Grid.png";
-import type { ModuleDef } from "../game/modules/module.types";
+import type { ModuleDef, ResourceType } from "../game/modules/module.types";
 import { Lock } from "lucide-react";
 import { MAT_IMPORTS } from "../game/utils/materialsTexture";
 
@@ -14,12 +14,95 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
   const inventory = useGameStore((state) => state.inventory);
   const placedModules = useGameStore((state) => state.placedModules);
   const unlockedModuleIds = useGameStore((state) => state.unlockedModuleIds);
-  const hasResearchLab = placedModules.some(
-    (module) => module.id === "researchLab",
+  const researchedNodeIds = useGameStore((state) => state.researchedNodeIds);
+  const isCommsEstablished = useGameStore((state) => state.isCommsEstablished);
+  const hasBuilt = (moduleId: string) =>
+    placedModules.some(
+      (module) =>
+        module.id === moduleId &&
+        (module.constructionHoursRemaining ?? 0) <= 0,
+    );
+  const hasResearchLab = hasBuilt("researchLab");
+  const hasKitchen = hasBuilt("kitchen");
+  const hasDrill = hasBuilt("drill");
+  const hasSolar = hasBuilt("solar");
+  const hasBattery = hasBuilt("battery");
+  const hasWorkshop = hasBuilt("workshop");
+  const hasWaterExtractor = placedModules.some(
+    (module) =>
+      module.id === "water" &&
+      (module.constructionHoursRemaining ?? 0) <= 0,
   );
-  const hasKitchen = placedModules.some((module) => module.id === "kitchen");
-  const hasDrill = placedModules.some((module) => module.id === "drill");
-  const essentialsComplete = hasKitchen && hasDrill;
+  const hasGreenhouse = placedModules.some(
+    (module) =>
+      module.id === "greenhouse" &&
+      (module.constructionHoursRemaining ?? 0) <= 0,
+  );
+  const currentDay = useGameStore((state) => state.currentDay);
+  const foodStockpileTaskStartDay = useGameStore(
+    (state) => state.foodStockpileTaskStartDay,
+  );
+  const foodResources: ResourceType[] = [
+    "raw_food",
+    "soup",
+    "meal",
+    "good_meal",
+  ];
+  const foodCount = foodResources.reduce(
+    (total, resource) => total + (inventory[resource] ?? 0),
+    0,
+  );
+  const task6Complete =
+    foodStockpileTaskStartDay !== null &&
+    currentDay > foodStockpileTaskStartDay &&
+    foodCount >= 7;
+
+  const taskCompletion = [
+    hasSolar,
+    hasBattery,
+    hasWorkshop,
+    hasWaterExtractor && hasDrill,
+    hasKitchen && hasGreenhouse,
+    task6Complete,
+    hasResearchLab,
+    researchedNodeIds.length > 0,
+  ];
+  const taskModuleIds = [
+    ["solar"],
+    ["battery"],
+    ["workshop"],
+    ["water", "drill"],
+    ["kitchen", "greenhouse"],
+    [],
+    ["researchLab"],
+    [],
+  ];
+
+  const activeTaskIndex = taskCompletion.findIndex((complete) => !complete);
+  const previouslyAssignedModuleIds = taskModuleIds
+    .slice(0, activeTaskIndex < 0 ? taskModuleIds.length : activeTaskIndex)
+    .flat();
+  const activeTaskModuleIds =
+    activeTaskIndex >= 0 ? taskModuleIds[activeTaskIndex] : [];
+  const assignedModuleIds = new Set([
+    ...previouslyAssignedModuleIds,
+    ...activeTaskModuleIds,
+  ]);
+
+  if (activeTaskIndex < 0 && !placedModules.some((module) => module.id === "radiation_tower")) {
+    assignedModuleIds.add("radiation_tower");
+  }
+  if (
+    activeTaskIndex < 0 &&
+    placedModules.some((module) => module.id === "radiation_tower")
+  ) {
+    assignedModuleIds.add("radar");
+    assignedModuleIds.add("communication");
+  }
+  if (isCommsEstablished) {
+    assignedModuleIds.add("radar");
+    assignedModuleIds.add("communication");
+  }
 
   const canAffordModule = selectedModule.buildCost.every((cost) => {
     const stockAvailable = inventory[cost.resource] ?? 0;
@@ -42,12 +125,12 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
 
   const defaultUnlockedModules = Object.values(MODULES).filter(
     (mod) =>
+      assignedModuleIds.has(mod.id) &&
       (mod.isUnlockedByDefault || unlockedModuleIds.includes(mod.id)) &&
       mod.id !== "habitat",
   );
 
   const unlockedModules = defaultUnlockedModules.filter((mod) => {
-    if (mod.id === "researchLab" && !essentialsComplete) return false;
     if (mod.id !== "sample_extractor") return true;
     return hasResearchLab || unlockedModuleIds.includes(mod.id);
   });
@@ -81,7 +164,7 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
             key={mod.id}
             onClick={() => setSelectedModule(mod)}
             style={{ backgroundImage: `url(${gridIcon})` }}
-            className={`w-[calc(33.3%-0.4rem)] aspect-3/4 text-left p-3 rounded-xl border text-xs flex flex-col justify-between items-center transition ${
+            className={`w-[calc(33.3%-0.4rem)] h-[calc(50%-0.4rem)] aspect-3/4 text-left p-3 rounded-xl border text-xs flex flex-col justify-between items-center transition ${
               selectedModule.id === mod.id
                 ? "bg-neutral-800 border-white text-white"
                 : "bg-neutral-900/40 border-neutral-800 text-neutral-400 hover:border-neutral-700"

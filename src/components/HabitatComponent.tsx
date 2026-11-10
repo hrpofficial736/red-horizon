@@ -1,10 +1,7 @@
 import { useState } from "react";
 import { MODULES } from "../game/modules/moduleDefinitions";
 import { MAT_ICONS } from "../game/utils/matetialsIcons";
-import {
-  hasOperationalPower,
-  useGameStore,
-} from "../store/useGameStore";
+import { useGameStore } from "../store/useGameStore";
 import { RepairButton } from "./RepairButton";
 import { StatsComponent } from "./StatsComponent";
 
@@ -19,14 +16,6 @@ export function HabitatComponent({ instanceId }: { instanceId: string }) {
     state.placedModules.find((module) => module.instanceId === instanceId),
   );
   const config = placedModule ? MODULES[placedModule.id] : undefined;
-  const hasPowerSurplus = useGameStore((state) => {
-    return hasOperationalPower(
-      state.placedModules,
-      state.powerBankCharge,
-      state.currentHour,
-    );
-  });
-
   if (!placedModule || !config) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-neutral-400">

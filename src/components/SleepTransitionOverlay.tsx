@@ -6,6 +6,7 @@ import {
 export function SleepTransitionOverlay() {
   const phase = useGameStore((state) => state.sleepOverlayPhase);
   const nextDay = useGameStore((state) => state.sleepOverlayDay);
+  const overlayMode = useGameStore((state) => state.sleepOverlayMode);
   const currentDay = useGameStore((state) => state.currentDay);
   const lastRadiationWaveDay = useGameStore(
     (state) => state.lastRadiationWaveDay,
@@ -41,7 +42,7 @@ export function SleepTransitionOverlay() {
         </p>
       </div>
       <span className="absolute bottom-6 right-7 font-mono text-[10px] uppercase tracking-widest text-neutral-500">
-        Saving...
+        {overlayMode === "load" ? "Loading save..." : "Saving..."}
       </span>
       <div
         className="absolute bottom-6 right-32 flex flex-row-reverse items-end gap-3 rounded-2xl border border-yellow-900/70 bg-black/80 px-3 py-2 text-yellow-400"

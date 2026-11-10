@@ -50,7 +50,7 @@ export default function ResourceOverlay() {
           </span>
         )} */}
       </div>
-      <div className="flex items-center gap-2">
+      <div className="flex flex-row flex-col items-center gap-2">
         <img
           src={MAT_IMPORTS["iron_ore"]}
           alt="iron_ore"
@@ -66,7 +66,7 @@ export default function ResourceOverlay() {
         </div>
       </div>
       <div className="w-px bg-neutral-700 h-6 my-auto" />
-      <div className="flex items-center gap-2">
+      <div className="flex flex-row items-center gap-2">
         <img
           src={MAT_IMPORTS["silicates"]}
           alt="iron_ore"
@@ -82,7 +82,7 @@ export default function ResourceOverlay() {
         </div>
       </div>
       <div className="w-px bg-neutral-700 h-6 my-auto" />
-      <div className="flex items-center gap-2">
+      <div className="flex flex-row items-center gap-2">
         <img
           src={MAT_IMPORTS["iron_plate"]}
           alt="iron_plate"
@@ -98,7 +98,7 @@ export default function ResourceOverlay() {
         </div>
       </div>
       <div className="w-px bg-neutral-700 h-6 my-auto" />
-      <div className="flex items-center gap-2">
+      <div className="flex flex-row items-center gap-2">
         <img
           src={MAT_IMPORTS["glass_panel"]}
           alt="glass_panel"
@@ -114,7 +114,7 @@ export default function ResourceOverlay() {
         </div>
       </div>
       <div className="w-px bg-neutral-700 h-6 my-auto" />
-      <div className="flex items-center gap-2">
+      <div className="flex flex-row items-center gap-2">
         <img
           src={MAT_IMPORTS["electronics"]}
           alt="electronics"
@@ -131,7 +131,7 @@ export default function ResourceOverlay() {
       </div>
 
       <div className="w-px bg-neutral-700 h-6 my-auto" />
-      <div className="flex items-center gap-2">
+      <div className="flex flex-row items-center gap-2">
         <img
           src={MAT_IMPORTS["repair_kit"]}
           alt="repair_kit"
@@ -148,7 +148,7 @@ export default function ResourceOverlay() {
       </div>
 
       <div className="w-px bg-neutral-700 h-6 my-auto" />
-      <div className="flex items-center gap-2">
+      <div className="flex flex-row items-center gap-2">
         <img
           src={MAT_IMPORTS["raw_food"]}
           alt="iron_ore"
@@ -165,7 +165,7 @@ export default function ResourceOverlay() {
       </div>
 
       <div className="w-px bg-neutral-700 h-6 my-auto" />
-      <div className="flex items-center gap-2">
+      <div className="flex flex-row items-center gap-2">
         <img
           src={MAT_IMPORTS["soup"]}
           alt="soup"
@@ -181,7 +181,7 @@ export default function ResourceOverlay() {
         </div>
       </div>
       <div className="w-px bg-neutral-700 h-6 my-auto" />
-      <div className="flex items-center gap-2">
+      <div className="flex flex-row items-center gap-2">
         <img
           src={MAT_IMPORTS["water"]}
           alt="iron_ore"

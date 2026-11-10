@@ -9,3 +9,33 @@
 body {
   font-family: var(--font-manrope);
 }
+
+@keyframes quest-task-enter {
+  from {
+    opacity: 0;
+    transform: translateX(110%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes quest-task-exit {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-110%);
+  }
+}
+
+.quest-task-enter {
+  animation: quest-task-enter 350ms ease-out both;
+}
+
+.quest-task-exit {
+  animation: quest-task-exit 350ms ease-in both;
+}

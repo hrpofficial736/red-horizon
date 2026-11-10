@@ -15,12 +15,14 @@ import { HabitatComponent } from "./components/HabitatComponent";
 import { SleepTransitionOverlay } from "./components/SleepTransitionOverlay";
 import { UplinkComponent } from "./components/UplinkComponent";
 import { QuestPanel } from "./components/QuestPanel";
+import { SaveMenu } from "./components/SaveMenu";
 
 type ActiveTab = "none" | "build" | "inventory" | "research" | "logs";
 type CraftingModuleId = "workshop" | "kitchen" | "greenhouse";
 
 function App() {
   const [activeTab, setActiveTab] = useState<ActiveTab>("none");
+  const [showSaveMenu, setShowSaveMenu] = useState(false);
   const gameLogs = useGameStore((state) => state.gameLogs);
 
   const [showStatusModal, setShowStatusModal] = useState<any>(null);
@@ -49,7 +51,8 @@ function App() {
     moveRequest !== null ||
     craftingModule !== null ||
     habitatModule !== null ||
-    uplinkModule !== null;
+    uplinkModule !== null ||
+    showSaveMenu;
 
   useEffect(() => {
     (
@@ -65,6 +68,9 @@ function App() {
 
   const startPassiveTimer = useGameStore((state) => state.startPassiveTimer);
   const stopPassiveTimer = useGameStore((state) => state.stopPassiveTimer);
+  const initializeGameSaves = useGameStore(
+    (state) => state.initializeGameSaves,
+  );
   const closeTab = () => {
     setShowStatusModal(null);
     setActiveTab("none");
@@ -82,6 +88,10 @@ function App() {
     // Safely clears the interval timer if the user refreshes or hot-reloads during development
     return () => stopPassiveTimer();
   }, [startPassiveTimer, stopPassiveTimer]);
+
+  useEffect(() => {
+    initializeGameSaves();
+  }, [initializeGameSaves]);
 
   useEffect(() => {
     const triggerPopupOverlay = (e: any) => {
@@ -191,13 +201,17 @@ function App() {
         )}
         {/* 📊 CORE HUD STATUS DATA METRICS PANEL (Top Right) */}
         <div className="pointer-events-auto">
-          <BaseStatusHUD />
+          <BaseStatusHUD onOpenMenu={() => setShowSaveMenu(true)} />
           <QuestPanel />
           <DebugTimeSkip />
         </div>
 
         {/* 🛸 HUD TOP-CENTER FLOATING OVERLAY: ACTIVE BASE RESOURCE STOCKPILES BAR */}
         <ResourceOverlay />
+
+        {showSaveMenu && (
+          <SaveMenu onClose={() => setShowSaveMenu(false)} />
+        )}
 
         {/* 🟢 3. MOUNT THE FLOATING INSPECTION STAT OVERLAY CARD HERE */}
         {/* 🟢 3. PLOP THIS SIMPLE FLOATING MODAL DIRECTLY HERE */}

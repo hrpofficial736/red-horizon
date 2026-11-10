@@ -1,4 +1,6 @@
+import { useEffect, useState } from "react";
 import { useGameStore } from "../store/useGameStore";
+import type { ResourceType } from "../game/modules/module.types";
 
 type QuestBlock = {
   id: string;
@@ -11,15 +13,32 @@ type QuestBlock = {
 };
 
 const hasBuilt = (
-  placedModules: Array<{ id: string; hp: number }>,
+  placedModules: Array<{
+    id: string;
+    hp: number;
+    constructionHoursRemaining?: number;
+  }>,
   moduleId: string,
-) => placedModules.some((module) => module.id === moduleId && module.hp > 0);
+) =>
+  placedModules.some(
+    (module) =>
+      module.id === moduleId &&
+      module.hp > 0 &&
+      (module.constructionHoursRemaining ?? 0) <= 0,
+  );
 
 export function QuestPanel() {
   const currentDay = useGameStore((state) => state.currentDay);
   const placedModules = useGameStore((state) => state.placedModules);
   const researchedNodeIds = useGameStore((state) => state.researchedNodeIds);
+  const inventory = useGameStore((state) => state.inventory);
   const isCommsEstablished = useGameStore((state) => state.isCommsEstablished);
+  const foodStockpileTaskStartDay = useGameStore(
+    (state) => state.foodStockpileTaskStartDay,
+  );
+  const startFoodStockpileTask = useGameStore(
+    (state) => state.startFoodStockpileTask,
+  );
 
   const hasSolar = hasBuilt(placedModules, "solar");
   const hasBattery = hasBuilt(placedModules, "battery");
@@ -38,9 +57,32 @@ export function QuestPanel() {
   const task3Complete = hasWorkshop;
   const task4Complete = hasWaterExtractor && hasDrill;
   const task5Complete = hasKitchen && hasGreenhouse;
-  const task6Complete = hasResearchLab;
-  const task7Complete = researchedNodeIds.length > 0;
+  const foodResources: ResourceType[] = [
+    "raw_food",
+    "soup",
+    "meal",
+    "good_meal",
+  ];
+  const foodCount = foodResources.reduce(
+    (total, resource) => total + (inventory[resource] || 0),
+    0,
+  );
+  const task6Complete =
+    foodStockpileTaskStartDay !== null &&
+    currentDay > foodStockpileTaskStartDay &&
+    foodCount >= 7;
+  const task7Complete = hasResearchLab;
+  const task8Complete = researchedNodeIds.length > 0;
 
+  useEffect(() => {
+    if (task5Complete) startFoodStockpileTask();
+  }, [startFoodStockpileTask, task5Complete]);
+
+  const foodStockpileDueDay = (foodStockpileTaskStartDay ?? currentDay) + 3;
+  const foodStockpileExpired =
+    foodStockpileTaskStartDay !== null &&
+    !task6Complete &&
+    currentDay > foodStockpileDueDay;
   const optionalTowerStartDay = 1;
   const optionalTowerDeadlineDays = 3;
   const optionalTowerDueDay = optionalTowerStartDay + optionalTowerDeadlineDays;
@@ -85,26 +127,41 @@ export function QuestPanel() {
       heading: "Kitchen and Greenhouse",
       complete: task5Complete,
       lines: [
-        { text: "Build kitchen module", done: hasKitchen },
         { text: "Build greenhouse module", done: hasGreenhouse },
+        { text: "Build kitchen module", done: hasKitchen },
       ],
     },
     {
       id: "task-6",
       taskLabel: "TASK6",
-      heading: "Research Foundation",
+      heading: "Food Stockpile",
       complete: task6Complete,
-      lines: [{ text: "Build research lab module", done: hasResearchLab }],
+      lines: [
+        {
+          text: "Store 7 days of food in inventory",
+          done: task6Complete,
+        },
+      ],
+      optionalNote: foodStockpileExpired
+        ? "Window expired. Keep the food stocked anyway."
+        : `Complete by Sol ${String(foodStockpileDueDay).padStart(2, "0")}`,
     },
     {
       id: "task-7",
       taskLabel: "TASK7",
-      heading: "Science Progress",
+      heading: "Research Foundation",
       complete: task7Complete,
+      lines: [{ text: "Build research lab module", done: hasResearchLab }],
+    },
+    {
+      id: "task-8",
+      taskLabel: "TASK8",
+      heading: "Science Progress",
+      complete: task8Complete,
       lines: [
         {
           text: "Research at least one tech",
-          done: task7Complete,
+          done: task8Complete,
         },
       ],
     },
@@ -124,7 +181,7 @@ export function QuestPanel() {
     task3Complete &&
     task4Complete &&
     task5Complete &&
-    task6Complete
+    task7Complete
   ) {
     const optionalBlock: QuestBlock = {
       id: "task-optional",
@@ -157,46 +214,92 @@ export function QuestPanel() {
     if (!friendlyBlock.complete) blocks.push(friendlyBlock);
   }
 
+  const currentBlock = blocks[0] ?? null;
+  const [displayedBlock, setDisplayedBlock] = useState<QuestBlock | null>(
+    currentBlock,
+  );
+  const [animation, setAnimation] = useState<"enter" | "exit" | "idle">(
+    "enter",
+  );
+
+  useEffect(() => {
+    if (!currentBlock) return;
+    if (!displayedBlock) return;
+    if (displayedBlock.id === currentBlock.id) {
+      return;
+    }
+
+    const completedBlock =
+      mandatoryBlocks.find((block) => block.id === displayedBlock.id) ??
+      displayedBlock;
+
+    // Keep the completed task visible so its lines can strike through before
+    // the next task enters.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDisplayedBlock(completedBlock);
+    setAnimation("exit");
+    const timer = window.setTimeout(() => {
+      setDisplayedBlock(currentBlock);
+      setAnimation("enter");
+    }, 350);
+    return () => window.clearTimeout(timer);
+  // The IDs intentionally control this transition; object identity changes
+  // while the same task is displayed must not restart the animation.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentBlock?.id, displayedBlock?.id]);
+
+  const blockToRender =
+    displayedBlock && currentBlock?.id === displayedBlock.id
+      ? currentBlock
+      : displayedBlock;
+
   return (
     <div className="pointer-events-none absolute right-4 top-52 z-20 w-70 space-y-2">
-      {blocks.map((block) => {
-        return (
-          <section
-            key={block.id}
-            className="rounded-xl border border-neutral-800 bg-neutral-950/85 p-3 font-mono text-white shadow-2xl backdrop-blur"
-          >
-            <h3 className="mb-1 text-[13px] font-bold leading-tight text-orange-200">
-              {block.taskLabel}: {block.heading}
-            </h3>
-            {block.optional && (
+      {blockToRender && (
+        <section
+          key={blockToRender.id}
+          className={`rounded-xl border border-neutral-800 bg-neutral-950/85 p-3 font-mono text-white shadow-2xl backdrop-blur ${
+            animation === "enter"
+              ? "quest-task-enter"
+              : animation === "exit"
+                ? "quest-task-exit"
+                : ""
+          }`}
+        >
+          <h3 className="mb-1 text-[13px] font-bold leading-tight text-orange-200">
+            {blockToRender.taskLabel}: {blockToRender.heading}
+          </h3>
+          {(blockToRender.optional || blockToRender.id === "task-6") && (
+            <p
+              className={`mb-2 text-[10px] uppercase tracking-wide ${
+                (blockToRender.id === "task-6" && foodStockpileExpired) ||
+                (blockToRender.id !== "task-6" &&
+                  optionalTowerExpired &&
+                  !hasRadiationTower)
+                  ? "text-amber-300"
+                  : "text-neutral-400"
+              }`}
+            >
+              {blockToRender.optionalNote}
+            </p>
+          )}
+          <div className="space-y-1">
+            {blockToRender.lines.map((line) => (
               <p
-                className={`mb-2 text-[10px] uppercase tracking-wide ${
-                  optionalTowerExpired && !hasRadiationTower
-                    ? "text-amber-300"
-                    : "text-neutral-400"
+                key={line.text}
+                className={`text-sm leading-tight ${
+                  line.done
+                    ? "text-emerald-300 line-through"
+                    : "text-neutral-100"
                 }`}
               >
-                {block.optionalNote}
+                • {line.done ? "✓ " : ""}
+                {line.text}
               </p>
-            )}
-            <div className="space-y-1">
-              {block.lines.map((line) => (
-                <p
-                  key={line.text}
-                  className={`text-sm leading-tight ${
-                    line.done
-                      ? "text-emerald-300 line-through"
-                      : "text-neutral-100"
-                  }`}
-                >
-                  • {line.done ? "✓ " : ""}
-                  {line.text}
-                </p>
-              ))}
-            </div>
-          </section>
-        );
-      })}
+            ))}
+          </div>
+        </section>
+      )}
     </div>
   );
 }

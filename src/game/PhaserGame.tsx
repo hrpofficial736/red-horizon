@@ -63,6 +63,19 @@ export default function PhaserGame() {
 
     game.events.on("module-placed", handleModulePlaced);
 
+    const handleModuleSync = (
+      event: Event,
+    ) => {
+      const detail = (
+        event as CustomEvent<{
+          modules: Array<{ id: string; x: number; y: number }>;
+        }>
+      ).detail;
+      if (!detail || !Array.isArray(detail.modules)) return;
+      game.events.emit("sync-modules", detail.modules);
+    };
+    window.addEventListener("PHASER_SYNC_MODULES", handleModuleSync);
+
     const handleModuleMoved = (data: {
       id: string;
       oldCol: number;
@@ -146,9 +159,15 @@ export default function PhaserGame() {
 
     game.events.on("module-clicked", handleModuleClicked);
 
+    const restoredModules = useGameStore.getState().placedModules;
+    if (restoredModules.length > 0) {
+      game.events.emit("sync-modules", restoredModules);
+    }
+
     // Cleanup also makes React StrictMode (double-mount in dev) safe
     return () => {
       game.events.off("module-placed", handleModulePlaced);
+      window.removeEventListener("PHASER_SYNC_MODULES", handleModuleSync);
       game.events.off("module-moved", handleModuleMoved);
       game.events.off("module-move-requested", handleModuleMoveRequested);
       window.removeEventListener(
