@@ -141,6 +141,10 @@ export default function PhaserGame() {
         .getState()
         .placedModules.find((m: any) => m.x === data.row && m.y === data.col);
 
+      if (liveMod && (liveMod.constructionHoursRemaining ?? 0) > 0) {
+        return;
+      }
+
       // console.log(
       //   "🛸 React store lookup for module instanceId matching these grid tiles:",
       //   liveMod,

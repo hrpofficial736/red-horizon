@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useGameStore } from "../store/useGameStore";
 import type { ResourceType } from "../game/modules/module.types";
 
@@ -28,6 +28,8 @@ const hasBuilt = (
   );
 
 export function QuestPanel() {
+  const SUPPLY_DEPOT_UNLOCK_DAY = 10;
+  const [completedTaskIds, setCompletedTaskIds] = useState<string[]>([]);
   const currentDay = useGameStore((state) => state.currentDay);
   const placedModules = useGameStore((state) => state.placedModules);
   const researchedNodeIds = useGameStore((state) => state.researchedNodeIds);
@@ -150,7 +152,7 @@ export function QuestPanel() {
 
   // Notify player on Sol 10 storage mission
   useEffect(() => {
-    if (currentDay >= 10 && !hasSmallStorage) {
+    if (currentDay >= 6 && !hasSmallStorage) {
       const logs = useGameStore.getState().gameLogs;
       const alreadyNotified = logs.some((l) =>
         l.includes("Sol 10 objective available"),
@@ -329,25 +331,63 @@ export function QuestPanel() {
     lines: [{ text: "Build supply depot (S)", done: hasSmallStorage }],
   };
 
+  useEffect(() => {
+    setCompletedTaskIds((prev) => {
+      const next = [...prev];
+      const lockable = [
+        ...mandatoryBlocks.map((block) => block.id),
+        task8Block.id,
+        friendlyBlock.id,
+        ...missionBlocks.map((block) => block.id),
+        sol10StorageBlock.id,
+      ];
+      let changed = false;
+      for (const id of lockable) {
+        const block = [
+          ...mandatoryBlocks,
+          task8Block,
+          friendlyBlock,
+          ...missionBlocks,
+          sol10StorageBlock,
+        ].find((candidate) => candidate.id === id);
+        if (block && block.complete && !next.includes(id)) {
+          next.push(id);
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [
+    mandatoryBlocks,
+    task8Complete,
+    friendlyBlock.complete,
+    missionBlocks,
+    hasSmallStorage,
+    currentDay,
+  ]);
+
   const activeBlocks: QuestBlock[] = [];
 
+  const keepVisible = (blockId: string) => !completedTaskIds.includes(blockId);
+
   // Linear progression for Tasks 1-7
-  const earlyTask = mandatoryBlocks.slice(0, 7).find((block) => !block.complete);
+  const earlyTask = mandatoryBlocks
+    .filter((block) => keepVisible(block.id))
+    .find((block) => !block.complete);
   if (earlyTask) {
     activeBlocks.push(earlyTask);
   } else {
-    // Tasks 1-7 are complete!
-    // Task 8 (Radiation Tower)
-    if (!task8Complete) {
+    if (keepVisible(task8Block.id) && !task8Complete) {
       activeBlocks.push(task8Block);
     }
 
-    // Task 9 unlocks if Task 8 is done OR if 2 days have elapsed since Task 8 started
     if (task8Complete || towerTaskPassed2Days) {
-      if (!friendlyBlock.complete) {
+      if (keepVisible(friendlyBlock.id) && !friendlyBlock.complete) {
         activeBlocks.push(friendlyBlock);
       } else if (stormAlertReceived && earthReportSent) {
-        const nextMissionBlock = missionBlocks.find((block) => !block.complete);
+        const nextMissionBlock = missionBlocks
+          .filter((block) => keepVisible(block.id))
+          .find((block) => !block.complete);
         if (nextMissionBlock) {
           activeBlocks.push(nextMissionBlock);
         }
@@ -355,9 +395,10 @@ export function QuestPanel() {
     }
   }
 
-  // Sol 10 parallel storage task
-  if (currentDay >= 10 && !hasSmallStorage) {
-    activeBlocks.push(sol10StorageBlock);
+  if (currentDay >= SUPPLY_DEPOT_UNLOCK_DAY && !hasSmallStorage) {
+    if (keepVisible(sol10StorageBlock.id)) {
+      activeBlocks.push(sol10StorageBlock);
+    }
   }
 
   return (
