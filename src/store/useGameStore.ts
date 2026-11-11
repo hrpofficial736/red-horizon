@@ -53,13 +53,21 @@ export const REPAIR_TIME_STANDARD_HOURS = 1;
 export const REPAIR_TIME_WARNING_HOURS = 2;
 export const REPAIR_TIME_CRITICAL_HOURS = 4;
 // Difficulty tuning: percentages are decimal fractions of a module's max HP.
-export const RADIATION_DAY_DECAY_PER_SOL = 0.050;
+export const RADIATION_DAY_DECAY_PER_SOL = 0.05;
 export const RADIATION_NIGHT_DECAY_PER_SOL = 0.075;
 export const RADIATION_WAVE_DAMAGE = 0.075;
 export const RADIATION_WAVE_INTERVAL_DAYS = 3;
 export const RADIATION_TOWER_DAY_REDUCTION = 0.65;
 export const RADIATION_TOWER_NIGHT_REDUCTION = 0.65;
-export const RADIATION_TOWER_COVERAGE_RADIUS = 4;
+export const RADIATION_TOWER_COVERAGE_RADIUS = 9999;
+
+const isModuleFunctionallyDisabled = (module: {
+  hp: number;
+  constructionHoursRemaining?: number;
+}) =>
+  module.hp <= 0 ||
+  module.hp < REPAIR_CRITICAL_HEALTH ||
+  (module.constructionHoursRemaining ?? 0) > 0;
 
 export const getPowerBankCapacity = (
   placedModules: Array<{
@@ -71,7 +79,7 @@ export const getPowerBankCapacity = (
   placedModules.reduce(
     (capacity, module) =>
       capacity +
-      (module.hp > 0 && (module.constructionHoursRemaining ?? 0) <= 0
+      (!isModuleFunctionallyDisabled(module)
         ? (MODULES[module.id]?.powerCapacity ?? 0)
         : 0),
     0,
@@ -92,7 +100,7 @@ export const hasOperationalPower = (
   let consumed = 0;
 
   placedModules.forEach((module) => {
-    if (module.hp <= 0 || !module.active) return;
+    if (isModuleFunctionallyDisabled(module) || !module.active) return;
     const config = MODULES[module.id];
     if (!config) return;
 
@@ -1686,7 +1694,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       const module = state.placedModules.find(
         (candidate) => candidate.instanceId === instanceId,
       );
-      if (!module || module.hp <= 0) return state;
+      if (!module || module.hp <= 0 || module.hp < REPAIR_CRITICAL_HEALTH) return state;
       if ((MODULES[module.id]?.powerDraw ?? 0) > 0) return state;
       if (isCriticalPowerModule(module.id)) return state;
 
@@ -2105,6 +2113,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       existingJob?.durationMinutes ??
       getRepairDurationMinutes(healthPercentage);
     if (existingJob?.elapsedMinutes >= durationMinutes) return false;
+    if (state.currentHour >= FAINT_HOUR) return false;
 
     if (
       state.activeRepairInstanceId &&
@@ -2292,7 +2301,17 @@ export const useGameStore = create<GameState>((set, get) => ({
         return;
       }
 
+      if (store.currentHour >= FAINT_HOUR) {
+        store.stopActiveRepairLoop();
+        return;
+      }
+
       const nextMinute = store.currentMinute + 1;
+      if (store.currentHour === FAINT_HOUR - 1 && nextMinute >= 60) {
+        store.stopActiveRepairLoop();
+        return;
+      }
+
       if (nextMinute >= 60) {
         store.advanceHour(1);
         set({ currentMinute: 0 });
@@ -2517,18 +2536,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
         const isCoveredByRadiationTower = (mod: (typeof updatedModules)[number]) => {
           if (!towerCenter || mod.id === "radiation_tower") return false;
-          const config = MODULES[mod.id];
-          if (!config) return false;
-          const moduleCenter = {
-            x: mod.x + (config.w - 1) / 2,
-            y: mod.y + (config.h - 1) / 2,
-          };
-          return (
-            Math.hypot(
-              moduleCenter.x - towerCenter.x,
-              moduleCenter.y - towerCenter.y,
-            ) <= RADIATION_TOWER_COVERAGE_RADIUS
-          );
+          return true;
         };
 
         const applyRadiationDamage = (
@@ -2543,16 +2551,15 @@ export const useGameStore = create<GameState>((set, get) => ({
           const damage =
             config.maxIntegrity * percentage * (1 - reduction);
           const hp = Math.max(0, mod.hp - damage);
+          const shouldDisableForRepair = hp <= 0 || hp < REPAIR_CRITICAL_HEALTH;
           return {
             ...mod,
             hp,
-            active: hp <= 0
+            active: shouldDisableForRepair
               ? false
               : isCriticalPowerModule(mod.id)
                 ? criticalSystemsBootstrapped
-                : hp < config.maxIntegrity * (REPAIR_CRITICAL_HEALTH / 100)
-                  ? false
-                  : mod.active,
+                : mod.active,
           };
         };
 
@@ -2590,12 +2597,15 @@ export const useGameStore = create<GameState>((set, get) => ({
             return { ...mod, active: false };
           }
           if (config?.powerDraw > 0) {
-            return { ...mod, active: mod.hp > 0 && isDaylight };
+            return {
+              ...mod,
+              active: mod.hp > 0 && mod.hp >= REPAIR_CRITICAL_HEALTH && isDaylight,
+            };
           }
           if (mod.id === "battery") {
             return {
               ...mod,
-              active: mod.hp > 0,
+              active: mod.hp > 0 && mod.hp >= REPAIR_CRITICAL_HEALTH,
               powerSupplyEnabled: !isDaylight,
             };
           }
@@ -2604,10 +2614,8 @@ export const useGameStore = create<GameState>((set, get) => ({
             return {
               ...mod,
               active: false,
-              powerPausedAt: mod.powerPausedAt ?? getGameHour(nextDay, nextHour),
-              productionPausedAt:
-                mod.productionPausedAt ??
-                getGameHour(nextDay, nextHour),
+              powerPausedAt: getGameHour(nextDay, nextHour),
+              productionPausedAt: getGameHour(nextDay, nextHour),
             };
           }
           return mod;
@@ -2621,11 +2629,8 @@ export const useGameStore = create<GameState>((set, get) => ({
                 : {
                     ...mod,
                     active: false,
-                    powerPausedAt:
-                      mod.powerPausedAt ?? getGameHour(nextDay, nextHour),
-                    productionPausedAt:
-                      mod.productionPausedAt ??
-                      getGameHour(nextDay, nextHour),
+                    powerPausedAt: getGameHour(nextDay, nextHour),
+                    productionPausedAt: getGameHour(nextDay, nextHour),
                   },
           );
         }
@@ -2792,7 +2797,7 @@ export const useGameStore = create<GameState>((set, get) => ({
               ...mod,
               active: false,
               powerPausedAt: elapsedHour,
-              productionPausedAt: mod.productionPausedAt ?? elapsedHour,
+              productionPausedAt: elapsedHour,
             };
           });
         }

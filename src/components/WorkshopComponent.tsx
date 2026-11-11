@@ -60,41 +60,36 @@ export function WorkshopComponent({
   const currentHour = useGameStore((state) => state.currentHour);
   const currentMinute = useGameStore((state) => state.currentMinute);
   const currentDay = useGameStore((state) => state.currentDay);
-  const productionPausedAt = useGameStore(
-    (state) =>
-      state.placedModules.find(
-        (module) =>
-          module.id ===
-          (isSampleExtractor
-            ? "sample_extractor"
-            : isKitchen
-              ? "kitchen"
-              : "workshop"),
-      )?.productionPausedAt,
+  const targetModuleId = isSampleExtractor
+    ? "sample_extractor"
+    : isKitchen
+      ? "kitchen"
+      : "workshop";
+  const targetModule = useGameStore((state) =>
+    state.placedModules.find((module) => module.id === targetModuleId),
   );
-  const productionModuleActive = useGameStore((state) =>
-    hasOperationalPower(
-      state.placedModules,
-      state.powerBankCharge,
-      state.currentHour,
-      state.currentDay,
-    ) &&
-      state.placedModules.some(
-        (module) =>
-          module.id ===
-            (isSampleExtractor
-              ? "sample_extractor"
-              : isKitchen
-                ? "kitchen"
-                : "workshop") &&
-          module.active &&
-          module.hp > 0,
-      ),
-  );
+  const productionPausedAt = targetModule?.productionPausedAt;
+  const productionModuleActive = useGameStore((state) => {
+    const module = state.placedModules.find(
+      (candidate) => candidate.id === targetModuleId,
+    );
+    return (
+      module !== undefined &&
+      module.hp > 0 &&
+      module.active &&
+      hasOperationalPower(
+        state.placedModules,
+        state.powerBankCharge,
+        state.currentHour,
+        state.currentDay,
+      )
+    );
+  });
   const now = currentDay * 24 * 60 + currentHour * 60 + currentMinute;
-  const progressNow = productionModuleActive
-    ? now
-    : Math.min(now, (productionPausedAt ?? now) * 60);
+  const progressNow =
+    productionModuleActive || productionPausedAt === undefined
+      ? now
+      : Math.min(now, (productionPausedAt ?? now) * 60);
   const recipes = isSampleExtractor
     ? SAMPLE_EXTRACTOR_RECIPES
     : isKitchen
