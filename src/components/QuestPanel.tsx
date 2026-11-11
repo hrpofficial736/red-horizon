@@ -148,12 +148,12 @@ export function QuestPanel() {
     radiationTowerTaskStartDay,
   ]);
 
-  // Notify player on Sol 10 storage mission
+  // Notify player on Sol 6 storage mission
   useEffect(() => {
-    if (currentDay >= 10 && !hasSmallStorage) {
+    if (currentDay >= 6 && !hasSmallStorage) {
       const logs = useGameStore.getState().gameLogs;
       const alreadyNotified = logs.some((l) =>
-        l.includes("Sol 10 objective available"),
+        l.includes("Sol 6 objective available"),
       );
       if (!alreadyNotified) {
         useGameStore.setState({

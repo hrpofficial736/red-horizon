@@ -43,7 +43,9 @@ export function OverlayLayout({
                     : "text-neutral-400 hover:bg-neutral-800 hover:text-white"
                 }`}
               >
-                {tab.label}
+                {tab.label === "sample_extractor"
+                  ? "Sample Extractor"
+                  : tab.label}
               </button>
             ))}
           </div>

@@ -11,7 +11,7 @@ import good_meal from "../../assets/materials/GoodMeal.png";
 import repair_kit from "../../assets/materials/RepairKit.png";
 import water_filter from "../../assets/materials/WaterFilter.png";
 import air_filter from "../../assets/materials/AirFilter.png";
-import radiation_filter from "../../assets/materials/RadiationFilter.png";
+import mars_sample from "../../assets/materials/MarsSample.png";
 
 export const MAT_IMPORTS: Record<string, string> = {
   iron_plate: iron_plate,
@@ -27,5 +27,5 @@ export const MAT_IMPORTS: Record<string, string> = {
   repair_kit: repair_kit,
   water_filter: water_filter,
   air_filter: air_filter,
-  mars_sample: radiation_filter,
+  mars_sample: mars_sample,
 };
