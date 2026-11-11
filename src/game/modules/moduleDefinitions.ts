@@ -4,6 +4,7 @@ export const MODULES: Record<string, ModuleDef> = {
   // --- 1. LIFE SUPPORT & HABITAT ---
   habitat: {
     id: "habitat",
+    constructionHours: 4,
     name: "Crew Habitat",
     description:
       "The primary survival pod. Keeps the astronaut alive, processes meals, and saves progress.",
@@ -30,6 +31,7 @@ export const MODULES: Record<string, ModuleDef> = {
   },
   greenhouse: {
     id: "greenhouse",
+    constructionHours: 4,
     name: "Greenhouse",
     description:
       "Cultivates Martian crops using water and intensive artificial light configurations.",
@@ -54,6 +56,7 @@ export const MODULES: Record<string, ModuleDef> = {
   },
   kitchen: {
     id: "kitchen",
+    constructionHours: 4,
     name: "Kitchen",
     description:
       "Prepares harvested ingredients into nutritious meals for the astronaut.",
@@ -79,6 +82,7 @@ export const MODULES: Record<string, ModuleDef> = {
   },
   radiation_tower: {
     id: "radiation_tower",
+    constructionHours: 4,
     name: "Rad-Shield Tower",
     description:
       "Generates a localized magnetic bubble that reduces continuous and wave radiation damage in the surrounding area.",
@@ -93,8 +97,8 @@ export const MODULES: Record<string, ModuleDef> = {
     originY: 0.8,
     scale: 0.32,
     buildCost: [
-      { resource: "iron_plate", amount: 14 },
-      { resource: "electronics", amount: 8 },
+      { resource: "iron_plate", amount: 7 },
+      { resource: "electronics", amount: 5 },
     ],
     maxIntegrity: 100,
     baseDecayRate: 8, // Heavily worn down by solar particle bombardments
@@ -105,6 +109,7 @@ export const MODULES: Record<string, ModuleDef> = {
   // --- CORE LIFE SUPPORT MODULE ---
   life_support: {
     id: "life_support",
+    constructionHours: 4,
     name: "Life Support",
     description:
       "Primary environmental system. Regulates internal air pressure, scrubs carbon dioxide, and pumps vital water reserves back through the base.",
@@ -135,6 +140,7 @@ export const MODULES: Record<string, ModuleDef> = {
   // --- 2. RESOURCE GATHERING & PROCESSING ---
   water: {
     id: "water",
+    constructionHours: 4,
     name: "Water Extractor",
     description:
       "Melts and purifies deep subsurface regolith ice reserves into drinking water.",
@@ -160,6 +166,7 @@ export const MODULES: Record<string, ModuleDef> = {
   },
   drill: {
     id: "drill",
+    constructionHours: 4,
     name: "Regolith Extractor",
     description:
       "Heavy mechanical drill that extracts raw iron ore and high-density silicates.",
@@ -188,6 +195,7 @@ export const MODULES: Record<string, ModuleDef> = {
   },
   workshop: {
     id: "workshop",
+    constructionHours: 4,
     name: "Workshop",
     description:
       "Refines raw elements into structural plates, glass panels, components, and tools.",
@@ -214,6 +222,7 @@ export const MODULES: Record<string, ModuleDef> = {
   // --- 3. POWER GENERATION & STORAGE ---
   solar: {
     id: "solar",
+    constructionHours: 3,
     name: "Solar Array",
     description:
       "Generates renewable energy. Highly vulnerable to drop-offs during dust storm events.",
@@ -239,6 +248,7 @@ export const MODULES: Record<string, ModuleDef> = {
   },
   battery: {
     id: "battery",
+    constructionHours: 4,
     name: "Power Station Bank",
     description:
       "Stores power surpluses during peak generation cycles to keep life support operational overnight.",
@@ -266,6 +276,7 @@ export const MODULES: Record<string, ModuleDef> = {
   // --- 4. TECHNOLOGY & TECH LOGS ---
   researchLab: {
     id: "researchLab",
+    constructionHours: 4,
     name: "Research Lab",
     description:
       "Processes data logs to unlock advanced base defenses and radiation filters.",
@@ -280,9 +291,9 @@ export const MODULES: Record<string, ModuleDef> = {
     originY: 0.7,
     scale: 0.24,
     buildCost: [
-      { resource: "iron_plate", amount: 6 },
-      { resource: "glass_panel", amount: 6 },
-      { resource: "electronics", amount: 8 },
+      { resource: "iron_plate", amount: 3 },
+      { resource: "glass_panel", amount: 3 },
+      { resource: "electronics", amount: 5 },
     ],
     maxIntegrity: 100,
     baseDecayRate: 3,
@@ -291,6 +302,7 @@ export const MODULES: Record<string, ModuleDef> = {
   },
   radar: {
     id: "radar",
+    constructionHours: 4,
     name: "Comms Radar",
     description:
       "Establishes structural signals back to Earth and scans adjacent Martian sectors for rescue assets.",
@@ -305,8 +317,8 @@ export const MODULES: Record<string, ModuleDef> = {
     originY: 0.76,
     scale: 0.29,
     buildCost: [
-      { resource: "iron_plate", amount: 4 },
-      { resource: "electronics", amount: 8 },
+      { resource: "iron_plate", amount: 2 },
+      { resource: "electronics", amount: 4 },
     ],
     maxIntegrity: 100,
     baseDecayRate: 5,
@@ -315,6 +327,7 @@ export const MODULES: Record<string, ModuleDef> = {
   },
   storage_small: {
     id: "storage_small",
+    constructionHours: 4,
     name: "Supply Depot (S)",
     description:
       "A compact secure locker. Increases your maximum resource inventory limits.",
@@ -337,6 +350,7 @@ export const MODULES: Record<string, ModuleDef> = {
   },
   storage_large: {
     id: "storage_large",
+    constructionHours: 4,
     name: "Supply Depot (L)",
     description:
       "Advanced heavy vault equipped with climate-controlled tracking for vast stockpiles.",
@@ -352,8 +366,8 @@ export const MODULES: Record<string, ModuleDef> = {
     scale: 0.19,
     // scale: 0.25,
     buildCost: [
-      { resource: "iron_plate", amount: 12 },
-      { resource: "electronics", amount: 4 },
+      { resource: "iron_plate", amount: 8 },
+      { resource: "electronics", amount: 3 },
     ],
     maxIntegrity: 100, // Highly durable against winds
     baseDecayRate: 3,
@@ -365,6 +379,7 @@ export const MODULES: Record<string, ModuleDef> = {
   // --- COMMUNICATION MODULE ---
   communication: {
     id: "communication",
+    constructionHours: 4,
     name: "Mission Control Uplink",
     description:
       "Houses deep-space transmitter nodes. Essential for checking in with Earth and coordinating your Sol 30 rescue itinerary.",
@@ -379,9 +394,9 @@ export const MODULES: Record<string, ModuleDef> = {
     originY: 0.75,
     scale: 0.27,
     buildCost: [
-      { resource: "iron_plate", amount: 6 },
+      { resource: "iron_plate", amount: 4 },
       { resource: "glass_panel", amount: 2 },
-      { resource: "electronics", amount: 8 },
+      { resource: "electronics", amount: 4 },
     ],
     maxIntegrity: 100,
     baseDecayRate: 4,
@@ -390,6 +405,7 @@ export const MODULES: Record<string, ModuleDef> = {
   },
   sample_extractor: {
     id: "sample_extractor",
+    constructionHours: 4,
     name: "Sample Extractor",
     description: "Extracts and processes samples from the Martian environment.",
     category: "tech",
@@ -403,9 +419,9 @@ export const MODULES: Record<string, ModuleDef> = {
     originY: 0.7,
     scale: 0.19,
     buildCost: [
-      { resource: "iron_plate", amount: 6 },
-      { resource: "glass_panel", amount: 2 },
-      { resource: "electronics", amount: 4 },
+      { resource: "iron_plate", amount: 2 },
+      { resource: "glass_panel", amount: 3 },
+      { resource: "electronics", amount: 3 },
     ],
     maxIntegrity: 100,
     baseDecayRate: 4,
@@ -414,6 +430,7 @@ export const MODULES: Record<string, ModuleDef> = {
   },
   beacon: {
     id: "beacon",
+    constructionHours: 4,
     name: "Beacon",
     description: "A signal beacon for navigation and communication.",
     category: "tech",
@@ -429,7 +446,7 @@ export const MODULES: Record<string, ModuleDef> = {
     buildCost: [
       { resource: "iron_plate", amount: 4 },
       { resource: "glass_panel", amount: 2 },
-      { resource: "electronics", amount: 4 },
+      { resource: "electronics", amount: 3 },
     ],
     maxIntegrity: 100,
     baseDecayRate: 4,

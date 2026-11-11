@@ -90,4 +90,14 @@ export const RESEARCH_TREE: ResearchNode[] = [
     texture: "sample_extractor",
     unlocks: { moduleId: "sample_extractor" },
   },
+  {
+    id: "tech_beacon",
+    category: "TECH",
+    name: "Rescue Beacon",
+    description: "Unlocks the emergency distress beacon blueprint for evacuation.",
+    silicateCost: 15,
+    researchHours: 3,
+    texture: "beacon",
+    unlocks: { moduleId: "beacon" },
+  },
 ];

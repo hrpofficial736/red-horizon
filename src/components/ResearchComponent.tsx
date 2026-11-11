@@ -32,12 +32,28 @@ export function ResearchComponent() {
     const currentMinute = useGameStore((state) => state.currentMinute);
     const powerBankCharge = useGameStore((state) => state.powerBankCharge);
     const placedModules = useGameStore((state) => state.placedModules);
+    const stormAlertReceived = useGameStore((state) => state.stormAlertReceived);
+    const earthReportSent = useGameStore((state) => state.earthReportSent);
+    const radiationTowerTaskStartDay = useGameStore(
+        (state) => state.radiationTowerTaskStartDay,
+    );
+    const hasResearchLab = placedModules.some(
+        (m) => m.id === "researchLab" && (m.constructionHoursRemaining ?? 0) <= 0,
+    );
+    const hasRadiationTower = placedModules.some(
+        (m) => m.id === "radiation_tower" && (m.constructionHoursRemaining ?? 0) <= 0,
+    );
     const productionPausedAt = placedModules.find(
         (module) => module.id === "researchLab",
     )?.productionPausedAt;
     const now = currentDay * 24 + currentHour + currentMinute / 60;
     const researchOperational =
-        hasOperationalPower(placedModules, powerBankCharge, currentHour) &&
+        hasOperationalPower(
+            placedModules,
+            powerBankCharge,
+            currentHour,
+            currentDay,
+        ) &&
         placedModules.some(
             (module) => module.id === "researchLab" && module.active && module.hp > 0,
         );
@@ -45,21 +61,47 @@ export function ResearchComponent() {
         ? now
         : Math.min(now, productionPausedAt ?? now);
 
+    const isTaskAssignedForNode = (node: ResearchNode) => {
+        if (node.category === "FOOD") return true;
+        if (node.id === "base_radiation_tower") {
+            return hasResearchLab;
+        }
+        if (node.id === "base_radar" || node.id === "base_communication") {
+            const towerTaskPassed2Days =
+                radiationTowerTaskStartDay !== null &&
+                currentDay >= radiationTowerTaskStartDay + 2;
+            return hasResearchLab && (hasRadiationTower || towerTaskPassed2Days);
+        }
+        if (node.id === "base_large_storage") {
+            return currentDay >= 10;
+        }
+        if (node.id === "tech_sample_extractor") {
+            return stormAlertReceived && earthReportSent;
+        }
+        if (node.id === "tech_beacon") {
+            return stormAlertReceived && (inventory.mars_sample ?? 0) >= 1;
+        }
+        return false;
+    };
+
     const [selectedNode, setSelectedNode] = useState<ResearchNode | null>(null);
 
     const renderNode = (node: ResearchNode) => {
         const researched = researchedNodeIds.includes(node.id);
         const queued = researchQueue.some((item) => item.node.id === node.id);
-        const isNextUpgradeAvailable = (node.requires ?? []).every((requiredId) =>
-            researchedNodeIds.includes(requiredId),
-        );
+        const isAssigned = isTaskAssignedForNode(node);
+        const isNextUpgradeAvailable =
+            isAssigned &&
+            (node.requires ?? []).every((requiredId) =>
+                researchedNodeIds.includes(requiredId),
+            );
         const hasEnoughResearchCost = inventory.silicates >= node.silicateCost;
-        const isLocked = !isNextUpgradeAvailable;
+        const isLocked = !isAssigned || !isNextUpgradeAvailable;
         const canResearch =
             !researched &&
             !queued &&
             researchQueue.length < 2 &&
-            isNextUpgradeAvailable &&
+            !isLocked &&
             hasEnoughResearchCost;
 
         return (

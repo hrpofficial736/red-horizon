@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useGameStore } from "../store/useGameStore";
 import type { ResourceType } from "../game/modules/module.types";
 
@@ -34,9 +34,7 @@ export function QuestPanel() {
   const inventory = useGameStore((state) => state.inventory);
   const isCommsEstablished = useGameStore((state) => state.isCommsEstablished);
   const earthReportSent = useGameStore((state) => state.earthReportSent);
-  const stormAlertReceived = useGameStore(
-    (state) => state.stormAlertReceived,
-  );
+  const stormAlertReceived = useGameStore((state) => state.stormAlertReceived);
   const rescueMissionInitialized = useGameStore(
     (state) => state.rescueMissionInitialized,
   );
@@ -52,6 +50,12 @@ export function QuestPanel() {
   const completeFoodStockpileTask = useGameStore(
     (state) => state.completeFoodStockpileTask,
   );
+  const radiationTowerTaskStartDay = useGameStore(
+    (state) => state.radiationTowerTaskStartDay,
+  );
+  const startRadiationTowerTask = useGameStore(
+    (state) => state.startRadiationTowerTask,
+  );
 
   const hasSolar = hasBuilt(placedModules, "solar");
   const hasBattery = hasBuilt(placedModules, "battery");
@@ -64,17 +68,14 @@ export function QuestPanel() {
   const hasRadiationTower = hasBuilt(placedModules, "radiation_tower");
   const hasRadar = hasBuilt(placedModules, "radar");
   const hasUplink = hasBuilt(placedModules, "communication");
+  const hasSmallStorage = hasBuilt(placedModules, "storage_small");
 
   const task1Complete = hasSolar;
   const task2Complete = hasBattery;
   const task3Complete = hasWorkshop;
   const task4Complete = hasWaterExtractor && hasDrill;
   const task5Complete = hasKitchen && hasGreenhouse;
-  const foodResources: ResourceType[] = [
-    "soup",
-    "meal",
-    "good_meal",
-  ];
+  const foodResources: ResourceType[] = ["soup", "meal", "good_meal"];
   const foodCount = foodResources.reduce(
     (total, resource) => total + (inventory[resource] || 0),
     0,
@@ -85,11 +86,13 @@ export function QuestPanel() {
       currentDay > foodStockpileTaskStartDay &&
       foodCount >= 7);
   const task7Complete = hasResearchLab;
-  const task8Complete = researchedNodeIds.length > 0;
+  const task8Complete = hasRadiationTower;
+
   const extractorResearchComplete = researchedNodeIds.includes(
     "tech_sample_extractor",
   );
   const hasSampleExtractor = hasBuilt(placedModules, "sample_extractor");
+  const beaconResearchComplete = researchedNodeIds.includes("tech_beacon");
   const hasBeacon = hasBuilt(placedModules, "beacon");
   const hasSample = (inventory.mars_sample ?? 0) >= 1;
 
@@ -101,22 +104,67 @@ export function QuestPanel() {
     if (task6Complete && !foodStockpileTaskCompleted) {
       completeFoodStockpileTask();
     }
-  }, [
-    completeFoodStockpileTask,
-    foodStockpileTaskCompleted,
-    task6Complete,
-  ]);
+  }, [completeFoodStockpileTask, foodStockpileTaskCompleted, task6Complete]);
+
+  useEffect(() => {
+    if (task7Complete) startRadiationTowerTask();
+  }, [startRadiationTowerTask, task7Complete]);
 
   const foodStockpileDueDay = (foodStockpileTaskStartDay ?? currentDay) + 3;
   const foodStockpileExpired =
     foodStockpileTaskStartDay !== null &&
     !task6Complete &&
     currentDay > foodStockpileDueDay;
-  const optionalTowerStartDay = 1;
-  const optionalTowerDeadlineDays = 3;
-  const optionalTowerDueDay = optionalTowerStartDay + optionalTowerDeadlineDays;
-  const optionalTowerExpired =
-    !hasRadiationTower && currentDay > optionalTowerDueDay;
+
+  const towerTaskPassed2Days =
+    radiationTowerTaskStartDay !== null &&
+    currentDay >= radiationTowerTaskStartDay + 2;
+
+  // Notify player when Task 9 parallel unlock occurs
+  useEffect(() => {
+    if (
+      task7Complete &&
+      !hasRadiationTower &&
+      towerTaskPassed2Days &&
+      radiationTowerTaskStartDay !== null
+    ) {
+      const logs = useGameStore.getState().gameLogs;
+      const alreadyNotified = logs.some((l) =>
+        l.includes("TASK 09 AVAILABLE"),
+      );
+      if (!alreadyNotified) {
+        useGameStore.setState({
+          gameLogs: [
+            ...logs,
+            "📡 MISSION UPDATE: TASK 09 AVAILABLE (Friendly Connection) in parallel with Radiation Shield.",
+          ],
+        });
+      }
+    }
+  }, [
+    task7Complete,
+    hasRadiationTower,
+    towerTaskPassed2Days,
+    radiationTowerTaskStartDay,
+  ]);
+
+  // Notify player on Sol 10 storage mission
+  useEffect(() => {
+    if (currentDay >= 10 && !hasSmallStorage) {
+      const logs = useGameStore.getState().gameLogs;
+      const alreadyNotified = logs.some((l) =>
+        l.includes("Sol 10 objective available"),
+      );
+      if (!alreadyNotified) {
+        useGameStore.setState({
+          gameLogs: [
+            ...logs,
+            "📦 MISSION UPDATE: Sol 10 objective available: Construct a Supply Depot (S).",
+          ],
+        });
+      }
+    }
+  }, [currentDay, hasSmallStorage]);
 
   const mandatoryBlocks: QuestBlock[] = [
     {
@@ -182,197 +230,159 @@ export function QuestPanel() {
       complete: task7Complete,
       lines: [{ text: "Build research lab module", done: hasResearchLab }],
     },
+  ];
+
+  const task8Block: QuestBlock = {
+    id: "task-8",
+    taskLabel: "TASK8",
+    heading: "Radiation Shield",
+    complete: task8Complete,
+    lines: [
+      {
+        text: "Research rad-shield tower",
+        done: researchedNodeIds.includes("base_radiation_tower"),
+      },
+      { text: "Build radiation tower", done: hasRadiationTower },
+    ],
+  };
+
+  const friendlyBlock: QuestBlock = {
+    id: "task-friendly",
+    taskLabel: "TASK9",
+    heading: "Friendly Connection",
+    complete: hasRadar && hasUplink && isCommsEstablished && earthReportSent,
+    lines: [
+      { text: "Build radar module", done: hasRadar },
+      { text: "Build uplink module", done: hasUplink },
+      {
+        text: "Establish connection with Earth",
+        done: isCommsEstablished,
+      },
+      { text: "Send the outpost status report", done: earthReportSent },
+    ],
+  };
+
+  const missionBlocks: QuestBlock[] = [
     {
-      id: "task-8",
-      taskLabel: "TASK8",
-      heading: "Science Progress",
-      complete: task8Complete,
+      id: "storm-research",
+      taskLabel: "TASK10",
+      heading: "Storm Response Research",
+      complete: extractorResearchComplete,
       lines: [
         {
-          text: "Research at least one tech",
-          done: task8Complete,
+          text: "Research the sample extractor technology",
+          done: extractorResearchComplete,
+        },
+      ],
+    },
+    {
+      id: "storm-extractor",
+      taskLabel: "TASK11",
+      heading: "Sample Extractor",
+      complete: hasSampleExtractor,
+      lines: [
+        {
+          text: "Construct the sample extractor",
+          done: hasSampleExtractor,
+        },
+      ],
+    },
+    {
+      id: "storm-sample",
+      taskLabel: "TASK12",
+      heading: "Martian Sample",
+      complete: hasSample,
+      lines: [{ text: "Extract 1 Martian sample", done: hasSample }],
+    },
+    {
+      id: "storm-beacon",
+      taskLabel: "TASK13",
+      heading: "Rescue Beacon",
+      complete: hasBeacon,
+      lines: [
+        {
+          text: "Research the rescue beacon",
+          done: beaconResearchComplete,
+        },
+        { text: "Build the rescue beacon", done: hasBeacon },
+      ],
+    },
+    {
+      id: "storm-rescue",
+      taskLabel: "TASK14",
+      heading: "Evacuation",
+      complete: rescueMissionInitialized,
+      lines: [
+        {
+          text: "Initialize the rescue mission from the uplink",
+          done: rescueMissionInitialized,
         },
       ],
     },
   ];
 
-  const firstIncompleteMandatory = mandatoryBlocks.find(
-    (block) => !block.complete,
-  );
+  const sol10StorageBlock: QuestBlock = {
+    id: "task-sol10-storage",
+    taskLabel: "SOL 10",
+    heading: "Supply Depot",
+    complete: hasSmallStorage,
+    lines: [{ text: "Build supply depot (S)", done: hasSmallStorage }],
+  };
 
-  const blocks: QuestBlock[] = firstIncompleteMandatory
-    ? [firstIncompleteMandatory]
-    : [];
+  const activeBlocks: QuestBlock[] = [];
 
-  if (
-    task1Complete &&
-    task2Complete &&
-    task3Complete &&
-    task4Complete &&
-    task5Complete &&
-    task7Complete
-  ) {
-    const optionalBlock: QuestBlock = {
-      id: "task-optional",
-      taskLabel: "TASK8",
-      heading: "Optional Shield Window",
-      complete: hasRadiationTower,
-      optional: true,
-      optionalNote: optionalTowerExpired
-        ? "Window expired. You can still build it any time."
-        : `Complete by Sol ${String(optionalTowerDueDay).padStart(2, "0")}`,
-      lines: [{ text: "Build radiation tower", done: hasRadiationTower }],
-    };
+  // Linear progression for Tasks 1-7
+  const earlyTask = mandatoryBlocks.slice(0, 7).find((block) => !block.complete);
+  if (earlyTask) {
+    activeBlocks.push(earlyTask);
+  } else {
+    // Tasks 1-7 are complete!
+    // Task 8 (Radiation Tower)
+    if (!task8Complete) {
+      activeBlocks.push(task8Block);
+    }
 
-    const friendlyBlock: QuestBlock = {
-      id: "task-friendly",
-      taskLabel: "TASK9",
-      heading: "Friendly Connection",
-      complete:
-        hasRadar && hasUplink && isCommsEstablished && earthReportSent,
-      lines: [
-        { text: "Build radar module", done: hasRadar },
-        { text: "Build uplink module", done: hasUplink },
-        {
-          text: "Establish connection with Earth",
-          done: isCommsEstablished,
-        },
-        { text: "Send the outpost status report", done: earthReportSent },
-      ],
-    };
-
-    if (!optionalBlock.complete) blocks.push(optionalBlock);
-    if (!friendlyBlock.complete) blocks.push(friendlyBlock);
-
-    if (stormAlertReceived && earthReportSent && friendlyBlock.complete) {
-      const missionBlocks: QuestBlock[] = [
-        {
-          id: "storm-research",
-          taskLabel: "TASK10",
-          heading: "Storm Response Research",
-          complete: extractorResearchComplete,
-          lines: [
-            {
-              text: "Research the sample extractor technology",
-              done: extractorResearchComplete,
-            },
-          ],
-        },
-        {
-          id: "storm-extractor",
-          taskLabel: "TASK11",
-          heading: "Sample Extractor",
-          complete: hasSampleExtractor,
-          lines: [
-            {
-              text: "Construct the sample extractor",
-              done: hasSampleExtractor,
-            },
-          ],
-        },
-        {
-          id: "storm-sample",
-          taskLabel: "TASK12",
-          heading: "Martian Sample",
-          complete: hasSample,
-          lines: [{ text: "Extract 1 Martian sample", done: hasSample }],
-        },
-        {
-          id: "storm-beacon",
-          taskLabel: "TASK13",
-          heading: "Rescue Beacon",
-          complete: hasBeacon,
-          lines: [{ text: "Build the rescue beacon", done: hasBeacon }],
-        },
-        {
-          id: "storm-rescue",
-          taskLabel: "TASK14",
-          heading: "Evacuation",
-          complete: rescueMissionInitialized,
-          lines: [
-            {
-              text: "Initialize the rescue mission from the uplink",
-              done: rescueMissionInitialized,
-            },
-          ],
-        },
-      ];
-      const nextMissionBlock = missionBlocks.find((block) => !block.complete);
-      if (nextMissionBlock) blocks.push(nextMissionBlock);
+    // Task 9 unlocks if Task 8 is done OR if 2 days have elapsed since Task 8 started
+    if (task8Complete || towerTaskPassed2Days) {
+      if (!friendlyBlock.complete) {
+        activeBlocks.push(friendlyBlock);
+      } else if (stormAlertReceived && earthReportSent) {
+        const nextMissionBlock = missionBlocks.find((block) => !block.complete);
+        if (nextMissionBlock) {
+          activeBlocks.push(nextMissionBlock);
+        }
+      }
     }
   }
 
-  const currentBlock = blocks[0] ?? null;
-  const [displayedBlock, setDisplayedBlock] = useState<QuestBlock | null>(
-    currentBlock,
-  );
-  const [animation, setAnimation] = useState<"enter" | "exit" | "idle">(
-    "enter",
-  );
-
-  useEffect(() => {
-    if (!currentBlock) return;
-    if (!displayedBlock) return;
-    if (displayedBlock.id === currentBlock.id) {
-      return;
-    }
-
-    const completedBlock =
-      mandatoryBlocks.find((block) => block.id === displayedBlock.id) ??
-      displayedBlock;
-
-    // Keep the completed task visible so its lines can strike through before
-    // the next task enters.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setDisplayedBlock(completedBlock);
-    setAnimation("exit");
-    const timer = window.setTimeout(() => {
-      setDisplayedBlock(currentBlock);
-      setAnimation("enter");
-    }, 350);
-    return () => window.clearTimeout(timer);
-  // The IDs intentionally control this transition; object identity changes
-  // while the same task is displayed must not restart the animation.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [currentBlock?.id, displayedBlock?.id]);
-
-  const blockToRender =
-    displayedBlock && currentBlock?.id === displayedBlock.id
-      ? currentBlock
-      : displayedBlock;
+  // Sol 10 parallel storage task
+  if (currentDay >= 10 && !hasSmallStorage) {
+    activeBlocks.push(sol10StorageBlock);
+  }
 
   return (
-    <div className="pointer-events-none absolute right-4 top-52 z-20 w-70 space-y-2">
-      {blockToRender && (
+    <div className="pointer-events-none absolute right-4 top-72 z-20 w-70 space-y-2 max-h-[calc(100vh-19rem)] overflow-y-auto scrollbar-none">
+      {activeBlocks.map((block) => (
         <section
-          key={blockToRender.id}
-          className={`rounded-xl border border-neutral-800 bg-neutral-950/85 p-3 font-mono text-white shadow-2xl backdrop-blur ${
-            animation === "enter"
-              ? "quest-task-enter"
-              : animation === "exit"
-                ? "quest-task-exit"
-                : ""
-          }`}
+          key={block.id}
+          className="bg-[#270F00] p-3 rounded-2xl font-mono text-white transition-all duration-300 pointer-events-auto"
         >
-          <h3 className="mb-1 text-[13px] font-bold leading-tight text-orange-200">
-            {blockToRender.taskLabel}: {blockToRender.heading}
+          <h3 className="mb-2 text-sm font-semibold leading-tight text-black uppercase bg-white py-1.5 px-3 rounded-lg">
+            {block.taskLabel}: {block.heading}
           </h3>
-          {(blockToRender.optional || blockToRender.id === "task-6") && (
+          {block.optionalNote && (
             <p
-              className={`mb-2 text-[10px] uppercase tracking-wide ${
-                (blockToRender.id === "task-6" && foodStockpileExpired) ||
-                (blockToRender.id !== "task-6" &&
-                  optionalTowerExpired &&
-                  !hasRadiationTower)
-                  ? "text-amber-300"
+              className={`mt-1 pl-2 text-[10px] uppercase tracking-normal ${
+                block.id === "task-6" && foodStockpileExpired
+                  ? "text-amber-400"
                   : "text-neutral-400"
               }`}
             >
-              {blockToRender.optionalNote}
+              {block.optionalNote}
             </p>
           )}
-          <div className="space-y-1">
-            {blockToRender.lines.map((line) => (
+          <div className="space-y-1.5 mt-3 pl-2">
+            {block.lines.map((line) => (
               <p
                 key={line.text}
                 className={`text-sm leading-tight ${
@@ -387,7 +397,7 @@ export function QuestPanel() {
             ))}
           </div>
         </section>
-      )}
+      ))}
     </div>
   );
 }

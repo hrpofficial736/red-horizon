@@ -40,13 +40,22 @@ export function WorkshopComponent({
   const researchedNodeIds = useGameStore((state) => state.researchedNodeIds);
   const workshopQueue = useGameStore((state) => state.workshopQueue);
   const kitchenQueue = useGameStore((state) => state.kitchenQueue);
+  const sampleExtractorQueue = useGameStore(
+    (state) => state.sampleExtractorQueue,
+  );
   const queueCrafting = useGameStore((state) => state.queueCrafting);
   const queueKitchenCrafting = useGameStore(
     (state) => state.queueKitchenCrafting,
   );
+  const queueSampleExtractorCrafting = useGameStore(
+    (state) => state.queueSampleExtractorCrafting,
+  );
   const cancelCrafting = useGameStore((state) => state.cancelCrafting);
   const cancelKitchenCrafting = useGameStore(
     (state) => state.cancelKitchenCrafting,
+  );
+  const cancelSampleExtractorCrafting = useGameStore(
+    (state) => state.cancelSampleExtractorCrafting,
   );
   const currentHour = useGameStore((state) => state.currentHour);
   const currentMinute = useGameStore((state) => state.currentMinute);
@@ -68,6 +77,7 @@ export function WorkshopComponent({
       state.placedModules,
       state.powerBankCharge,
       state.currentHour,
+      state.currentDay,
     ) &&
       state.placedModules.some(
         (module) =>
@@ -90,14 +100,18 @@ export function WorkshopComponent({
     : isKitchen
       ? KITCHEN_RECIPES
       : WORKSHOP_RECIPES;
-  const queue = isSampleExtractor ? workshopQueue : isKitchen ? kitchenQueue : workshopQueue;
+  const queue = isSampleExtractor
+    ? sampleExtractorQueue
+    : isKitchen
+      ? kitchenQueue
+      : workshopQueue;
   const queueRecipe = isSampleExtractor
-    ? queueCrafting
+    ? queueSampleExtractorCrafting
     : isKitchen
       ? queueKitchenCrafting
       : queueCrafting;
   const cancelQueue = isSampleExtractor
-    ? cancelCrafting
+    ? cancelSampleExtractorCrafting
     : isKitchen
       ? cancelKitchenCrafting
       : cancelCrafting;

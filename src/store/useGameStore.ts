@@ -9,7 +9,7 @@ const IDEAL_SLEEP_HOUR = 21;
 const FAINT_HOUR = 23;
 export const DAYLIGHT_START_HOUR = 7;
 export const DAYLIGHT_END_HOUR = 19;
-const POWER_BANK_CHARGE_RATE = 25;
+const POWER_BANK_CHARGE_RATE = 30;
 const CRITICAL_POWER_MODULE_IDS = new Set(["habitat", "life_support"]);
 export const isCriticalPowerModule = (moduleId: string) =>
   CRITICAL_POWER_MODULE_IDS.has(moduleId);
@@ -21,9 +21,9 @@ const FOOD_FATIGUE_RECOVERY = {
 } as const;
 
 const FOOD_HEALTH_RECOVERY = {
-  soup: 0,
-  meal: 0,
-  good_meal: 10,
+  soup: 7,
+  meal: 12,
+  good_meal: 18,
 } as const;
 const FOOD_PRIORITY = ["good_meal", "meal", "soup"] as const;
 const OVERTIME_FATIGUE_PER_HOUR = 10;
@@ -31,13 +31,20 @@ const NO_FOOD_HEALTH_LOSS = 10;
 const INITIAL_PREPARED_FOOD = 4;
 const INITIAL_OXYGEN_SPO2 = 98;
 const OXYGEN_CRITICAL_THRESHOLD = 90;
-const OXYGEN_DRAIN_PER_HOUR = 5;
-const OXYGEN_VITALS_LOSS_PER_HOUR = 8;
-const OXYGEN_RECOVERY_PER_MINUTE = 0.1;
+const OXYGEN_DRAIN_PER_HOUR = 4.5; //5
+const OXYGEN_VITALS_LOSS_PER_HOUR = 6; //8
+const OXYGEN_RECOVERY_PER_MINUTE = 0.2;  // 0.1
 const CRITICAL_POWER_DEMAND = 17;
 const SAVE_STORAGE_KEY = "project-tharsis-day-saves";
 const NEW_GAME_TRANSITION_KEY = "project-tharsis-new-game-transition";
 const SAVE_VERSION = 1;
+
+const isDustStormActive = (day: number) => day >= 10 && day <= 18;
+
+const getSolarGeneration = (powerDraw: number, day: number, hour: number) => {
+  if (hour < DAYLIGHT_START_HOUR || hour >= DAYLIGHT_END_HOUR) return 0;
+  return isDustStormActive(day) ? Math.floor(powerDraw * 0.9) : powerDraw;
+};
 export const REPAIR_TIME_SPEED = 15;
 export const REPAIR_THRESHOLD_HEALTH = 80;
 export const REPAIR_WARNING_HEALTH = 51;
@@ -79,6 +86,7 @@ export const hasOperationalPower = (
   }>,
   powerBankCharge: number,
   currentHour: number,
+  currentDay = 1,
 ) => {
   let generated = 0;
   let consumed = 0;
@@ -89,12 +97,7 @@ export const hasOperationalPower = (
     if (!config) return;
 
     if (config.powerDraw > 0) {
-      if (
-        currentHour >= DAYLIGHT_START_HOUR &&
-        currentHour < DAYLIGHT_END_HOUR
-      ) {
-        generated += config.powerDraw;
-      }
+      generated += getSolarGeneration(config.powerDraw, currentDay, currentHour);
     } else {
       consumed += Math.abs(config.powerDraw);
     }
@@ -106,6 +109,7 @@ export const hasOperationalPower = (
       module.hp > 0 &&
       module.active &&
       (module.powerSupplyEnabled ||
+        isDustStormActive(currentDay) ||
         currentHour < DAYLIGHT_START_HOUR ||
         currentHour >= DAYLIGHT_END_HOUR),
   );
@@ -126,13 +130,14 @@ const isProductionOperational = (
   powerBankCharge: number,
   currentHour: number,
   moduleId: string,
+  currentDay = 1,
 ) => {
   const module = placedModules.find((candidate) => candidate.id === moduleId);
   return (
     module !== undefined &&
     module.hp > 0 &&
     module.active &&
-    hasOperationalPower(placedModules, powerBankCharge, currentHour)
+    hasOperationalPower(placedModules, powerBankCharge, currentHour, currentDay)
   );
 };
 const STARTING_DISCOVERED_RESOURCES: ResourceType[] = [
@@ -223,8 +228,6 @@ export const getStorageCapacity = (
     0,
   );
 
-const isSampleExtractorRecipe = (recipe: CraftingRecipe) =>
-  recipe.output === "mars_sample";
 
 interface GameState {
   // --- STATE VARIABLES ---
@@ -262,6 +265,7 @@ interface GameState {
   workshopQueue: CraftQueueItem[];
   kitchenQueue: CraftQueueItem[];
   greenhouseQueue: CraftQueueItem[];
+  sampleExtractorQueue: CraftQueueItem[];
   researchQueue: ResearchQueueItem[];
   researchedNodeIds: string[];
   unlockedModuleIds: string[];
@@ -284,6 +288,8 @@ interface GameState {
   gameLogs: string[]; // Narration strings push here for UI console
   foodStockpileTaskStartDay: number | null;
   foodStockpileTaskCompleted: boolean;
+  radiationTowerTaskStartDay: number | null;
+  startRadiationTowerTask: () => void;
   startFoodStockpileTask: () => void;
   completeFoodStockpileTask: () => void;
   saveGameAtDayStart: (day?: number) => void;
@@ -308,6 +314,9 @@ interface GameState {
   queueKitchenCrafting: (recipe: CraftingRecipe) => boolean;
   cancelKitchenCrafting: (queueItemId: string) => boolean;
   processKitchenQueue: () => void;
+  queueSampleExtractorCrafting: (recipe: CraftingRecipe) => boolean;
+  cancelSampleExtractorCrafting: (queueItemId: string) => boolean;
+  processSampleExtractorQueue: () => void;
   queueGreenhouseCrafting: (recipe: CraftingRecipe) => boolean;
   cancelGreenhouseCrafting: (queueItemId: string) => boolean;
   processGreenhouseQueue: () => void;
@@ -369,6 +378,7 @@ interface GameSaveState {
   workshopQueue: CraftQueueItem[];
   kitchenQueue: CraftQueueItem[];
   greenhouseQueue: CraftQueueItem[];
+  sampleExtractorQueue: CraftQueueItem[];
   researchQueue: ResearchQueueItem[];
   researchedNodeIds: string[];
   unlockedModuleIds: string[];
@@ -383,6 +393,7 @@ interface GameSaveState {
   gameLogs: string[];
   foodStockpileTaskStartDay: number | null;
   foodStockpileTaskCompleted: boolean;
+  radiationTowerTaskStartDay?: number | null;
 }
 
 const INITIAL_PLACED_MODULES: GameState["placedModules"] = [
@@ -476,6 +487,7 @@ const getSaveState = (state: GameState): GameSaveState => ({
   workshopQueue: state.workshopQueue,
   kitchenQueue: state.kitchenQueue,
   greenhouseQueue: state.greenhouseQueue,
+  sampleExtractorQueue: state.sampleExtractorQueue,
   researchQueue: state.researchQueue,
   researchedNodeIds: state.researchedNodeIds,
   unlockedModuleIds: state.unlockedModuleIds,
@@ -490,6 +502,7 @@ const getSaveState = (state: GameState): GameSaveState => ({
   gameLogs: state.gameLogs,
   foodStockpileTaskStartDay: state.foodStockpileTaskStartDay,
   foodStockpileTaskCompleted: state.foodStockpileTaskCompleted,
+  radiationTowerTaskStartDay: state.radiationTowerTaskStartDay,
 });
 
 const notifyPhaserOfModules = (placedModules: GameState["placedModules"]) => {
@@ -710,6 +723,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   workshopQueue: [],
   kitchenQueue: [],
   greenhouseQueue: [],
+  sampleExtractorQueue: [],
   researchQueue: [],
   researchedNodeIds: [],
   activeRepairInstanceId: null,
@@ -725,9 +739,15 @@ export const useGameStore = create<GameState>((set, get) => ({
   criticalSystemsBootstrapped: true,
   foodStockpileTaskStartDay: null,
   foodStockpileTaskCompleted: false,
+  radiationTowerTaskStartDay: null,
   gameLogs: [
     "Sol 01: System online. Establish base foundations before environmental anomalies manifest.",
   ],
+
+  startRadiationTowerTask: () => {
+    if (get().radiationTowerTaskStartDay !== null) return;
+    set({ radiationTowerTaskStartDay: get().currentDay });
+  },
 
   startFoodStockpileTask: () => {
     if (get().foodStockpileTaskStartDay !== null) return;
@@ -790,12 +810,14 @@ export const useGameStore = create<GameState>((set, get) => ({
       foodStockpileTaskStartDay: save.state.foodStockpileTaskStartDay ?? null,
       foodStockpileTaskCompleted:
         save.state.foodStockpileTaskCompleted ?? false,
+      radiationTowerTaskStartDay: save.state.radiationTowerTaskStartDay ?? null,
       gameFailed: false,
       failureCause: null,
       uplinkConnectionStartedAt: save.state.uplinkConnectionStartedAt ?? null,
       earthReportSent: save.state.earthReportSent ?? false,
       stormAlertReceived: save.state.stormAlertReceived ?? false,
       rescueMissionInitialized: save.state.rescueMissionInitialized ?? false,
+      sampleExtractorQueue: save.state.sampleExtractorQueue ?? [],
       sleepOverlayPhase: "fadeOut",
       sleepOverlayDay: save.state.currentDay,
       sleepOverlayMode: "load",
@@ -1046,25 +1068,17 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   queueCrafting: (recipe) => {
-    const { inventory, workshopQueue, placedModules, powerBankCharge, currentHour } =
+    const { inventory, workshopQueue, placedModules, powerBankCharge, currentHour, currentDay } =
       get();
-    const workshopOperational = isProductionOperational(
-      placedModules,
-      powerBankCharge,
-      currentHour,
-      "workshop",
-    );
-    const sampleExtractorOperational = isProductionOperational(
-      placedModules,
-      powerBankCharge,
-      currentHour,
-      "sample_extractor",
-    );
-    const canCraft = isSampleExtractorRecipe(recipe)
-      ? sampleExtractorOperational
-      : workshopOperational;
-
-    if (!canCraft) {
+    if (
+      !isProductionOperational(
+        placedModules,
+        powerBankCharge,
+        currentHour,
+        "workshop",
+        currentDay,
+      )
+    ) {
       return false;
     }
     const hasMaterials = recipe.cost.every(
@@ -1168,28 +1182,20 @@ export const useGameStore = create<GameState>((set, get) => ({
     );
 
     set((state) => {
-      const workshopOperational = isProductionOperational(
-        state.placedModules,
-        state.powerBankCharge,
-        state.currentHour,
-        "workshop",
-      );
-      const sampleExtractorOperational = isProductionOperational(
-        state.placedModules,
-        state.powerBankCharge,
-        state.currentHour,
-        "sample_extractor",
-      );
-
-      if (!workshopOperational && !sampleExtractorOperational) return state;
+      if (
+        !isProductionOperational(
+          state.placedModules,
+          state.powerBankCharge,
+          state.currentHour,
+          "workshop",
+          state.currentDay,
+        )
+      ) {
+        return state;
+      }
 
       const completedItems = state.workshopQueue.filter(
-        (item) =>
-          !item.completed &&
-          item.completesAt <= now &&
-          (isSampleExtractorRecipe(item.recipe)
-            ? sampleExtractorOperational
-            : workshopOperational),
+        (item) => !item.completed && item.completesAt <= now,
       );
       if (completedItems.length === 0) return state;
 
@@ -1382,6 +1388,174 @@ export const useGameStore = create<GameState>((set, get) => ({
     });
   },
 
+  queueSampleExtractorCrafting: (recipe) => {
+    const {
+      inventory,
+      sampleExtractorQueue,
+      placedModules,
+      powerBankCharge,
+      currentHour,
+      currentDay,
+    } = get();
+    if (
+      !isProductionOperational(
+        placedModules,
+        powerBankCharge,
+        currentHour,
+        "sample_extractor",
+        currentDay,
+      )
+    ) {
+      return false;
+    }
+    const hasMaterials = recipe.cost.every(
+      (req) => (inventory[req.resource] || 0) >= req.amount,
+    );
+    if (!hasMaterials) return false;
+
+    const now = getGameHour(
+      get().currentDay,
+      get().currentHour,
+      get().currentMinute,
+    );
+    const lastItem = [...sampleExtractorQueue]
+      .reverse()
+      .find((queued) => !queued.completed);
+    const startsAt = lastItem ? lastItem.completesAt : now;
+    const item: CraftQueueItem = {
+      id: `sample-extractor-${recipe.output}-${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2)}`,
+      recipe,
+      queuedAt: now,
+      startedAt: startsAt,
+      completesAt: startsAt + recipe.craftHours,
+      completed: false,
+    };
+
+    set((state) => {
+      const nextInventory = { ...state.inventory };
+      recipe.cost.forEach((req) => {
+        nextInventory[req.resource] -= req.amount;
+      });
+      return {
+        inventory: nextInventory,
+        sampleExtractorQueue: [...state.sampleExtractorQueue, item],
+      };
+    });
+    return true;
+  },
+
+  cancelSampleExtractorCrafting: (queueItemId) => {
+    const item = get().sampleExtractorQueue.find(
+      (queued) => queued.id === queueItemId,
+    );
+    if (!item) return false;
+
+    set((state) => {
+      const cancelledIndex = state.sampleExtractorQueue.findIndex(
+        (queued) => queued.id === queueItemId,
+      );
+      if (cancelledIndex < 0) return state;
+
+      const nextQueue = state.sampleExtractorQueue.filter(
+        (queued) => queued.id !== queueItemId,
+      );
+      const now = getGameHour(
+        state.currentDay,
+        state.currentHour,
+        state.currentMinute,
+      );
+      const activeIndex = state.sampleExtractorQueue.findIndex(
+        (queued) => !queued.completed,
+      );
+      const shouldStartNextImmediately = cancelledIndex === activeIndex;
+      let cursor = shouldStartNextImmediately ? now : null;
+      const reflowedQueue = nextQueue.map((queued) => {
+        if (queued.completed) return queued;
+
+        const originalIndex = state.sampleExtractorQueue.findIndex(
+          (original) => original.id === queued.id,
+        );
+        if (!shouldStartNextImmediately && originalIndex < cancelledIndex) {
+          cursor = queued.completesAt;
+          return queued;
+        }
+
+        const startsAt = cursor ?? queued.startedAt;
+        const reflowed = {
+          ...queued,
+          startedAt: startsAt,
+          completesAt: startsAt + queued.recipe.craftHours,
+        };
+        cursor = reflowed.completesAt;
+        return reflowed;
+      });
+      const nextInventory = { ...state.inventory };
+      if (!item.completed) {
+        item.recipe.cost.forEach((req) => {
+          nextInventory[req.resource] =
+            (nextInventory[req.resource] || 0) + req.amount;
+        });
+      }
+      return { inventory: nextInventory, sampleExtractorQueue: reflowedQueue };
+    });
+    return true;
+  },
+
+  processSampleExtractorQueue: () => {
+    const now = getGameHour(
+      get().currentDay,
+      get().currentHour,
+      get().currentMinute,
+    );
+
+    set((state) => {
+      if (
+        !isProductionOperational(
+          state.placedModules,
+          state.powerBankCharge,
+          state.currentHour,
+          "sample_extractor",
+          state.currentDay,
+        )
+      ) {
+        return state;
+      }
+      const completedItems = state.sampleExtractorQueue.filter(
+        (item) => !item.completed && item.completesAt <= now,
+      );
+      if (completedItems.length === 0) return state;
+
+      const completedIds = new Set(completedItems.map((item) => item.id));
+      const nextInventory = { ...state.inventory };
+      const nextLogs = [...state.gameLogs];
+      completedItems.forEach((item) => {
+        nextInventory[item.recipe.output] =
+          (nextInventory[item.recipe.output] || 0) +
+          (item.recipe.outputAmount ?? 1);
+        nextLogs.push(
+          `🔬 EXTRACTION COMPLETE: ${item.recipe.name} secured in inventory.`,
+        );
+      });
+
+      return {
+        inventory: nextInventory,
+        discoveredResourceTypes: completedItems.reduce(
+          (resources, item) =>
+            resources.includes(item.recipe.output)
+              ? resources
+              : [...resources, item.recipe.output],
+          state.discoveredResourceTypes,
+        ),
+        gameLogs: nextLogs,
+        sampleExtractorQueue: state.sampleExtractorQueue.map((item) =>
+          completedIds.has(item.id) ? { ...item, completed: true } : item,
+        ),
+      };
+    });
+  },
+
   // 5. Build Module Logic (Fired when clicking the React build UI)
   buildModule: (moduleId, gridX, gridY) => {
     const config = MODULES[moduleId];
@@ -1442,6 +1616,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           ),
           state.powerBankCharge,
           state.currentHour,
+          state.currentDay,
         );
 
       const nextPlacedModules = provisionalModules.map((module) =>
@@ -1527,6 +1702,7 @@ export const useGameStore = create<GameState>((set, get) => ({
             ),
             state.powerBankCharge,
             state.currentHour,
+            state.currentDay,
           )
       ) {
         return state;
@@ -1572,6 +1748,15 @@ export const useGameStore = create<GameState>((set, get) => ({
           ...nextState,
           greenhouseQueue: shiftPendingQueue(
             state.greenhouseQueue,
+            elapsedPausedHours,
+          ),
+        };
+      }
+      if (module.id === "sample_extractor") {
+        return {
+          ...nextState,
+          sampleExtractorQueue: shiftPendingQueue(
+            state.sampleExtractorQueue,
             elapsedPausedHours,
           ),
         };
@@ -1715,6 +1900,7 @@ export const useGameStore = create<GameState>((set, get) => ({
               )
             : state.fatigueLevel,
           astronautHealth: nextHealth,
+          isFainted: false,
           gameFailed: failedFromStarvation,
           failureCause: failedFromStarvation
             ? "The astronaut exhausted the prepared food reserve and could not survive another night without a meal."
@@ -1809,10 +1995,13 @@ export const useGameStore = create<GameState>((set, get) => ({
         return config &&
           config.powerDraw > 0 &&
           module.active &&
-          module.hp > 0 &&
-          state.currentHour >= DAYLIGHT_START_HOUR &&
-          state.currentHour < DAYLIGHT_END_HOUR
-          ? total + config.powerDraw
+          module.hp > 0
+          ? total +
+              getSolarGeneration(
+                config.powerDraw,
+                state.currentDay,
+                state.currentHour,
+              )
           : total;
       }, 0);
       const criticalDemand =
@@ -2055,6 +2244,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         store.processKitchenQueue();
         store.processGreenhouseQueue();
         store.processResearchQueue();
+        store.processSampleExtractorQueue();
       } else {
         // Just increment the active clock minutes
         store.processOxygenMinute();
@@ -2063,6 +2253,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         store.processKitchenQueue();
         store.processGreenhouseQueue();
         store.processResearchQueue();
+        store.processSampleExtractorQueue();
         store.processUplinkConnection();
       }
     }, 1000);
@@ -2248,6 +2439,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       let workshopQueue = [...state.workshopQueue];
       let kitchenQueue = [...state.kitchenQueue];
       let greenhouseQueue = [...state.greenhouseQueue];
+      let sampleExtractorQueue = [...state.sampleExtractorQueue];
       let researchQueue = [...state.researchQueue];
       let powerBankCharge = state.powerBankCharge;
       const healthModifier = 0;
@@ -2258,9 +2450,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       let oxygenFailureCause = state.failureCause;
 
       // Active environmental modifiers based on timeline narrative context rules
-      const isStormActive = nextDay >= 10 && nextDay <= 18;
-
-      // Loop hourly to process state changes sequentially
+        // Loop hourly to process state changes sequentially
       for (let i = 0; i < hours; i++) {
         const wasDaylight =
           nextHour >= DAYLIGHT_START_HOUR && nextHour < DAYLIGHT_END_HOUR;
@@ -2391,6 +2581,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         const isDaylight =
           nextHour >= DAYLIGHT_START_HOUR && nextHour < DAYLIGHT_END_HOUR;
         const isNightPowerInterval = !isDaylight;
+        const isStormActiveThisHour = isDustStormActive(nextDay);
         const isNightfall = wasDaylight && !isDaylight;
         const isWakeup = !wasDaylight && isDaylight;
         updatedModules = updatedModules.map((mod) => {
@@ -2445,6 +2636,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           powerBankCharge,
           nextHour,
           "workshop",
+          nextDay,
         );
         const completedItems = options?.pauseWorkshop || !workshopOperational
           ? []
@@ -2483,6 +2675,54 @@ export const useGameStore = create<GameState>((set, get) => ({
           });
         }
 
+        const sampleExtractorOperational = isProductionOperational(
+          updatedModules,
+          powerBankCharge,
+          nextHour,
+          "sample_extractor",
+          nextDay,
+        );
+        const completedSampleItems = !sampleExtractorOperational
+          ? []
+          : sampleExtractorQueue.filter(
+              (item) => !item.completed && item.completesAt <= elapsedHour,
+            );
+        if (completedSampleItems.length > 0) {
+          completedSampleItems.forEach((item) => {
+            updatedInventory[item.recipe.output] =
+              (updatedInventory[item.recipe.output] || 0) +
+              (item.recipe.outputAmount ?? 1);
+            logs.push(
+              `🔬 EXTRACTION COMPLETE: ${item.recipe.name} secured in inventory.`,
+            );
+          });
+          const completedSampleIds = new Set(
+            completedSampleItems.map((item) => item.id),
+          );
+          sampleExtractorQueue = sampleExtractorQueue.map((item) =>
+            completedSampleIds.has(item.id) ? { ...item, completed: true } : item,
+          );
+        }
+
+        const hasActiveSampleItem = sampleExtractorQueue.some(
+          (item) => !item.completed,
+        );
+        if (completedSampleItems.length > 0 && hasActiveSampleItem) {
+          let cursor = elapsedHour;
+          sampleExtractorQueue = sampleExtractorQueue.map((item) => {
+            if (item.completed) return item;
+
+            const startsAt = Math.max(cursor, item.startedAt);
+            const updatedItem = {
+              ...item,
+              startedAt: startsAt,
+              completesAt: startsAt + item.recipe.craftHours,
+            };
+            cursor = updatedItem.completesAt;
+            return updatedItem;
+          });
+        }
+
         // --- PHASE 1: POWER AUDIT BALANCE VALIDATION ---
         let totalPowerGenerated = 0;
         let totalPowerConsumed = 0;
@@ -2496,11 +2736,11 @@ export const useGameStore = create<GameState>((set, get) => ({
           if (config.powerDraw > 0) {
             // Solar efficiency drops by 90% during Sol 10-18 dust storm events
             const output =
-              isNightPowerInterval
-                ? 0
-                : isStormActive && config.id === "solar"
-                ? Math.floor(config.powerDraw * 0.1)
-                : config.powerDraw;
+              config.id === "solar"
+                ? getSolarGeneration(config.powerDraw, nextDay, nextHour)
+                : isNightPowerInterval
+                  ? 0
+                  : config.powerDraw;
             totalPowerGenerated += output;
           } else {
             totalPowerConsumed += Math.abs(config.powerDraw);
@@ -2528,8 +2768,11 @@ export const useGameStore = create<GameState>((set, get) => ({
         const hasActiveBattery = updatedModules.some(
           (mod) => mod.id === "battery" && mod.hp > 0 && mod.active,
         );
+        const batteryCanSupply =
+          hasActiveBattery &&
+          (isNightPowerInterval || isStormActiveThisHour);
         const availablePower =
-          totalPowerGenerated + (hasActiveBattery ? powerBankCharge : 0);
+          totalPowerGenerated + (batteryCanSupply ? powerBankCharge : 0);
         if (totalPowerConsumed > availablePower) {
           updatedModules = updatedModules.map((mod) => {
             const config = MODULES[mod.id];
@@ -2565,7 +2808,9 @@ export const useGameStore = create<GameState>((set, get) => ({
             mod.id === "battery" &&
             mod.hp > 0 &&
             mod.active &&
-            (mod.powerSupplyEnabled || nextHour === DAYLIGHT_START_HOUR),
+            (mod.powerSupplyEnabled ||
+              nextHour === DAYLIGHT_START_HOUR ||
+              isStormActiveThisHour),
         );
         const batteryDischarge = canSupplyFromBattery
           ? Math.min(powerBankCharge, powerDeficit)
@@ -2715,6 +2960,7 @@ export const useGameStore = create<GameState>((set, get) => ({
         workshopQueue,
         kitchenQueue,
         greenhouseQueue,
+        sampleExtractorQueue,
         researchQueue,
         astronautHealth: Math.max(0, Math.min(100, astronautHealth + healthModifier)),
         oxygenSpO2,

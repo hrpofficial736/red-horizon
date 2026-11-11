@@ -11,6 +11,7 @@ export function StatsComponent() {
   const placedModules = useGameStore((state) => state.placedModules);
   const powerBankCharge = useGameStore((state) => state.powerBankCharge);
   const currentHour = useGameStore((state) => state.currentHour);
+  const currentDay = useGameStore((state) => state.currentDay);
   const toggleModule = useGameStore((state) => state.toggleModule);
   const togglePowerSupply = useGameStore((state) => state.togglePowerSupply);
   return (
@@ -57,6 +58,7 @@ export function StatsComponent() {
                   ),
                   powerBankCharge,
                   currentHour,
+                  currentDay,
                 ));
             const canToggle =
               !isPowerGenerator &&

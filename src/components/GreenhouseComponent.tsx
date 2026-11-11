@@ -43,7 +43,7 @@ export function GreenhouseComponent() {
     (module) => module.id === "greenhouse",
   )?.productionPausedAt;
   const greenhouseOperational =
-    hasOperationalPower(placedModules, powerBankCharge, currentHour) &&
+    hasOperationalPower(placedModules, powerBankCharge, currentHour, currentDay) &&
     placedModules.some(
       (module) => module.id === "greenhouse" && module.active && module.hp > 0,
     );

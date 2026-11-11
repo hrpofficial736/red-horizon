@@ -29,7 +29,7 @@ export const WORKSHOP_RECIPES: CraftingRecipe[] = [
     craftHours: 2,
     cost: [
       { resource: "iron_plate", amount: 1 },
-      { resource: "electronics", amount: 2 },
+      { resource: "electronics", amount: 1 },
     ],
   },
   {
