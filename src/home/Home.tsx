@@ -19,6 +19,7 @@ export const Home = () => {
 
     const [section, setSection] = useState(1);
 
+
     if (!playerType || playerType === "new") {
         localStorage.setItem("playerType", "new")
 
@@ -32,9 +33,15 @@ export const Home = () => {
             localStorage.setItem("playerType", "existing")
         }} images={guideImages} />
 
-        else return <App />
+        else return <App onBackToHome={() => {
+            localStorage.setItem("playerType", "new");
+            setSection(1)
+        }} />
 
     }
 
-    return <App />
+    return <App onBackToHome={() => {
+        localStorage.setItem("playerType", "new");
+        setSection(1)
+    }} />
 }

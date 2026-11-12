@@ -25,7 +25,7 @@ export const MODULES: Record<string, ModuleDef> = {
     maxIntegrity: 100,
     baseDecayRate: 4,
     powerDraw: -5, // Passive background drain
-    productionInputs: [{ resource: "water", amountPerTick: 1 }],
+    // productionInputs: [{ resource: "water", amountPerTick: 1 }],
     maxModules: 1, // Only one habitat can be built at a time
     moduleCapacity: 200,
   },
@@ -102,7 +102,7 @@ export const MODULES: Record<string, ModuleDef> = {
     ],
     maxIntegrity: 100,
     baseDecayRate: 8, // Heavily worn down by solar particle bombardments
-    powerDraw: -25, // Demands heavy baseline electrical routing to run the magnets
+    powerDraw: -18, // Demands heavy baseline electrical routing to run the magnets
     maxModules: 1, // Only one radiation tower can be built at a time
   },
 
@@ -131,9 +131,9 @@ export const MODULES: Record<string, ModuleDef> = {
     maxIntegrity: 100,
     baseDecayRate: 4,
     powerDraw: -12, // Critical core draw
-    productionInputs: [
+    /*productionInputs: [
       { resource: "water", amountPerTick: 1 }, // Recycles water into structural oxygen loops
-    ],
+    ],*/
     maxModules: 1, // Only one life support node can be built at a time
   },
 
@@ -161,8 +161,8 @@ export const MODULES: Record<string, ModuleDef> = {
     maxIntegrity: 100,
     baseDecayRate: 4,
     powerDraw: -10,
-    productionOutputs: [{ resource: "water", amountPerTick: 4 }],
-    maxModules: 4, // Only one water extractor can be built at a time
+    productionOutputs: [{ resource: "water", amountPerTick: 2 }],
+    maxModules: 2, // Only one water extractor can be built at a time
   },
   drill: {
     id: "drill",

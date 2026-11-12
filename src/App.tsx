@@ -21,7 +21,7 @@ import { GameFailureOverlay } from "./components/GameFailureOverlay";
 type ActiveTab = "none" | "build" | "inventory" | "research" | "logs";
 type CraftingModuleId = "workshop" | "kitchen" | "greenhouse";
 
-function App() {
+function App({ onBackToHome }: { onBackToHome: () => void }) {
     const [activeTab, setActiveTab] = useState<ActiveTab>("none");
     const [showSaveMenu, setShowSaveMenu] = useState(false);
     const gameLogs = useGameStore((state) => state.gameLogs);
@@ -226,7 +226,7 @@ function App() {
                 {/* 🛸 HUD TOP-CENTER FLOATING OVERLAY: ACTIVE BASE RESOURCE STOCKPILES BAR */}
                 <ResourceOverlay />
 
-                {showSaveMenu && <SaveMenu onClose={() => setShowSaveMenu(false)} />}
+                {showSaveMenu && <SaveMenu onClose={() => setShowSaveMenu(false)} onBackToHome={onBackToHome} />}
 
                 {/* 🟢 3. MOUNT THE FLOATING INSPECTION STAT OVERLAY CARD HERE */}
                 {/* 🟢 3. PLOP THIS SIMPLE FLOATING MODAL DIRECTLY HERE */}
@@ -356,8 +356,8 @@ function App() {
                             key={tab}
                             onClick={() => selectTab(tab as ActiveTab)}
                             className={`px-5 py-3 rounded-full text-xs font-bold tracking-wider uppercase transition-all duration-150 cursor-pointer ${activeTab === tab
-                                    ? "bg-white text-black shadow-lg scale-105 font-bold"
-                                    : "text-neutral-400 hover:text-white hover:bg-neutral-900"
+                                ? "bg-white text-black shadow-lg scale-105 font-bold"
+                                : "text-neutral-400 hover:text-white hover:bg-neutral-900"
                                 }`}
                         >
                             {tab === "build" && (
