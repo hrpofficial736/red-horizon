@@ -38,6 +38,9 @@ const CRITICAL_POWER_DEMAND = 17;
 const SAVE_STORAGE_KEY = "project-tharsis-day-saves";
 const NEW_GAME_TRANSITION_KEY = "project-tharsis-new-game-transition";
 const SAVE_VERSION = 1;
+export const EARTH_REPLY_DELAY_MINUTES = 30;
+const RESCUE_DEADLINE_DAY = 29;
+const RESCUE_MINIMUM_LEAD_DAYS = 3;
 
 const isDustStormActive = (day: number) => day >= 10 && day <= 18;
 
@@ -289,9 +292,12 @@ interface GameState {
   // // NEW MECHANICS STATE
   isCommsEstablished: boolean; // Unlocks Sol 15 mission step
   uplinkConnectionStartedAt: number | null;
+  uplinkTransmissionIndex: number;
+  earthReplyPendingAt: number | null;
   earthReportSent: boolean;
   stormAlertReceived: boolean;
   rescueMissionInitialized: boolean;
+  rescueMissionSuccessful: boolean;
   criticalSystemsBootstrapped: boolean;
   gameLogs: string[]; // Narration strings push here for UI console
   foodStockpileTaskStartDay: number | null;
@@ -346,6 +352,7 @@ interface GameState {
   startUplinkConnection: () => boolean;
   processUplinkConnection: () => void;
   sendEarthReport: () => boolean;
+  sendNextTransmission: () => boolean;
   initializeRescueMission: () => boolean;
   advanceHour: (
     hours: number,
@@ -394,9 +401,12 @@ interface GameSaveState {
   repairJobs: Record<string, RepairJob>;
   isCommsEstablished: boolean;
   uplinkConnectionStartedAt: number | null;
+  uplinkTransmissionIndex?: number;
+  earthReplyPendingAt?: number | null;
   earthReportSent: boolean;
   stormAlertReceived: boolean;
   rescueMissionInitialized: boolean;
+  rescueMissionSuccessful?: boolean;
   criticalSystemsBootstrapped: boolean;
   gameLogs: string[];
   foodStockpileTaskStartDay: number | null;
@@ -503,9 +513,12 @@ const getSaveState = (state: GameState): GameSaveState => ({
   repairJobs: state.repairJobs,
   isCommsEstablished: state.isCommsEstablished,
   uplinkConnectionStartedAt: state.uplinkConnectionStartedAt,
+  uplinkTransmissionIndex: state.uplinkTransmissionIndex,
+  earthReplyPendingAt: state.earthReplyPendingAt,
   earthReportSent: state.earthReportSent,
   stormAlertReceived: state.stormAlertReceived,
   rescueMissionInitialized: state.rescueMissionInitialized,
+  rescueMissionSuccessful: state.rescueMissionSuccessful,
   criticalSystemsBootstrapped: state.criticalSystemsBootstrapped,
   gameLogs: state.gameLogs,
   foodStockpileTaskStartDay: state.foodStockpileTaskStartDay,
@@ -664,6 +677,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           state.powerBankCharge,
           state.currentHour,
           "greenhouse",
+          state.currentDay,
         )
       ) {
         return state;
@@ -741,9 +755,12 @@ export const useGameStore = create<GameState>((set, get) => ({
   fatigueLevel: 0,
   isCommsEstablished: false,
   uplinkConnectionStartedAt: null,
+  uplinkTransmissionIndex: -1,
+  earthReplyPendingAt: null,
   earthReportSent: false,
   stormAlertReceived: false,
   rescueMissionInitialized: false,
+  rescueMissionSuccessful: false,
   criticalSystemsBootstrapped: true,
   foodStockpileTaskStartDay: null,
   foodStockpileTaskCompleted: false,
@@ -822,9 +839,12 @@ export const useGameStore = create<GameState>((set, get) => ({
       gameFailed: false,
       failureCause: null,
       uplinkConnectionStartedAt: save.state.uplinkConnectionStartedAt ?? null,
+      uplinkTransmissionIndex: save.state.uplinkTransmissionIndex ?? -1,
+      earthReplyPendingAt: save.state.earthReplyPendingAt ?? null,
       earthReportSent: save.state.earthReportSent ?? false,
       stormAlertReceived: save.state.stormAlertReceived ?? false,
       rescueMissionInitialized: save.state.rescueMissionInitialized ?? false,
+      rescueMissionSuccessful: save.state.rescueMissionSuccessful ?? false,
       sampleExtractorQueue: save.state.sampleExtractorQueue ?? [],
       sleepOverlayPhase: "fadeOut",
       sleepOverlayDay: save.state.currentDay,
@@ -998,6 +1018,7 @@ export const useGameStore = create<GameState>((set, get) => ({
           state.powerBankCharge,
           state.currentHour,
           "researchLab",
+          state.currentDay,
         )
       ) {
         return state;
@@ -2389,39 +2410,110 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   processUplinkConnection: () => {
-    const { uplinkConnectionStartedAt, isCommsEstablished } = get();
-    if (isCommsEstablished || uplinkConnectionStartedAt === null) return;
     const now =
       getGameHour(get().currentDay, get().currentHour, get().currentMinute) *
       60;
-    if (now - uplinkConnectionStartedAt < 30) return;
-    set((state) => ({
-      isCommsEstablished: true,
-      uplinkConnectionStartedAt: null,
-      gameLogs: [
-        ...state.gameLogs,
-        "📡 UPLINK ESTABLISHED: Earth confirms the channel is stable. Send the outpost status report to receive mission control guidance.",
-      ],
+    const state = get();
+    if (
+      !state.isCommsEstablished &&
+      state.uplinkConnectionStartedAt !== null &&
+      now - state.uplinkConnectionStartedAt >= 30
+    ) {
+      set((currentState) => ({
+        isCommsEstablished: true,
+        uplinkConnectionStartedAt: null,
+        gameLogs: [
+          ...currentState.gameLogs,
+          "📡 UPLINK ESTABLISHED: Earth confirms the channel is stable. Send the outpost status report to receive mission control guidance.",
+        ],
+      }));
+    }
+
+    const connectedState = get();
+    if (
+      connectedState.earthReplyPendingAt === null ||
+      now < connectedState.earthReplyPendingAt
+    ) {
+      return;
+    }
+
+    const nextTransmissionIndex = connectedState.uplinkTransmissionIndex + 1;
+    set((currentState) => ({
+      uplinkTransmissionIndex: nextTransmissionIndex,
+      earthReplyPendingAt: null,
+      stormAlertReceived:
+        nextTransmissionIndex === 3
+          ? true
+          : currentState.stormAlertReceived,
+      gameLogs:
+        nextTransmissionIndex === 3
+          ? [
+              ...currentState.gameLogs,
+              "🌍 EARTH TRANSMISSION RECEIVED: Mission Control confirms the extraction, sample, and beacon priorities. Transmit your green-light status before Sol 24.",
+            ]
+          : currentState.gameLogs,
     }));
   },
 
   sendEarthReport: () => {
-    const { isCommsEstablished, earthReportSent } = get();
-    if (!isCommsEstablished || earthReportSent) return earthReportSent;
+    const { isCommsEstablished, earthReportSent, uplinkTransmissionIndex } =
+      get();
+    if (
+      !isCommsEstablished ||
+      earthReportSent ||
+      uplinkTransmissionIndex !== -1
+    ) {
+      return false;
+    }
+    const replyAt =
+      getGameHour(get().currentDay, get().currentHour, get().currentMinute) *
+        60 +
+      EARTH_REPLY_DELAY_MINUTES;
     set((state) => ({
+      uplinkTransmissionIndex: 0,
+      earthReplyPendingAt: replyAt,
       earthReportSent: true,
-      stormAlertReceived: true,
       gameLogs: [
         ...state.gameLogs,
-        "🌍 EARTH REPORT RECEIVED: Mission Control confirms a severe radiation storm will reach the outpost soon. Research and build a sample extractor, secure one sample, and deploy a rescue beacon.",
+        "📤 OMEGA REPORT SENT: Mission Control is processing the transmission. Awaiting Earth response.",
+      ],
+    }));
+    return true;
+  },
+
+  sendNextTransmission: () => {
+    const { isCommsEstablished, uplinkTransmissionIndex, earthReplyPendingAt } =
+      get();
+    if (
+      !isCommsEstablished ||
+      earthReplyPendingAt !== null ||
+      uplinkTransmissionIndex !== 1
+    ) {
+      return false;
+    }
+    const replyAt =
+      getGameHour(get().currentDay, get().currentHour, get().currentMinute) *
+        60 +
+      EARTH_REPLY_DELAY_MINUTES;
+    set((state) => ({
+      uplinkTransmissionIndex: 2,
+      earthReplyPendingAt: replyAt,
+      gameLogs: [
+        ...state.gameLogs,
+        "📤 EXTRACTION STATUS SENT: Earth is reviewing the outpost readiness report.",
       ],
     }));
     return true;
   },
 
   initializeRescueMission: () => {
-    const { stormAlertReceived, rescueMissionInitialized, inventory, placedModules } =
-      get();
+    const {
+      stormAlertReceived,
+      rescueMissionInitialized,
+      inventory,
+      placedModules,
+      currentDay,
+    } = get();
     const hasBeacon = placedModules.some(
       (module) =>
         module.id === "beacon" &&
@@ -2436,11 +2528,28 @@ export const useGameStore = create<GameState>((set, get) => ({
     ) {
       return false;
     }
+    const daysRemaining = RESCUE_DEADLINE_DAY - currentDay;
+    if (daysRemaining < RESCUE_MINIMUM_LEAD_DAYS) {
+      set({
+        gameFailed: true,
+        failureCause: `ARES-7 rescue failed. The mission was initialized with only ${Math.max(
+          0,
+          daysRemaining,
+        )} day(s) remaining before Sol ${RESCUE_DEADLINE_DAY}; at least ${RESCUE_MINIMUM_LEAD_DAYS} days are required for evacuation.`,
+        gameLogs: [
+          ...get().gameLogs,
+          "🚨 RESCUE FAILURE: The evacuation window was too short to launch ARES-7.",
+        ],
+      });
+      get().stopPassiveTimer();
+      return false;
+    }
     set((state) => ({
       rescueMissionInitialized: true,
+      rescueMissionSuccessful: true,
       gameLogs: [
         ...state.gameLogs,
-        "🚀 ARES-7 RESCUE INITIALIZED: Sample manifest received and beacon is transmitting. Hold the outpost through the evacuation window.",
+        `🚀 ARES-7 RESCUE INITIALIZED: ${daysRemaining} days remain before Sol ${RESCUE_DEADLINE_DAY}. Evacuation is on schedule.`,
       ],
     }));
     return true;
@@ -2615,7 +2724,8 @@ export const useGameStore = create<GameState>((set, get) => ({
               ...mod,
               active: false,
               powerPausedAt: getGameHour(nextDay, nextHour),
-              productionPausedAt: getGameHour(nextDay, nextHour),
+              productionPausedAt:
+                mod.productionPausedAt ?? getGameHour(nextDay, nextHour),
             };
           }
           return mod;
@@ -2630,7 +2740,8 @@ export const useGameStore = create<GameState>((set, get) => ({
                     ...mod,
                     active: false,
                     powerPausedAt: getGameHour(nextDay, nextHour),
-                    productionPausedAt: getGameHour(nextDay, nextHour),
+                    productionPausedAt:
+                      mod.productionPausedAt ?? getGameHour(nextDay, nextHour),
                   },
           );
         }

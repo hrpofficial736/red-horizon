@@ -27,6 +27,9 @@ function App() {
   const gameLogs = useGameStore((state) => state.gameLogs);
   const gameFailed = useGameStore((state) => state.gameFailed);
   const failureCause = useGameStore((state) => state.failureCause);
+  const rescueMissionSuccessful = useGameStore(
+    (state) => state.rescueMissionSuccessful,
+  );
   const startNewGame = useGameStore((state) => state.startNewGame);
 
   const [showStatusModal, setShowStatusModal] = useState<any>(null);
@@ -57,7 +60,8 @@ function App() {
     habitatModule !== null ||
     uplinkModule !== null ||
     showSaveMenu ||
-    gameFailed;
+    gameFailed ||
+    rescueMissionSuccessful;
 
   useEffect(() => {
     (
@@ -178,11 +182,16 @@ function App() {
   return (
     <div className="relative w-screen h-screen overflow-hidden bg-[#1a0f0a] select-none text-white">
       <SleepTransitionOverlay />
-      {gameFailed && failureCause && !showSaveMenu && (
+      {(gameFailed || rescueMissionSuccessful) && !showSaveMenu && (
         <GameFailureOverlay
-          cause={failureCause}
+          cause={
+            rescueMissionSuccessful
+              ? "ARES-7 has enough lead time to reach the outpost before Sol 29. The astronaut has been cleared for evacuation."
+              : failureCause ?? "The outpost could not complete the rescue mission."
+          }
           onLoadGame={() => setShowSaveMenu(true)}
           onNewGame={startNewGame}
+          success={rescueMissionSuccessful}
         />
       )}
       {/* 🎮 LAYER 1: PHASER CANVAS BACKGROUND CONTAINER (Lowest Depth) */}
