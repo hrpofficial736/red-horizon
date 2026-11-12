@@ -1,7 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { REPAIR_TIME_SPEED, useGameStore } from "../store/useGameStore";
+import { FastForward } from "lucide-react";
 
-const VERY_FAST_FORWARD_SPEED = 120
+const VERY_FAST_FORWARD_SPEED = 120;
 
 export const DebugTimeSkip: React.FC = () => {
   const [isSkipping, setIsSkipping] = useState(false);
@@ -70,8 +71,11 @@ export const DebugTimeSkip: React.FC = () => {
   return (
     <div className="absolute bottom-28 right-4 z-50 pointer-events-auto flex flex-col gap-2">
       {[
-        { label: "⏩ FAST FORWARDS", speed: REPAIR_TIME_SPEED },
-        { label: "⏩ VERY FAST FORWARD", speed: VERY_FAST_FORWARD_SPEED },
+        { label: "2X speed", speed: REPAIR_TIME_SPEED },
+        {
+          label: "4X speed",
+          speed: VERY_FAST_FORWARD_SPEED,
+        },
       ].map(({ label, speed }) => (
         <button
           key={label}
@@ -80,13 +84,25 @@ export const DebugTimeSkip: React.FC = () => {
           onMouseLeave={stopSkipping}
           onTouchStart={() => startSkipping(speed)}
           onTouchEnd={stopSkipping}
-          className={`px-4 py-2.5 rounded-lg border-2 text-xs font-mono font-bold tracking-wider uppercase transition-all shadow-2xl select-none ${
+          className={`px-4 py-2.5 rounded-full border-2 text-xs font-mono font-bold tracking-wider uppercase transition-all shadow-2xl select-none ${
             isSkipping
-              ? "bg-red-950/40 border-red-900 text-red-500 animate-pulse cursor-not-allowed"
-              : "bg-neutral-950 border-orange-500/60 text-orange-400 hover:border-orange-400 hover:bg-neutral-900 cursor-pointer active:scale-95"
+              ? "bg-neutral-950 border-white text-white animate-pulse cursor-not-allowed"
+              : "bg-neutral-950 border-neutral-400 text-white hover:border-white hover:bg-neutral-900 cursor-pointer active:scale-95"
           }`}
         >
-          {isSkipping ? "⏩ TIME ACCELERATING..." : label}
+          {isSkipping ? (
+            "TIME ACCELERATING..."
+          ) : label ? (
+            <span className="flex items-center gap-2">
+              <FastForward size={14} />
+              {label}
+            </span>
+          ) : (
+            <span className="flex items-center gap-2">
+              <FastForward size={14} />
+              {label}
+            </span>
+          )}
         </button>
       ))}
     </div>

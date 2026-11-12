@@ -17,6 +17,7 @@ import { UplinkComponent } from "./components/UplinkComponent";
 import { QuestPanel } from "./components/QuestPanel";
 import { SaveMenu } from "./components/SaveMenu";
 import { GameFailureOverlay } from "./components/GameFailureOverlay";
+import BaseHUD from "./components/BaseHUD";
 
 type ActiveTab = "none" | "build" | "inventory" | "research" | "logs";
 type CraftingModuleId = "workshop" | "kitchen" | "greenhouse";
@@ -128,12 +129,12 @@ function App() {
         setCraftingModule(e.detail);
         return;
       }
-       if (e.detail.id === "sample_extractor") {
-                setShowStatusModal(null);
-                setActiveTab("none");
-                setCraftingModule(e.detail);
-                return;
-            }
+      if (e.detail.id === "sample_extractor") {
+        setShowStatusModal(null);
+        setActiveTab("none");
+        setCraftingModule(e.detail);
+        return;
+      }
       if (e.detail.id === "researchLab") {
         setCraftingModule(null);
         setActiveTab("research");
@@ -153,10 +154,7 @@ function App() {
     const handleMoveRequest = (event: Event) => {
       setMoveRequest((event as CustomEvent<typeof moveRequest>).detail);
     };
-    window.addEventListener(
-      "PHASER_MODULE_MOVE_REQUESTED",
-      handleMoveRequest,
-    );
+    window.addEventListener("PHASER_MODULE_MOVE_REQUESTED", handleMoveRequest);
     return () =>
       window.removeEventListener(
         "PHASER_MODULE_MOVE_REQUESTED",
@@ -221,9 +219,7 @@ function App() {
         {/* 🛸 HUD TOP-CENTER FLOATING OVERLAY: ACTIVE BASE RESOURCE STOCKPILES BAR */}
         <ResourceOverlay />
 
-        {showSaveMenu && (
-          <SaveMenu onClose={() => setShowSaveMenu(false)} />
-        )}
+        {showSaveMenu && <SaveMenu onClose={() => setShowSaveMenu(false)} />}
 
         {/* 🟢 3. MOUNT THE FLOATING INSPECTION STAT OVERLAY CARD HERE */}
         {/* 🟢 3. PLOP THIS SIMPLE FLOATING MODAL DIRECTLY HERE */}
@@ -296,7 +292,8 @@ function App() {
         {uplinkModule && (
           <UplinkComponent
             hasRadar={placedModules.some(
-              (module) => module.id === "radar" && module.active && module.hp > 0,
+              (module) =>
+                module.id === "radar" && module.active && module.hp > 0,
             )}
             onClose={() => setUplinkModule(null)}
           />
@@ -314,8 +311,7 @@ function App() {
                   (module.id === "workshop" ||
                     module.id === "kitchen" ||
                     module.id === "greenhouse" ||
-                    module.id === "sample_extractor"
-                ) &&
+                    module.id === "sample_extractor") &&
                   modules.findIndex(
                     (candidate) => candidate.id === module.id,
                   ) === index,
@@ -333,7 +329,9 @@ function App() {
             {craftingModule.id === "workshop" && <WorkshopComponent />}
             {craftingModule.id === "kitchen" && <WorkshopComponent isKitchen />}
             {craftingModule.id === "greenhouse" && <GreenhouseComponent />}
-            {craftingModule.id === "sample_extractor" && <WorkshopComponent isSampleExtractor />}
+            {craftingModule.id === "sample_extractor" && (
+              <WorkshopComponent isSampleExtractor />
+            )}
           </OverlayLayout>
         )}
 

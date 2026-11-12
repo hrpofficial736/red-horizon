@@ -402,11 +402,11 @@ export function QuestPanel() {
   }
 
   return (
-    <div className="pointer-events-none absolute right-4 top-72 z-20 w-70 space-y-2 max-h-[calc(100vh-19rem)] overflow-y-auto scrollbar-none">
+    <div className="pointer-events-none absolute right-4 top-78 z-20 w-70 space-y-2 max-h-[calc(100vh-19rem)] overflow-y-auto scrollbar-none">
       {activeBlocks.map((block) => (
         <section
           key={block.id}
-          className="bg-[#270F00] p-3 rounded-2xl font-mono text-white transition-all duration-300 pointer-events-auto"
+          className="bg-[#270F00] p-3 rounded-2xl text-white transition-all duration-300 pointer-events-auto"
         >
           <h3 className="mb-2 text-sm font-semibold leading-tight text-black uppercase bg-white py-1.5 px-3 rounded-lg">
             {block.taskLabel}: {block.heading}

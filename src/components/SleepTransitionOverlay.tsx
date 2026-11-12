@@ -34,14 +34,14 @@ export function SleepTransitionOverlay() {
           phase === "day" ? "opacity-100" : "opacity-0"
         }`}
       >
-        <p className="font-mono text-xs uppercase tracking-[0.35em] text-neutral-500">
+        <p className="font-orbitron font-medium text-xs uppercase tracking-[0.35em] text-neutral-500">
           New day
         </p>
-        <p className="mt-3 font-mono text-5xl font-bold tracking-widest text-white">
+        <p className="mt-3 font-orbitron text-6xl font-bold tracking-widest text-white">
           SOL {String(nextDay).padStart(2, "0")}
         </p>
       </div>
-      <span className="absolute bottom-6 right-7 font-mono text-[10px] uppercase tracking-widest text-neutral-500">
+      <span className="absolute bottom-6 right-7 text-[10px] uppercase tracking-widest text-neutral-500">
         {overlayMode === "load" ? "Loading save..." : "Saving..."}
       </span>
       <div
@@ -55,7 +55,7 @@ export function SleepTransitionOverlay() {
               style={{ height: `${countdownFill}%` }}
             />
           </div>
-          <div className="flex flex-row min-w-44 bg-gray-50/10 h-10 items-center justify-center rounded-tr-xl rounded-br-xl">
+          <div className="flex flex-row min-w-14 bg-gray-50/10 h-10 items-center justify-center rounded-tr-xl rounded-br-xl">
             <p className="text-lg font-bold leading-none">
               {daysUntilRadiation}
             </p>
