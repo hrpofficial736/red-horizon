@@ -1,4 +1,3 @@
-import { useState } from "react";
 import {
   Check,
   Circle,
@@ -9,7 +8,10 @@ import {
   Sparkles,
 } from "lucide-react";
 import { OverlayLayout } from "./OverlayLayout";
-import { useGameStore } from "../store/useGameStore";
+import {
+  EARTH_REPLY_DELAY_MINUTES,
+  useGameStore,
+} from "../store/useGameStore";
 
 interface UplinkComponentProps {
   onClose: () => void;
@@ -45,11 +47,13 @@ const MILESTONES = [
 ];
 
 export function UplinkComponent({ onClose, hasRadar }: UplinkComponentProps) {
-  const [transmissionIndex, setTransmissionIndex] = useState(-1);
   const startUplinkConnection = useGameStore(
     (state) => state.startUplinkConnection,
   );
   const sendEarthReport = useGameStore((state) => state.sendEarthReport);
+  const sendNextTransmission = useGameStore(
+    (state) => state.sendNextTransmission,
+  );
   const initializeRescueMission = useGameStore(
     (state) => state.initializeRescueMission,
   );
@@ -58,6 +62,15 @@ export function UplinkComponent({ onClose, hasRadar }: UplinkComponentProps) {
     (state) => state.uplinkConnectionStartedAt,
   );
   const earthReportSent = useGameStore((state) => state.earthReportSent);
+  const stormAlertReceived = useGameStore(
+    (state) => state.stormAlertReceived,
+  );
+  const uplinkTransmissionIndex = useGameStore(
+    (state) => state.uplinkTransmissionIndex,
+  );
+  const earthReplyPendingAt = useGameStore(
+    (state) => state.earthReplyPendingAt,
+  );
   const rescueMissionInitialized = useGameStore(
     (state) => state.rescueMissionInitialized,
   );
@@ -88,24 +101,21 @@ export function UplinkComponent({ onClose, hasRadar }: UplinkComponentProps) {
       module.hp > 0 &&
       (module.constructionHoursRemaining ?? 0) <= 0,
   );
-  const displayedTransmissionIndex = earthReportSent
-    ? TRANSMISSIONS.length - 1
-    : transmissionIndex;
+  const displayedTransmissionIndex = uplinkTransmissionIndex;
+  const replyPending = earthReplyPendingAt !== null;
+  const replyMinutesRemaining = replyPending
+    ? Math.max(0, Math.ceil(earthReplyPendingAt - currentGameMinutes))
+    : 0;
   const establishConnection = () => {
     startUplinkConnection();
   };
 
   const advanceTransmission = () => {
-    if (transmissionIndex < 0) {
-      setTransmissionIndex(0);
+    if (uplinkTransmissionIndex < 0) {
+      sendEarthReport();
       return;
     }
-    const nextIndex = Math.min(
-      TRANSMISSIONS.length - 1,
-      transmissionIndex + 1,
-    );
-    setTransmissionIndex(nextIndex);
-    if (nextIndex === TRANSMISSIONS.length - 1) sendEarthReport();
+    sendNextTransmission();
   };
 
   const startRescue = () => {
@@ -189,30 +199,32 @@ export function UplinkComponent({ onClose, hasRadar }: UplinkComponentProps) {
               </div>
             )}
 
-            <div className="mt-auto border-t border-neutral-800 pt-3">
-              <p className="mb-2 text-[10px] tracking-[0.2em] text-neutral-500">
-                RESCUE READINESS
-              </p>
-              <div className="space-y-2">
-                {MILESTONES.map((milestone) => {
-                  const complete =
-                    milestone.id === "sample" ? hasSample : hasBeacon;
-                  return (
-                    <div
-                      key={milestone.id}
-                      className="flex items-center gap-2 text-[11px] text-neutral-300"
-                    >
-                    {complete ? (
-                      <Check size={14} className="text-emerald-400" />
-                    ) : (
-                      <Circle size={14} className="text-neutral-600" />
-                    )}
-                    {milestone.label}
-                    </div>
-                  );
-                })}
+            {stormAlertReceived && (
+              <div className="mt-auto border-t border-neutral-800 pt-3">
+                <p className="mb-2 text-[10px] tracking-[0.2em] text-neutral-500">
+                  RESCUE READINESS
+                </p>
+                <div className="space-y-2">
+                  {MILESTONES.map((milestone) => {
+                    const complete =
+                      milestone.id === "sample" ? hasSample : hasBeacon;
+                    return (
+                      <div
+                        key={milestone.id}
+                        className="flex items-center gap-2 text-[11px] text-neutral-300"
+                      >
+                        {complete ? (
+                          <Check size={14} className="text-emerald-400" />
+                        ) : (
+                          <Circle size={14} className="text-neutral-600" />
+                        )}
+                        {milestone.label}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
           </section>
 
           <section className="flex min-h-0 flex-col rounded-xl border border-neutral-800 bg-black/45 p-4">
@@ -231,7 +243,7 @@ export function UplinkComponent({ onClose, hasRadar }: UplinkComponentProps) {
             </div>
 
             <div className="min-h-0 flex-1 space-y-3 overflow-y-auto pr-1">
-              {transmissionIndex < 0 && (
+              {displayedTransmissionIndex < 0 && (
                 <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-neutral-500">
                   <Radio size={28} />
                   <p className="max-w-xs text-xs leading-relaxed">
@@ -266,6 +278,7 @@ export function UplinkComponent({ onClose, hasRadar }: UplinkComponentProps) {
               type="button"
               disabled={
                 !isConnected ||
+                replyPending ||
                 displayedTransmissionIndex >= TRANSMISSIONS.length - 1
               }
               onClick={advanceTransmission}
@@ -274,12 +287,20 @@ export function UplinkComponent({ onClose, hasRadar }: UplinkComponentProps) {
               <Send size={14} />
               {displayedTransmissionIndex < 0
                 ? "SEND OMEGA REPORT"
-                : "NEXT TRANSMISSION"}
+                : replyPending
+                  ? `AWAITING EARTH RESPONSE // ${replyMinutesRemaining} MIN`
+                  : "NEXT TRANSMISSION"}
             </button>
+            {replyPending && (
+              <p className="mt-2 text-center text-[10px] uppercase tracking-wider text-amber-300">
+                Earth response expected after {EARTH_REPLY_DELAY_MINUTES} in-game
+                minutes.
+              </p>
+            )}
           </section>
         </div>
 
-        {isConnected && earthReportSent && (
+        {isConnected && earthReportSent && stormAlertReceived && (
           <button
             type="button"
             disabled={!hasSample || !hasBeacon || rescueMissionInitialized}

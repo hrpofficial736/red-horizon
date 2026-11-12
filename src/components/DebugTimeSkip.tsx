@@ -39,12 +39,12 @@ export const DebugTimeSkip: React.FC = () => {
       store.processOxygenMinute();
 
       if (nextMinute >= 60) {
+        useGameStore.setState({ currentMinute: 0 });
         if (store.currentHour === 22) {
           store.workOvertime();
         } else {
           store.advanceHour(1);
         }
-        useGameStore.setState({ currentMinute: 0 });
       } else {
         useGameStore.setState({ currentMinute: nextMinute });
       }
