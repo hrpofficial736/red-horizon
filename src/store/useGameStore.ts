@@ -2261,6 +2261,7 @@ export const useGameStore = create<GameState>((set, get) => ({
 
       if (nextMinute >= 60) {
         // 60 minutes have passed! Advance the base automation engine by 1 full hour
+        set({ currentMinute: 0 });
         if (store.currentHour === FAINT_HOUR - 1) {
           store.processOxygenMinute();
           store.workOvertime();
@@ -2268,7 +2269,6 @@ export const useGameStore = create<GameState>((set, get) => ({
           store.processOxygenMinute();
           store.advanceHour(1);
         }
-        set({ currentMinute: 0 });
         store.processUplinkConnection();
         store.processWorkshopQueue();
         store.processKitchenQueue();
@@ -2334,8 +2334,8 @@ export const useGameStore = create<GameState>((set, get) => ({
       }
 
       if (nextMinute >= 60) {
-        store.advanceHour(1);
         set({ currentMinute: 0 });
+        store.advanceHour(1);
       } else {
         set({ currentMinute: nextMinute });
       }

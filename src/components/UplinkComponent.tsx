@@ -199,30 +199,32 @@ export function UplinkComponent({ onClose, hasRadar }: UplinkComponentProps) {
               </div>
             )}
 
-            <div className="mt-auto border-t border-neutral-800 pt-3">
-              <p className="mb-2 text-[10px] tracking-[0.2em] text-neutral-500">
-                RESCUE READINESS
-              </p>
-              <div className="space-y-2">
-                {MILESTONES.map((milestone) => {
-                  const complete =
-                    milestone.id === "sample" ? hasSample : hasBeacon;
-                  return (
-                    <div
-                      key={milestone.id}
-                      className="flex items-center gap-2 text-[11px] text-neutral-300"
-                    >
-                    {complete ? (
-                      <Check size={14} className="text-emerald-400" />
-                    ) : (
-                      <Circle size={14} className="text-neutral-600" />
-                    )}
-                    {milestone.label}
-                    </div>
-                  );
-                })}
+            {stormAlertReceived && (
+              <div className="mt-auto border-t border-neutral-800 pt-3">
+                <p className="mb-2 text-[10px] tracking-[0.2em] text-neutral-500">
+                  RESCUE READINESS
+                </p>
+                <div className="space-y-2">
+                  {MILESTONES.map((milestone) => {
+                    const complete =
+                      milestone.id === "sample" ? hasSample : hasBeacon;
+                    return (
+                      <div
+                        key={milestone.id}
+                        className="flex items-center gap-2 text-[11px] text-neutral-300"
+                      >
+                        {complete ? (
+                          <Check size={14} className="text-emerald-400" />
+                        ) : (
+                          <Circle size={14} className="text-neutral-600" />
+                        )}
+                        {milestone.label}
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
           </section>
 
           <section className="flex min-h-0 flex-col rounded-xl border border-neutral-800 bg-black/45 p-4">

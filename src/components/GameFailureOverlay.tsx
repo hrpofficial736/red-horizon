@@ -46,8 +46,8 @@ export function GameFailureOverlay({
         >
           {cause}
         </p>
-        {!success && (
-          <div className="mt-6 flex justify-center gap-3">
+        <div className="mt-6 flex justify-center gap-3">
+          {!success && (
             <button
               type="button"
               onClick={onLoadGame}
@@ -55,15 +55,15 @@ export function GameFailureOverlay({
             >
               Load Game
             </button>
-            <button
-              type="button"
-              onClick={onNewGame}
-              className="rounded-lg border border-neutral-700 bg-neutral-900 px-5 py-3 text-xs font-bold uppercase tracking-widest text-neutral-300 hover:bg-neutral-800"
-            >
-              New Game
-            </button>
-          </div>
-        )}
+          )}
+          <button
+            type="button"
+            onClick={onNewGame}
+            className="rounded-lg border border-neutral-700 bg-neutral-900 px-5 py-3 text-xs font-bold uppercase tracking-widest text-neutral-300 hover:bg-neutral-800"
+          >
+            New Game
+          </button>
+        </div>
       </section>
     </div>
   );
