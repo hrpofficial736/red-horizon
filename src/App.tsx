@@ -17,6 +17,7 @@ import { UplinkComponent } from "./components/UplinkComponent";
 import { QuestPanel } from "./components/QuestPanel";
 import { SaveMenu } from "./components/SaveMenu";
 import { GameFailureOverlay } from "./components/GameFailureOverlay";
+import { DustStormAlert } from "./components/DustStormAlert";
 
 type ActiveTab = "none" | "build" | "inventory" | "research" | "logs";
 type CraftingModuleId = "workshop" | "kitchen" | "greenhouse";
@@ -202,6 +203,7 @@ function App({ onBackToHome }: { onBackToHome: () => void }) {
             {/* 🛸 LAYER 2: INTERACTIVE REACT HUD INTERFACE LAYER (Highest Depth) */}
             {/* We use global relative context here to punch through fixed canvasses */}
             <div className="relative w-full h-full z-50 pointer-events-none">
+                <DustStormAlert />
                 {isOverlayOpen && (
                     <div
                         aria-hidden="true"

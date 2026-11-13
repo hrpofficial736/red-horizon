@@ -1028,10 +1028,10 @@ export class IsoScene extends Phaser.Scene {
     });
 
     if (!this.selected) {
-      if (this.hoverTile) {
-        const fp = this.footprint(this.hoverTile.col, this.hoverTile.row, 1, 1);
-        this.poly(g, [fp.top, fp.right, fp.bottom, fp.left], 0xffd166, 0.45);
-      }
+      // if (this.hoverTile) {
+      //   const fp = this.footprint(this.hoverTile.col, this.hoverTile.row, 1, 1);
+      //   this.poly(g, [fp.top, fp.right, fp.bottom, fp.left], 0xffd166, 0.45);
+      // }
       return;
     }
 
