@@ -1,3 +1,4 @@
+import { ArrowRight } from "lucide-react";
 
 export default function LandingPage({ onStart }: { onStart: () => void }) {
 
@@ -74,7 +75,7 @@ export default function LandingPage({ onStart }: { onStart: () => void }) {
                     <span>PLAY</span>
 
                     <span className="text-xl transition-transform duration-300 group-hover:translate-x-2">
-                        →
+                        <ArrowRight size={20} strokeWidth={2.5} />
                     </span>
                 </button>
 
