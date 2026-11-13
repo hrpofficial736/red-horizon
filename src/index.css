@@ -41,3 +41,16 @@ body {
 .quest-task-exit {
   animation: quest-task-exit 350ms ease-in both;
 }
+
+@keyframes game-failure-message-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.game-failure-message {
+  animation: game-failure-message-in 1s ease-out 1s both;
+}

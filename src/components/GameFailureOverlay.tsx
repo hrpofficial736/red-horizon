@@ -16,7 +16,7 @@ export function GameFailureOverlay({
   return (
     <div className="absolute inset-0 z-[70] flex items-center justify-center bg-black p-4 font-mono text-white">
       <section
-        className={`w-full max-w-lg rounded-2xl border bg-neutral-950/95 p-6 text-center shadow-2xl ${
+        className={`game-failure-message w-full max-w-lg rounded-2xl border bg-neutral-950/95 p-6 text-center shadow-2xl ${
           success ? "border-emerald-500/50" : "border-red-500/50"
         }`}
       >
