@@ -21,6 +21,7 @@ const guideImages = [
 ];
 
 export const Home = () => {
+<<<<<<< HEAD
   const playerType = localStorage.getItem("playerType");
 
   const [section, setSection] = useState(1);
@@ -64,4 +65,47 @@ export const Home = () => {
       }}
     />
   );
+=======
+    const [view, setView] = useState(() => {
+        const isExisting = localStorage.getItem("playerType") === "existing";
+        return isExisting ? "app" : "landing";
+    });
+
+    useState(() => {
+        if (!localStorage.getItem("playerType")) {
+            localStorage.setItem("playerType", "new");
+        }
+    });
+
+    const handleCompleteOnboarding = () => {
+        localStorage.setItem("playerType", "existing");
+        setView("app");
+    };
+
+    switch (view) {
+        case "landing":
+            return <LandingPage onStart={() => setView("cutscenes")} />;
+
+        case "cutscenes":
+            return (
+                <CutScenes
+                    onSkip={() => setView("guide")}
+                    onBack={() => setView("landing")}
+                />
+            );
+
+        case "guide":
+            return (
+                <GuideBook
+                    images={guideImages}
+                    onBack={() => setView("cutscenes")}
+                    onStartGame={handleCompleteOnboarding}
+                />
+            );
+
+        case "app":
+        default:
+            return <App onBackToHome={() => setView("landing")} />;
+    }
+>>>>>>> 4a44263 (home routing changes)
 };
