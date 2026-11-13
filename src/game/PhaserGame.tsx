@@ -9,6 +9,11 @@ export default function PhaserGame() {
   useEffect(() => {
     if (!parentRef.current) return;
 
+    const preventContextMenu = (event: MouseEvent) => {
+      event.preventDefault();
+    };
+    document.addEventListener("contextmenu", preventContextMenu);
+
     const game = new Phaser.Game({
       type: Phaser.AUTO,
       parent: parentRef.current,
@@ -170,6 +175,7 @@ export default function PhaserGame() {
 
     // Cleanup also makes React StrictMode (double-mount in dev) safe
     return () => {
+      document.removeEventListener("contextmenu", preventContextMenu);
       game.events.off("module-placed", handleModulePlaced);
       window.removeEventListener("PHASER_SYNC_MODULES", handleModuleSync);
       game.events.off("module-moved", handleModuleMoved);
@@ -188,6 +194,7 @@ export default function PhaserGame() {
   return (
     <div
       ref={parentRef}
+      onContextMenu={(event) => {event.preventDefault(); event.stopPropagation();} }
       style={{
         position: "fixed",
         inset: 0,
