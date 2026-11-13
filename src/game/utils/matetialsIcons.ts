@@ -9,9 +9,7 @@ import soup from "../../assets/vectors/Soup.png";
 import meal from "../../assets/vectors/Meal.png";
 import good_meal from "../../assets/vectors/GoodMeal.png";
 import repair_kit from "../../assets/vectors/RepairKit.png";
-import water_filter from "../../assets/vectors/WaterFilter.png";
-import air_filter from "../../assets/vectors/AirFilter.png";
-import radiation_filter from "../../assets/vectors/RadiationFilter.png";
+import mars_sample from "../../assets/materials/MarsSample.png";
 
 export const MAT_ICONS: Record<string, string> = {
   iron_plate: iron_plate,
@@ -25,7 +23,5 @@ export const MAT_ICONS: Record<string, string> = {
   meal: meal,
   good_meal: good_meal,
   repair_kit: repair_kit,
-  water_filter: water_filter,
-  air_filter: air_filter,
-  mars_sample: radiation_filter,
+  mars_sample: mars_sample,
 };

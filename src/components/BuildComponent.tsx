@@ -53,7 +53,7 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
   const foodResources: ResourceType[] = [
     "soup",
     "meal",
-    "good_meal",
+    "heavy_meal",
   ];
   const foodCount = foodResources.reduce(
     (total, resource) => total + (inventory[resource] ?? 0),

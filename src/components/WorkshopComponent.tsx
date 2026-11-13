@@ -116,11 +116,11 @@ export function WorkshopComponent({
       ...researchedNodeIds
         .map((nodeId) => {
           if (nodeId === "food_meal") return "meal";
-          if (nodeId === "food_good_meal") return "good_meal";
+          if (nodeId === "food_heavy_meal") return "heavy_meal";
           return null;
         })
         .filter(
-          (resource): resource is "meal" | "good_meal" => resource !== null,
+          (resource): resource is "meal" | "heavy_meal" => resource !== null,
         ),
     ],
   );

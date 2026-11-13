@@ -30,7 +30,7 @@ export const RESEARCH_TREE: ResearchNode[] = [
     unlocks: { resource: "meal" },
   },
   {
-    id: "food_good_meal",
+    id: "food_heavy_meal",
     category: "FOOD",
     name: "Nutritional Optimization",
     description: "Unlocks the high-nutrition good meal recipe.",
@@ -38,7 +38,7 @@ export const RESEARCH_TREE: ResearchNode[] = [
     researchHours: 6,
     requires: ["food_meal"],
     texture: "good_meal",
-    unlocks: { resource: "good_meal" },
+    unlocks: { resource: "heavy_meal" },
   },
   {
     id: "base_radiation_tower",
@@ -53,7 +53,7 @@ export const RESEARCH_TREE: ResearchNode[] = [
   {
     id: "base_large_storage",
     category: "BASE",
-    name: "Automated Logistics",
+    name: "Large Storage",
     description: "Unlocks the large supply depot construction blueprint.",
     silicateCost: 8,
     researchHours: 6,

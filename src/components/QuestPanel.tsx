@@ -77,7 +77,7 @@ export function QuestPanel() {
   const task3Complete = hasWorkshop;
   const task4Complete = hasWaterExtractor && hasDrill;
   const task5Complete = hasKitchen && hasGreenhouse;
-  const foodResources: ResourceType[] = ["soup", "meal", "good_meal"];
+  const foodResources: ResourceType[] = ["soup", "meal", "heavy_meal"];
   const foodCount = foodResources.reduce(
     (total, resource) => total + (inventory[resource] || 0),
     0,

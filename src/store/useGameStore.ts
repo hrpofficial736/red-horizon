@@ -17,15 +17,15 @@ export const isCriticalPowerModule = (moduleId: string) =>
 const FOOD_FATIGUE_RECOVERY = {
   soup: 5,
   meal: 15,
-  good_meal: 25,
+  heavy_meal: 25,
 } as const;
 
 const FOOD_HEALTH_RECOVERY = {
   soup: 7,
   meal: 12,
-  good_meal: 18,
+  heavy_meal: 18,
 } as const;
-const FOOD_PRIORITY = ["good_meal", "meal", "soup"] as const;
+const FOOD_PRIORITY = ["heavy_meal", "meal", "soup"] as const;
 const OVERTIME_FATIGUE_PER_HOUR = 10;
 const NO_FOOD_HEALTH_LOSS = 10;
 const INITIAL_PREPARED_FOOD = 4;
@@ -550,7 +550,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     raw_food: 8,
     soup: INITIAL_PREPARED_FOOD,
     meal: 0,
-    good_meal: 0,
+    heavy_meal: 0,
     mars_sample: 0,
   },
   discoveredResourceTypes: STARTING_DISCOVERED_RESOURCES,

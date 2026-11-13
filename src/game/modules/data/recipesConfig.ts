@@ -59,28 +59,6 @@ export const WORKSHOP_RECIPES: CraftingRecipe[] = [
     craftHours: 1,
     cost: [{ resource: "silicates", amount: 4 }],
   },
-  {
-    output: "water_filter",
-    name: "Water Filter",
-    description:
-      "A replaceable filtration cartridge that purifies contaminated water for the colony.",
-    craftHours: 1,
-    cost: [
-      { resource: "iron_plate", amount: 2 },
-      { resource: "silicates", amount: 2 },
-    ],
-  },
-  {
-    output: "air_filter",
-    name: "Air Filter",
-    description:
-      "A sealed filter cartridge that removes dust and harmful particles from the habitat air.",
-    craftHours: 1,
-    cost: [
-      { resource: "iron_plate", amount: 2 },
-      { resource: "electronics", amount: 2 },
-    ],
-  },
 ];
 
 export const KITCHEN_RECIPES: CraftingRecipe[] = [
@@ -101,8 +79,8 @@ export const KITCHEN_RECIPES: CraftingRecipe[] = [
     cost: [{ resource: "raw_food", amount: 3 }],
   },
   {
-    output: "good_meal",
-    name: "Good Meal",
+    output: "heavy_meal",
+    name: "Heavy Meal",
     description:
       "A carefully prepared gourmet meal that delivers the best nutrition and helps the astronaut recover from fatigue.",
     craftHours: 3,
@@ -163,5 +141,5 @@ export const INVENTORY_RECIPES: CraftingRecipe[] = [
   ...KITCHEN_RECIPES,
   ...RESOURCES,
   ...FOOD_PACK_RECIPES,
-  ...SAMPLE_EXTRACTOR_RECIPES
+  ...SAMPLE_EXTRACTOR_RECIPES,
 ];

@@ -211,15 +211,15 @@ export class IsoScene extends Phaser.Scene {
     this.input.on("wheel", this.onWheel, this);
 
     // Test keys: 1 = block, 2 = panel (2x2), 3 = windmill (tall 1x1), 4 = greenHouse (6x6), Esc = none
-    this.input.keyboard?.on("keydown-ONE", () => this.select("habitat"));
-    this.input.keyboard?.on("keydown-TWO", () => this.select("storage_large"));
-    this.input.keyboard?.on("keydown-THREE", () =>
-      this.select("communication"),
-    );
-    this.input.keyboard?.on("keydown-FOUR", () => this.select("greenhouse"));
-    this.input.keyboard?.on("keydown-FIVE", () => this.select("water"));
-    this.input.keyboard?.on("keydown-SIX", () => this.select("communication"));
-    this.input.keyboard?.on("keydown-SEVEN", () => this.select("radar"));
+    // this.input.keyboard?.on("keydown-ONE", () => this.select("sample_extractor"));
+    // this.input.keyboard?.on("keydown-TWO", () => this.select("beacon"));
+    // this.input.keyboard?.on("keydown-THREE", () =>
+    //   this.select("communication"),
+    // );
+    // this.input.keyboard?.on("keydown-FOUR", () => this.select("greenhouse"));
+    // this.input.keyboard?.on("keydown-FIVE", () => this.select("water"));
+    // this.input.keyboard?.on("keydown-SIX", () => this.select("communication"));
+    // this.input.keyboard?.on("keydown-SEVEN", () => this.select("radar"));
     this.input.keyboard?.on("keydown-ESC", () => this.select(null));
 
     // React -> Phaser:  game.events.emit("select-module", "panel")
@@ -859,12 +859,12 @@ export class IsoScene extends Phaser.Scene {
         col: module.col,
         row: module.row,
       });
-      console.log("Module clicked:", module.def.name, {
-        uid: module.uid,
-        id: module.def.id,
-        col: module.col,
-        row: module.row,
-      });
+      // console.log("Module clicked:", module.def.name, {
+      //   uid: module.uid,
+      //   id: module.def.id,
+      //   col: module.col,
+      //   row: module.row,
+      // });
     });
   }
 
@@ -1073,7 +1073,7 @@ export class IsoScene extends Phaser.Scene {
     const hw = GRID.tileW / 2;
     const hh = GRID.tileH / 2;
 
-    g.lineStyle(1, 0xffffff, 0);
+    g.lineStyle(1, 0xffffff, 0.2);
 
     for (let c = 0; c < GRID.cols; c++) {
       for (let r = 0; r < GRID.rows; r++) {

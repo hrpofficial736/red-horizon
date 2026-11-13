@@ -167,7 +167,7 @@ export const MODULES: Record<string, ModuleDef> = {
   drill: {
     id: "drill",
     constructionHours: 4,
-    name: "Regolith Extractor",
+    name: "Ore Extractor",
     description:
       "Heavy mechanical drill that extracts raw iron ore and high-density silicates.",
     category: "production",
@@ -223,7 +223,7 @@ export const MODULES: Record<string, ModuleDef> = {
   solar: {
     id: "solar",
     constructionHours: 3,
-    name: "Solar Array",
+    name: "Solar panel",
     description:
       "Generates renewable energy. Highly vulnerable to drop-offs during dust storm events.",
     category: "power",
@@ -328,7 +328,7 @@ export const MODULES: Record<string, ModuleDef> = {
   storage_small: {
     id: "storage_small",
     constructionHours: 4,
-    name: "Supply Depot (S)",
+    name: "Small Storage (S)",
     description:
       "A compact secure locker. Increases your maximum resource inventory limits.",
     category: "storage",
@@ -351,7 +351,7 @@ export const MODULES: Record<string, ModuleDef> = {
   storage_large: {
     id: "storage_large",
     constructionHours: 4,
-    name: "Supply Depot (L)",
+    name: "Large Storage (L)",
     description:
       "Advanced heavy vault equipped with climate-controlled tracking for vast stockpiles.",
     category: "storage",
@@ -431,7 +431,7 @@ export const MODULES: Record<string, ModuleDef> = {
   beacon: {
     id: "beacon",
     constructionHours: 4,
-    name: "Beacon",
+    name: "Rescue Beacon",
     description: "A signal beacon for navigation and communication.",
     category: "tech",
     isUnlockedByDefault: false,
@@ -441,7 +441,7 @@ export const MODULES: Record<string, ModuleDef> = {
     height: 62,
     color: 0x8b4513,
     anchor: "center",
-    originY: 0.72,
+    originY: 0.76,
     scale: 0.19,
     buildCost: [
       { resource: "iron_plate", amount: 4 },
