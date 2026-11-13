@@ -1073,7 +1073,7 @@ export class IsoScene extends Phaser.Scene {
     const hw = GRID.tileW / 2;
     const hh = GRID.tileH / 2;
 
-    g.lineStyle(1, 0xffffff, 0.5);
+    g.lineStyle(1, 0xffffff, 0);
 
     for (let c = 0; c < GRID.cols; c++) {
       for (let r = 0; r < GRID.rows; r++) {

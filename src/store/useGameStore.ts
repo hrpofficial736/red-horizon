@@ -3038,7 +3038,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       // --- PHASE 4: TIMELINE NARRATIVE EVENT TRACKER LOGS ---
       if (nextDay === 10 && state.currentDay < 10)
         logs.push(
-          "⚠️ WEATHER ALERT: Global dust storm tracking has crossed into sector grid coordinates. Solar arrays down to 10% production efficiency.",
+          "⚠️ WEATHER ALERT: Global dust storm tracking has crossed into sector grid coordinates. Solar arrays down by 10% production efficiency.",
         );
       if (nextDay === 15 && state.currentDay < 15 && !state.isCommsEstablished)
         logs.push(

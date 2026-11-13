@@ -1,3 +1,4 @@
+import { FileText, RefreshCw } from "lucide-react";
 import {
   RADIATION_WAVE_INTERVAL_DAYS,
   useGameStore,
@@ -41,11 +42,15 @@ export function SleepTransitionOverlay() {
           SOL {String(nextDay).padStart(2, "0")}
         </p>
       </div>
-      <span className="absolute bottom-6 right-7 text-[10px] uppercase tracking-widest text-neutral-500">
-        {overlayMode === "load" ? "Loading save..." : "Saving..."}
+      <span className="absolute bottom-8 right-7 text-[10px] uppercase tracking-widest text-white animate-pulse">
+        {overlayMode === "load" ? (
+          <RefreshCw size={32} strokeWidth={1.5} className="animate-spin" />
+        ) : (
+          <FileText size={32} strokeWidth={1.5} />
+        )}
       </span>
       <div
-        className="absolute bottom-6 right-32 flex flex-row-reverse items-end gap-3 rounded-2xl border border-yellow-900/70 bg-black/80 px-3 py-2 text-yellow-400"
+        className="absolute bottom-6 right-18 flex flex-row-reverse items-end gap-2 rounded-none border-0 border-yellow-900/70 bg-black/80 px-3 py-2 text-yellow-400"
         aria-label={`${daysUntilRadiation} days until next radiation event`}
       >
         <div className="flex flex-row items-center gap-0 h-full">
@@ -55,7 +60,7 @@ export function SleepTransitionOverlay() {
               style={{ height: `${countdownFill}%` }}
             />
           </div>
-          <div className="flex flex-row min-w-14 bg-gray-50/10 h-10 items-center justify-center rounded-tr-xl rounded-br-xl">
+          <div className="flex flex-row min-w-14 bg-gray-50/10 h-10 items-center justify-center rounded-tr-none rounded-br-none">
             <p className="text-lg font-bold leading-none">
               {daysUntilRadiation}
             </p>
@@ -64,7 +69,7 @@ export function SleepTransitionOverlay() {
             </p>
           </div>
         </div>
-        <p className="mt-1 max-w-15 text-[9px] uppercase tracking-widest text-yellow-200">
+        <p className="mt-1 max-w-15 text-right text-[9px] uppercase tracking-widest text-yellow-200">
           next radiation
         </p>
       </div>

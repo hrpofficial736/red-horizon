@@ -161,7 +161,7 @@ export function QuestPanel() {
         useGameStore.setState({
           gameLogs: [
             ...logs,
-            "📦 MISSION UPDATE: Sol 10 objective available: Construct a Supply Depot (S).",
+            "📦 MISSION UPDATE: Sol 6 objective available: Construct a Supply Depot (S).",
           ],
         });
       }
@@ -325,7 +325,7 @@ export function QuestPanel() {
 
   const sol10StorageBlock: QuestBlock = {
     id: "task-sol10-storage",
-    taskLabel: "SOL 10",
+    taskLabel: "SOL 6",
     heading: "Supply Depot",
     complete: hasSmallStorage,
     lines: [{ text: "Build supply depot (S)", done: hasSmallStorage }],
