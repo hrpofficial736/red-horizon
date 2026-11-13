@@ -21,51 +21,6 @@ const guideImages = [
 ];
 
 export const Home = () => {
-<<<<<<< HEAD
-  const playerType = localStorage.getItem("playerType");
-
-  const [section, setSection] = useState(1);
-
-  if (!playerType || playerType === "new") {
-    localStorage.setItem("playerType", "new");
-
-    // deciding which section to display
-    if (section === 1) return <LandingPage onStart={() => setSection(2)} />;
-    else if (section === 2)
-      return (
-        <CutScenes onSkip={() => setSection(3)} onBack={() => setSection(1)} />
-      );
-    else if (section === 3)
-      return (
-        <GuideBook
-          onBack={() => setSection(2)}
-          onStartGame={() => {
-            setSection(4);
-            localStorage.setItem("playerType", "existing");
-          }}
-          images={guideImages}
-        />
-      );
-    else
-      return (
-        <App
-          onBackToHome={() => {
-            localStorage.setItem("playerType", "new");
-            setSection(1);
-          }}
-        />
-      );
-  }
-
-  return (
-    <App
-      onBackToHome={() => {
-        localStorage.setItem("playerType", "new");
-        setSection(1);
-      }}
-    />
-  );
-=======
     const [view, setView] = useState(() => {
         const isExisting = localStorage.getItem("playerType") === "existing";
         return isExisting ? "app" : "landing";
@@ -107,5 +62,4 @@ export const Home = () => {
         default:
             return <App onBackToHome={() => setView("landing")} />;
     }
->>>>>>> 4a44263 (home routing changes)
 };
