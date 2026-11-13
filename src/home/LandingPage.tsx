@@ -24,14 +24,11 @@ export default function LandingPage({ onStart }: { onStart: () => void }) {
                     <span className="text-orange-400 text-3xl">◈</span>
 
                     <span className="font-[Orbitron] text-sm md:text-lg font-bold tracking-[0.3em]">
-                        THARSIS
+                        THE RED HORIZON
                     </span>
                 </div>
 
-                <div className="flex items-center gap-2 text-[9px] md:text-xs tracking-[0.2em] text-orange-100/70">
-                    <span className="w-2 h-2 rounded-full bg-green-400 shadow-[0_0_10px_#4ade80]" />
-                    MARS COLONY INITIATIVE
-                </div>
+                
             </header>
 
             {/* Main content */}
@@ -40,21 +37,21 @@ export default function LandingPage({ onStart }: { onStart: () => void }) {
                 {/* Mission label */}
                 <div className="flex items-center gap-3 text-[10px] md:text-xs tracking-[0.25em] text-orange-300">
                     <span className="w-8 h-px bg-orange-400" />
-                    OUTPOST ALPHA // MISSION 001
+                    OUTPOST ALPHA 
                     <span className="w-8 h-px bg-orange-400" />
                 </div>
 
                 {/* Game title */}
                 <h1 className="flex flex-col mt-8 mb-3 font-[Orbitron] text-5xl sm:text-6xl md:text-7xl lg:text-[86px] font-medium leading-[1.08] tracking-wider drop-shadow-2xl">
-                    <span>PROJECT</span>
+                    <span>RED</span>
 
                     <span className="font-extrabold text-orange-400">
-                        THARSIS
+                        HORIZON
                     </span>
                 </h1>
 
                 <p className="text-orange-100/80 text-sm md:text-lg tracking-[0.3em] font-semibold">
-                    A NEW WORLD. A NEW BEGINNING.
+                    SURVIVE THE STORM. BRING THE SAMPLE HOME.
                 </p>
 
                 {/* Divider */}
@@ -72,31 +69,25 @@ export default function LandingPage({ onStart }: { onStart: () => void }) {
                 <button
                     onClick={onStart}
                     type="button"
-                    className="group mt-10 flex min-w-[255px] items-center justify-between gap-8 border border-orange-400 bg-[#160d09]/80 px-6 py-4 font-[Orbitron] text-xs font-bold tracking-widest text-orange-300 transition-all duration-300 hover:-translate-y-1 hover:bg-orange-500 hover:text-[#160d09] hover:shadow-[0_0_30px_rgba(233,133,71,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
+                    className="group mt-10 flex min-w-[170px] items-center justify-between gap-8 border border-orange-400 bg-[#160d09]/80 px-6 py-4 font-[Orbitron] text-md font-bold tracking-widest text-orange-300 transition-all duration-300 hover:-translate-y-1 hover:bg-orange-500 hover:text-[#160d09] hover:shadow-[0_0_30px_rgba(233,133,71,0.4)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-300"
                 >
-                    <span>INITIALIZE MISSION</span>
+                    <span>PLAY</span>
 
                     <span className="text-xl transition-transform duration-300 group-hover:translate-x-2">
                         →
                     </span>
                 </button>
 
-                {/* Mission information */}
-                <div className="mt-14 flex flex-col gap-2 sm:flex-row sm:gap-7 text-[10px] tracking-widest text-orange-100/60">
-                    <span>ENGINEER ASSIGNMENT: ACTIVE</span>
-                    <span>LOCATION: MARS // OUTPOST ALPHA</span>
-                </div>
+                
 
             </section>
 
             {/* Footer */}
             <footer className="relative z-10 flex items-center justify-between border-t border-white/10 px-6 py-5 md:px-12 lg:px-20 text-[9px] md:text-[11px] tracking-[0.2em] text-stone-400">
 
-                <span>PROJECT THARSIS</span>
+                <span>RED HORIZON</span>
 
-                <span className="hidden sm:block">
-                    HUMANITY'S NEXT FRONTIER
-                </span>
+                
 
                 <span>© 2026</span>
             </footer>
