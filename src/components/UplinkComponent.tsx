@@ -27,7 +27,7 @@ const TRANSMISSIONS = [
   {
     from: "MISSION CONTROL // EARTH",
     message:
-      "Omega, we read you. A heavy storm front is forecast for Sol 29. Rescue mission ARES-7 is being mobilized. Hold position and conserve power.",
+      "Omega, we read you. A heavy storm front is forecast for Sol 29. Rescue mission HORIZON-1 is being mobilized. Hold position and conserve power.",
   },
   {
     from: "ASTRONAUT // OMEGA",
@@ -128,7 +128,7 @@ export function UplinkComponent({ onClose, hasRadar }: UplinkComponentProps) {
       moduleType="TERMINAL"
       onClose={onClose}
     >
-      <div className="flex h-full min-h-0 flex-col gap-3 font-mono text-white">
+      <div className="flex h-full min-h-0 flex-col gap-3 text-white">
         <div className="flex items-center justify-between border border-cyan-500/30 bg-cyan-950/20 px-4 py-2 text-[10px] uppercase tracking-[0.2em]">
           <span className="flex items-center gap-2 text-cyan-300">
             <Radio size={14} /> Deep-space communications array
@@ -231,7 +231,7 @@ export function UplinkComponent({ onClose, hasRadar }: UplinkComponentProps) {
             <div className="mb-3 flex items-center justify-between border-b border-neutral-800 pb-3">
               <div>
                 <p className="text-[10px] tracking-[0.2em] text-neutral-500">
-                  SECURE CHANNEL // ARES-7
+                  SECURE CHANNEL // HORIZON-1
                 </p>
                 <h3 className="mt-1 text-sm font-bold uppercase">
                   Earth communication log
@@ -315,7 +315,7 @@ export function UplinkComponent({ onClose, hasRadar }: UplinkComponentProps) {
           >
             <Sparkles size={14} />
             {rescueMissionInitialized
-              ? "RESCUE MISSION ARES-7 INITIALIZED"
+              ? "RESCUE MISSION HORIZON-1 INITIALIZED"
               : "INITIALIZE RESCUE MISSION"}
           </button>
         )}
