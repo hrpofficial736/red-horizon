@@ -885,7 +885,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   unlockModuleBlueprint: (moduleId: string) =>
-    set((state: any) => {
+    set((state) => {
       if (state.unlockedModuleIds.includes(moduleId)) return {};
 
       return {
@@ -2095,7 +2095,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       stopPassiveTimer,
       advanceHour,
       startPassiveTimer,
-    } = get() as any; // 🟢 ADDED "as any" CAST HERE
+    } = get();
     if ((inventory["repair_kit"] || 0) < 1) return false;
 
     const moduleObj = placedModules.find(
@@ -2252,11 +2252,11 @@ export const useGameStore = create<GameState>((set, get) => ({
 
   // --- APPEND THESE TWO NEW METHODS AT THE VERY BOTTOM OF THE STORE OBJECT ---
   startPassiveTimer: () => {
-    if ((get() as any).timerIntervalId) return;
+    if (get().timerIntervalId) return;
 
     // Normal time advances one visible game minute per real-world second.
     const interval = setInterval(() => {
-      const store = get() as any;
+      const store = get();
       let nextMinute = store.currentMinute + 1;
 
       if (nextMinute >= 60) {
@@ -2292,7 +2292,7 @@ export const useGameStore = create<GameState>((set, get) => ({
   },
 
   stopPassiveTimer: () => {
-    const id = (get() as any).timerIntervalId;
+    const id = get().timerIntervalId;
     if (id) {
       clearInterval(id);
       set({ timerIntervalId: null });

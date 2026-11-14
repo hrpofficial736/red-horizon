@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import type Phaser from "phaser";
 import { useGameStore } from "../store/useGameStore";
 import { MODULES } from "../game/modules/moduleDefinitions";
 import { TEXTURE_IMPORTS } from "../game/utils/textureImports";
@@ -134,7 +135,9 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
   const handleTransmitBlueprint = () => {
     if (closeTab) closeTab();
     if (!canAffordModule) return;
-    const runningGame = (window as any).phaserGameInstance;
+    const runningGame = (
+      window as Window & { phaserGameInstance?: Phaser.Game }
+    ).phaserGameInstance;
     if (runningGame) {
       // Triggers your IsoScene's listener loop setup instantly!
       runningGame.events.emit("select-module", selectedModule.id);
@@ -164,7 +167,7 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
   const getModulesLeft = (mod: ModuleDef) => {
     const countPlaced = placedModules.filter((m) => m.id === mod.id).length;
     // Fallback support if maxModules isn't explicitly defined on every module object block
-    const maxLimit = (mod as any).maxModules ?? Infinity;
+    const maxLimit = mod.maxModules ?? Infinity;
     return maxLimit - countPlaced;
   };
 

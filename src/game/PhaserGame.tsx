@@ -29,7 +29,10 @@ export default function PhaserGame() {
       scene: [IsoScene],
     });
 
-    (window as any).phaserGameInstance = game;
+    (
+      window as Window & { phaserGameInstance?: Phaser.Game | null }
+    ).phaserGameInstance =
+      game;
 
     // Example: listen to tile clicks from React (for your HUD / build menu)
     const onTile = (t: { col: number; row: number }) => console.log("tile", t);
@@ -144,7 +147,7 @@ export default function PhaserGame() {
       // Fetch the full list from store to capture the instanceId matching these grid tiles
       const liveMod = useGameStore
         .getState()
-        .placedModules.find((m: any) => m.x === data.row && m.y === data.col);
+        .placedModules.find((m) => m.x === data.row && m.y === data.col);
 
       if (liveMod && (liveMod.constructionHoursRemaining ?? 0) > 0) {
         return;
@@ -186,7 +189,10 @@ export default function PhaserGame() {
       );
       game.events.off("module-clicked", handleModuleClicked);
       game.events.off("tile-click", onTile);
-      (window as any).phaserGameInstance = null;
+      (
+        window as Window & { phaserGameInstance?: Phaser.Game | null }
+      ).phaserGameInstance =
+        null;
       game.destroy(true);
     };
   }, []);

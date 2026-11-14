@@ -21,6 +21,10 @@ import { DustStormAlert } from "./components/DustStormAlert";
 
 type ActiveTab = "none" | "build" | "inventory" | "research" | "logs";
 type CraftingModuleId = "workshop" | "kitchen" | "greenhouse";
+type PopupModuleDetail = {
+    id: string;
+    instanceId: string;
+};
 
 function App({ onBackToHome }: { onBackToHome: () => void }) {
     const [activeTab, setActiveTab] = useState<ActiveTab>("none");
@@ -33,7 +37,7 @@ function App({ onBackToHome }: { onBackToHome: () => void }) {
     );
     const startNewGame = useGameStore((state) => state.startNewGame);
 
-    const [showStatusModal, setShowStatusModal] = useState<any>(null);
+    const [showStatusModal, setShowStatusModal] = useState<null>(null);
     const [moveRequest, setMoveRequest] = useState<{
         uid: number;
         id: string;
@@ -104,42 +108,43 @@ function App({ onBackToHome }: { onBackToHome: () => void }) {
     }, [initializeGameSaves]);
 
     useEffect(() => {
-        const triggerPopupOverlay = (e: any) => {
-            if (e.detail.id === "habitat") {
+        const triggerPopupOverlay = (event: Event) => {
+            const detail = (event as CustomEvent<PopupModuleDetail>).detail;
+            if (detail.id === "habitat") {
                 setCraftingModule(null);
-                setHabitatModule({ instanceId: e.detail.instanceId });
+                setHabitatModule({ instanceId: detail.instanceId });
                 setActiveTab("none");
                 return;
             }
-            if (e.detail.id === "communication") {
+            if (detail.id === "communication") {
                 setCraftingModule(null);
                 setHabitatModule(null);
-                setUplinkModule({ instanceId: e.detail.instanceId });
+                setUplinkModule({ instanceId: detail.instanceId });
                 setActiveTab("none");
                 return;
             }
-            if (e.detail.id === "workshop") {
+            if (detail.id === "workshop") {
                 setActiveTab("none");
-                setCraftingModule(e.detail);
+                setCraftingModule(detail);
                 return;
             }
-            if (e.detail.id === "greenhouse") {
+            if (detail.id === "greenhouse") {
                 setActiveTab("none");
-                setCraftingModule(e.detail);
+                setCraftingModule(detail);
                 return;
             }
-            if (e.detail.id === "kitchen") {
+            if (detail.id === "kitchen") {
                 setActiveTab("none");
-                setCraftingModule(e.detail);
+                setCraftingModule(detail);
                 return;
             }
-            if (e.detail.id === "sample_extractor") {
+            if (detail.id === "sample_extractor") {
                 setShowStatusModal(null);
                 setActiveTab("none");
-                setCraftingModule(e.detail);
+                setCraftingModule(detail);
                 return;
             }
-            if (e.detail.id === "researchLab") {
+            if (detail.id === "researchLab") {
                 setCraftingModule(null);
                 setActiveTab("research");
                 return;
