@@ -37,7 +37,7 @@ function App({ onBackToHome }: { onBackToHome: () => void }) {
     );
     const startNewGame = useGameStore((state) => state.startNewGame);
 
-    const [showStatusModal, setShowStatusModal] = useState<null>(null);
+    const [showStatusModal, setShowStatusModal] = useState(null);
     const [moveRequest, setMoveRequest] = useState<{
         uid: number;
         id: string;

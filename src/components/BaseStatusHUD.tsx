@@ -15,6 +15,7 @@ export const BaseStatusHUD: React.FC<BaseStatusHUDProps> = ({ onOpenMenu }) => {
     const fatigueLevel = useGameStore((state) => state.fatigueLevel);
     const sleepUntilMorning = useGameStore((state) => state.sleepUntilMorning);
     const isFainted = useGameStore((state) => state.isFainted);
+
     const powerBankCharge = useGameStore((state) => state.powerBankCharge);
     const placedModules = useGameStore((state) => state.placedModules);
     const powerBankCapacity = getPowerBankCapacity(placedModules);

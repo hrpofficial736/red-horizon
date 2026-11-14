@@ -63,6 +63,7 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
     (foodStockpileTaskStartDay !== null &&
       currentDay > foodStockpileTaskStartDay &&
       foodCount >= 7);
+  
   const hasSample = (inventory.mars_sample ?? 0) >= 1;
   const hasRadiationTower = hasBuilt("radiation_tower");
   const towerTaskPassed2Days =
