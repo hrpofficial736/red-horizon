@@ -1,13 +1,125 @@
-import React, { useState } from "react";
+import { useEffect, useState } from "react";
+import type Phaser from "phaser";
 import { useGameStore } from "../store/useGameStore";
 import { MODULES } from "../game/modules/moduleDefinitions";
-import type { ModuleDef } from "../game/modules/module.types";
+import { TEXTURE_IMPORTS } from "../game/utils/textureImports";
+import gridIcon from "../assets/Grid.png";
+import type { ModuleDef, ResourceType } from "../game/modules/module.types";
+import { Lock } from "lucide-react";
+import { MAT_IMPORTS } from "../game/utils/materialsTexture";
 
 export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
   const [selectedModule, setSelectedModule] = useState<ModuleDef>(
-    MODULES.habitat,
+    MODULES.greenhouse,
   );
   const inventory = useGameStore((state) => state.inventory);
+  const placedModules = useGameStore((state) => state.placedModules);
+  const unlockedModuleIds = useGameStore((state) => state.unlockedModuleIds);
+  const stormAlertReceived = useGameStore((state) => state.stormAlertReceived);
+  const hasBuilt = (moduleId: string) =>
+    placedModules.some(
+      (module) =>
+        module.id === moduleId &&
+        (module.constructionHoursRemaining ?? 0) <= 0,
+    );
+  const hasResearchLab = hasBuilt("researchLab");
+  const hasKitchen = hasBuilt("kitchen");
+  const hasDrill = hasBuilt("drill");
+  const hasSolar = hasBuilt("solar");
+  const hasBattery = hasBuilt("battery");
+  const hasWorkshop = hasBuilt("workshop");
+  const hasWaterExtractor = placedModules.some(
+    (module) =>
+      module.id === "water" &&
+      (module.constructionHoursRemaining ?? 0) <= 0,
+  );
+  const hasGreenhouse = placedModules.some(
+    (module) =>
+      module.id === "greenhouse" &&
+      (module.constructionHoursRemaining ?? 0) <= 0,
+  );
+  const currentDay = useGameStore((state) => state.currentDay);
+  const foodStockpileTaskStartDay = useGameStore(
+    (state) => state.foodStockpileTaskStartDay,
+  );
+  const foodStockpileTaskCompleted = useGameStore(
+    (state) => state.foodStockpileTaskCompleted,
+  );
+  const radiationTowerTaskStartDay = useGameStore(
+    (state) => state.radiationTowerTaskStartDay,
+  );
+  const earthReportSent = useGameStore((state) => state.earthReportSent);
+  const foodResources: ResourceType[] = [
+    "soup",
+    "meal",
+    "heavy_meal",
+  ];
+  const foodCount = foodResources.reduce(
+    (total, resource) => total + (inventory[resource] ?? 0),
+    0,
+  );
+  const task6Complete =
+    foodStockpileTaskCompleted ||
+    (foodStockpileTaskStartDay !== null &&
+      currentDay > foodStockpileTaskStartDay &&
+      foodCount >= 7);
+  
+  const hasSample = (inventory.mars_sample ?? 0) >= 1;
+  const hasRadiationTower = hasBuilt("radiation_tower");
+  const towerTaskPassed2Days =
+    radiationTowerTaskStartDay !== null &&
+    currentDay >= radiationTowerTaskStartDay + 2;
+  const isTask9Active =
+    hasResearchLab && (hasRadiationTower || towerTaskPassed2Days);
+
+  const taskCompletion = [
+    hasSolar,
+    hasBattery,
+    hasWorkshop,
+    hasWaterExtractor && hasDrill,
+    hasKitchen && hasGreenhouse,
+    task6Complete,
+    hasResearchLab,
+    hasRadiationTower,
+  ];
+  const taskModuleIds = [
+    ["solar"],
+    ["battery"],
+    ["workshop"],
+    ["water", "drill"],
+    ["kitchen", "greenhouse"],
+    [],
+    ["researchLab"],
+    ["radiation_tower"],
+  ];
+
+  const activeTaskIndex = taskCompletion.findIndex((complete) => !complete);
+  const previouslyAssignedModuleIds = taskModuleIds
+    .slice(0, activeTaskIndex < 0 ? taskModuleIds.length : activeTaskIndex)
+    .flat();
+  const activeTaskModuleIds =
+    activeTaskIndex >= 0 ? taskModuleIds[activeTaskIndex] : [];
+  const assignedModuleIds = new Set([
+    ...previouslyAssignedModuleIds,
+    ...activeTaskModuleIds,
+  ]);
+
+  if (hasResearchLab) {
+    assignedModuleIds.add("radiation_tower");
+  }
+  if (isTask9Active) {
+    assignedModuleIds.add("radar");
+    assignedModuleIds.add("communication");
+  }
+  if (currentDay >= 10) {
+    assignedModuleIds.add("storage_small");
+  }
+  if (stormAlertReceived && earthReportSent) {
+    assignedModuleIds.add("sample_extractor");
+  }
+  if (hasSample) {
+    assignedModuleIds.add("beacon");
+  }
 
   const canAffordModule = selectedModule.buildCost.every((cost) => {
     const stockAvailable = inventory[cost.resource] ?? 0;
@@ -17,7 +129,9 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
   const handleTransmitBlueprint = () => {
     if (closeTab) closeTab();
     if (!canAffordModule) return;
-    const runningGame = (window as any).phaserGameInstance;
+    const runningGame = (
+      window as Window & { phaserGameInstance?: Phaser.Game }
+    ).phaserGameInstance;
     if (runningGame) {
       // Triggers your IsoScene's listener loop setup instantly!
       runningGame.events.emit("select-module", selectedModule.id);
@@ -28,89 +142,143 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
     }
   };
 
-  const unlockedModules = Object.values(MODULES).filter(
-    (mod) => mod.isUnlockedByDefault === true,
+  const defaultUnlockedModules = Object.values(MODULES).filter(
+    (mod) =>
+      assignedModuleIds.has(mod.id) &&
+      (mod.isUnlockedByDefault || unlockedModuleIds.includes(mod.id)) &&
+      mod.id !== "habitat",
   );
+
+  const unlockedModules = defaultUnlockedModules;
+
+  useEffect(() => {
+    if (unlockedModules.length === 0) return;
+    if (!unlockedModules.some((mod) => mod.id === selectedModule.id)) {
+      setSelectedModule(unlockedModules[0]);
+    }
+  }, [selectedModule.id, unlockedModules]);
+
+  const getModulesLeft = (mod: ModuleDef) => {
+    const countPlaced = placedModules.filter((m) => m.id === mod.id).length;
+    // Fallback support if maxModules isn't explicitly defined on every module object block
+    const maxLimit = mod.maxModules ?? Infinity;
+    return maxLimit - countPlaced;
+  };
+
+  const canPlaceMore = (mod: ModuleDef) => {
+    return getModulesLeft(mod) > 0;
+  };
+
+  const hasHitMaxLimit = !canPlaceMore(selectedModule);
 
   return (
     <div className="flex h-full gap-4 overflow-hidden">
       {/* 📋 SIDEBAR MENU */}
-      <div className="w-1/3 border-r border-neutral-800 pr-3 overflow-y-auto flex flex-col gap-2">
+      <div className="w-3/5 rounded-xl overflow-y-auto scrollbar-none flex flex-wrap gap-2">
         {unlockedModules.map((mod) => (
           <button
             key={mod.id}
             onClick={() => setSelectedModule(mod)}
-            className={`w-full text-left p-3 rounded border text-xs flex justify-between items-center transition ${
+            style={{ backgroundImage: `url(${gridIcon})` }}
+            className={`w-[calc(33.3%-0.4rem)] h-[calc(50%-0.4rem)] aspect-3/4 text-left p-3 rounded-xl border text-xs flex flex-col justify-between items-center transition ${
               selectedModule.id === mod.id
-                ? "bg-neutral-800 border-orange-500 text-white"
+                ? "bg-neutral-800 border-white text-white"
                 : "bg-neutral-900/40 border-neutral-800 text-neutral-400 hover:border-neutral-700"
             }`}
           >
-            <span>{mod.name}</span>
-            <span className="text-[10px] text-neutral-500 font-mono">
-              [{mod.w}x{mod.h}]
+            <span className="text-lg text-white font-bold text-center leading-none">
+              {mod.name.toUpperCase()}
+            </span>
+            <img
+              src={TEXTURE_IMPORTS[mod.texture]}
+              alt={mod.name}
+              className={`pointer-events-none w-[calc(100%-1rem)]  object-contain ${selectedModule.id === mod.id ? "scale-105" : "scale-100"} transition-transform duration-150`}
+            />
+            <span className="text-md w-full text-right text-white font-bold">
+              {mod.w}X{mod.h}
             </span>
           </button>
         ))}
       </div>
 
       {/* 🔍 DETAILED MODULAR INSPECTION PANEL */}
-      <div className="w-2/3 flex flex-col justify-between bg-neutral-900/30 p-4 rounded border border-neutral-800 overflow-y-auto">
+      <div className="w-2/5 flex flex-col justify-between bg-[#F9EEE0] p-4 rounded-xl border border-neutral-800 overflow-y-auto">
         <div>
-          <h3 className="text-base font-bold text-orange-400">
-            {selectedModule.name}
-          </h3>
-          <p className="text-xs text-neutral-400 mt-2 leading-relaxed">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-xl font-extrabold text-black">
+              {selectedModule.name.toUpperCase()}
+            </h3>
+            <span className="text-xs text-neutral-500 font-extrabold leading-none">
+              [{getModulesLeft(selectedModule)}/{selectedModule.maxModules}]
+            </span>
+          </div>
+          <p className="text-[14px] font-medium text-sec mt-2 leading-tight">
             {selectedModule.description}
           </p>
 
-          <div className="mt-4 grid grid-cols-2 gap-2 text-[11px] border-t border-neutral-800 pt-3 text-neutral-400">
-            <div>
+          <div className="mt-4 flex flex-col gap-2 text-[14px] border-t border-sec pt-3 text-sec">
+            <div className="flex items-center justify-between gap-1 font-bold">
               📐 Footprint:{" "}
-              <span className="text-white">
-                {selectedModule.w} x {selectedModule.h} Grid
+              <span className="text-tertiary font-bold">
+                {selectedModule.w} x {selectedModule.h} (Grid)
               </span>
             </div>
-            <div>
+            <div className="flex items-center justify-between gap-1 font-bold">
               ⚡ Grid Draw:{" "}
               <span
                 className={
                   selectedModule.powerDraw < 0
-                    ? "text-red-400"
-                    : "text-green-400"
+                    ? "text-red-600 font-bold"
+                    : "text-green-600 font-bold"
                 }
               >
                 {selectedModule.powerDraw} EU/h
               </span>
             </div>
-            <div>
+            <div className="flex items-center justify-between gap-1 font-bold">
               🛡️ Structural HP:{" "}
-              <span className="text-white">
+              <span className="text-tertiary font-bold">
                 {selectedModule.maxIntegrity} Max
               </span>
             </div>
-            <div>
-              ⚠️ Environmental Decay:{" "}
-              <span className="text-white">
-                -{selectedModule.baseDecayRate} HP/Sol
+            <div className="flex items-center justify-between gap-1 font-bold">
+              ☢️ Radiation Exposure:{" "}
+              <span className="text-tertiary font-bold">
+                Day/night rates + wave events
               </span>
             </div>
           </div>
 
           <div className="mt-5">
-            <h4 className="text-[11px] text-neutral-500 uppercase tracking-widest font-bold">
+            <h4 className="text-[14px] text-black uppercase tracking-widest font-bold">
               Blueprint Material Requisites:
             </h4>
             <div className="flex flex-wrap gap-2 mt-2">
               {selectedModule.buildCost.map((cost, idx) => (
+                // <div
+                //   key={idx}
+                //   className="bg-neutral-900 border border-neutral-700 px-3 py-1 rounded text-xs"
+                // >
+                //   <span className="capitalize">
+                //     {cost.resource.replace("_", " ")}
+                //   </span>
+                //   : <strong className="text-orange-400">{cost.amount}</strong>
+                // </div>
                 <div
                   key={idx}
-                  className="bg-neutral-900 border border-neutral-700 px-3 py-1 rounded text-xs"
+                  className="w-[calc(30%-1rem)] hover:text-black hover:bg-white aspect-square bg-neutral-900 border border-neutral-800 p-1 rounded-xl flex flex-col justify-between items-center"
                 >
-                  <span className="capitalize">
+                  <span className="capitalize font-medium text-[12px]">
                     {cost.resource.replace("_", " ")}
                   </span>
-                  : <strong className="text-orange-400">{cost.amount}</strong>
+                  <img
+                    src={MAT_IMPORTS[cost.resource]}
+                    alt={cost.resource.replace("_", " ")}
+                    className={`w-[calc(80%-1rem)]  aspect-square object-contain pointer-events-none`}
+                  />
+                  <strong className="text-[12px] w-full text-right">
+                    x{cost.amount}
+                  </strong>
                 </div>
               ))}
             </div>
@@ -118,17 +286,25 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
         </div>
 
         <button
-          disabled={!canAffordModule}
+          disabled={!canAffordModule || hasHitMaxLimit}
           onClick={handleTransmitBlueprint}
-          className={`w-full mt-6 font-bold py-3 px-4 rounded text-xs uppercase tracking-widest shadow-md transition-all duration-150 ${
-            canAffordModule
-              ? "bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 text-black cursor-pointer transform hover:scale-[1.01]"
+          className={`w-full mt-6 font-bold py-4 px-4 rounded-full text-xs uppercase tracking-widest shadow-md transition-all duration-150 ${
+            canAffordModule && !hasHitMaxLimit
+              ? "bg-black hover:to-amber-500 text-white cursor-pointer transform hover:scale-[1.01]"
               : "bg-neutral-800 border border-neutral-700 text-neutral-500 cursor-not-allowed"
           }`}
         >
-          {canAffordModule
-            ? "🔨 Transmit Blueprint To Grid Map"
-            : "❌ LOCKED: Insufficient Stockpile Resources"}
+          {hasHitMaxLimit ? (
+            <span className="flex items-center justify-center gap-2">
+              <Lock size={18} /> Max Construction Reached
+            </span>
+          ) : !canAffordModule ? (
+            <span className="flex items-center justify-center gap-2">
+              <Lock size={18} /> Insufficient Materials
+            </span>
+          ) : (
+            "Transmit Blueprint To Grid Map"
+          )}
         </button>
       </div>
     </div>

@@ -55,12 +55,13 @@ export const MaintenancePanel: React.FC = () => {
           {placedModules.map((mod) => {
             const config = MODULES[mod.id];
             const maxHp = config ? config.maxIntegrity : 100;
+            const displayedHp = Math.round(mod.hp);
             const hpPercentage = Math.round((mod.hp / maxHp) * 100);
 
             // Visual indicators for danger zones
             let statusColor = "#6bbf4e"; // Healthy Green
-            if (hpPercentage < 60) statusColor = "#ffa500"; // Warn Orange
-            if (hpPercentage < 25) statusColor = "#ff4d4d"; // Danger Red
+            if (hpPercentage < 51) statusColor = "#ffa500"; // Warn Orange
+            if (hpPercentage < 16) statusColor = "#ff4d4d"; // Danger Red
 
             return (
               <div
@@ -88,7 +89,7 @@ export const MaintenancePanel: React.FC = () => {
                   >
                     Grid Pos: ({mod.x}, {mod.y}) | HP:{" "}
                     <span style={{ color: statusColor, fontWeight: "bold" }}>
-                      {mod.hp}/{maxHp} ({hpPercentage}%)
+                      {displayedHp}/{maxHp} ({hpPercentage}%)
                     </span>
                   </div>
                   {mod.hp === 0 && (

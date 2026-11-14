@@ -1,1 +1,56 @@
+@import url("https://fonts.googleapis.com/css2?family=Manrope:wght@300;400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Anton&family=Antonio:wght@100..700&family=Archivo:ital,wght@0,100..900;1,100..900&family=Orbitron:wght@400..900&family=Plus+Jakarta+Sans:ital,wght@0,200..800;1,200..800&family=Syne:wght@400..800&display=swap");
 @import "tailwindcss";
+
+@theme {
+  --font-manrope: "Manrope", sans-serif;
+  --font-orbitron: "Orbitron", sans-serif;
+  --color-sec: #6e6e6e;
+}
+
+body {
+  font-family: var(--font-manrope);
+}
+
+@keyframes quest-task-enter {
+  from {
+    opacity: 0;
+    transform: translateX(110%);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes quest-task-exit {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(-110%);
+  }
+}
+
+.quest-task-enter {
+  animation: quest-task-enter 350ms ease-out both;
+}
+
+.quest-task-exit {
+  animation: quest-task-exit 350ms ease-in both;
+}
+
+@keyframes game-failure-message-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.game-failure-message {
+  animation: game-failure-message-in 1s ease-out 1s both;
+}

@@ -9,6 +9,11 @@ export default function PhaserGame() {
   useEffect(() => {
     if (!parentRef.current) return;
 
+    const preventContextMenu = (event: MouseEvent) => {
+      event.preventDefault();
+    };
+    document.addEventListener("contextmenu", preventContextMenu);
+
     const game = new Phaser.Game({
       type: Phaser.AUTO,
       parent: parentRef.current,
@@ -24,7 +29,10 @@ export default function PhaserGame() {
       scene: [IsoScene],
     });
 
-    (window as any).phaserGameInstance = game;
+    (
+      window as Window & { phaserGameInstance?: Phaser.Game | null }
+    ).phaserGameInstance =
+      game;
 
     // Example: listen to tile clicks from React (for your HUD / build menu)
     const onTile = (t: { col: number; row: number }) => console.log("tile", t);
@@ -35,7 +43,7 @@ export default function PhaserGame() {
       col: number;
       row: number;
     }) => {
-      console.log("Module placed:", data);
+      // console.log("Module placed:", data);
       // console.log("UID:", data.uid);
       // console.log("Module ID:", data.id);
       // console.log("Grid position:", data.col, data.row);
@@ -50,10 +58,10 @@ export default function PhaserGame() {
 
       if (wasBuilt) {
         // Read the absolute freshest array to confirm the change took effect
-        console.log(
-          "📋 Updated Zustand Placed Modules:",
-          useGameStore.getState().placedModules,
-        );
+        // console.log(
+        //   "📋 Updated Zustand Placed Modules:",
+        //   useGameStore.getState().placedModules,
+        // );
       } else {
         console.warn(
           "⚠️ Hackathon Validation: React rejected building deployment (insufficient resources).",
@@ -63,24 +71,128 @@ export default function PhaserGame() {
 
     game.events.on("module-placed", handleModulePlaced);
 
-    const handleModuleClicked = (data: {
-      uid: number;
+    const handleModuleSync = (
+      event: Event,
+    ) => {
+      const detail = (
+        event as CustomEvent<{
+          modules: Array<{ id: string; x: number; y: number }>;
+        }>
+      ).detail;
+      if (!detail || !Array.isArray(detail.modules)) return;
+      game.events.emit("sync-modules", detail.modules);
+    };
+    window.addEventListener("PHASER_SYNC_MODULES", handleModuleSync);
+
+    const handleModuleMoved = (data: {
       id: string;
-      name: string;
+      oldCol: number;
+      oldRow: number;
       col: number;
       row: number;
     }) => {
-      console.log("Module clicked:", data);
+      const module = useGameStore
+        .getState()
+        .placedModules.find(
+          (candidate) =>
+            candidate.id === data.id &&
+            candidate.x === data.oldRow &&
+            candidate.y === data.oldCol,
+        );
+      if (module) {
+        useGameStore
+          .getState()
+          .moveModule(module.instanceId, data.row, data.col);
+      }
+    };
+
+    game.events.on("module-moved", handleModuleMoved);
+
+    const handleModuleMoveRequested = (data: {
+      uid: number;
+      id: string;
+      col: number;
+      row: number;
+    }) => {
+      window.dispatchEvent(
+        new CustomEvent("PHASER_MODULE_MOVE_REQUESTED", { detail: data }),
+      );
+    };
+
+    game.events.on("module-move-requested", handleModuleMoveRequested);
+
+    const handleBeginModuleMove = (event: Event) => {
+      const data = (event as CustomEvent<{ uid: number }>).detail;
+      game.events.emit("begin-module-move", data.uid);
+    };
+    window.addEventListener("PHASER_BEGIN_MODULE_MOVE", handleBeginModuleMove);
+
+    const handleModuleClicked = (data: {
+      uid: number;
+      id: string;
+      col: number;
+      row: number;
+    }) => {
+      if (
+        (window as Window & { __tharsisOverlayOpen?: boolean })
+          .__tharsisOverlayOpen
+      ) {
+        return;
+      }
+      // console.log(
+      //   "🛸 Phaser engine reports module node context select target click:",
+      //   data,
+      // );
+
+      // Fetch the full list from store to capture the instanceId matching these grid tiles
+      const liveMod = useGameStore
+        .getState()
+        .placedModules.find((m) => m.x === data.row && m.y === data.col);
+
+      if (liveMod && (liveMod.constructionHoursRemaining ?? 0) > 0) {
+        return;
+      }
+
+      // console.log(
+      //   "🛸 React store lookup for module instanceId matching these grid tiles:",
+      //   liveMod,
+      // );
+
+      // Forward everything safely up to the React modal box
+      window.dispatchEvent(
+        new CustomEvent("PHASER_POPUP_MODAL_SIGNAL", {
+          detail: {
+            ...data,
+            instanceId: liveMod ? liveMod.instanceId : `${data.id}-fallback`,
+          },
+        }),
+      );
     };
 
     game.events.on("module-clicked", handleModuleClicked);
 
+    const restoredModules = useGameStore.getState().placedModules;
+    if (restoredModules.length > 0) {
+      game.events.emit("sync-modules", restoredModules);
+    }
+
     // Cleanup also makes React StrictMode (double-mount in dev) safe
     return () => {
+      document.removeEventListener("contextmenu", preventContextMenu);
       game.events.off("module-placed", handleModulePlaced);
+      window.removeEventListener("PHASER_SYNC_MODULES", handleModuleSync);
+      game.events.off("module-moved", handleModuleMoved);
+      game.events.off("module-move-requested", handleModuleMoveRequested);
+      window.removeEventListener(
+        "PHASER_BEGIN_MODULE_MOVE",
+        handleBeginModuleMove,
+      );
       game.events.off("module-clicked", handleModuleClicked);
       game.events.off("tile-click", onTile);
-      (window as any).phaserGameInstance = null;
+      (
+        window as Window & { phaserGameInstance?: Phaser.Game | null }
+      ).phaserGameInstance =
+        null;
       game.destroy(true);
     };
   }, []);
@@ -88,6 +200,7 @@ export default function PhaserGame() {
   return (
     <div
       ref={parentRef}
+      onContextMenu={(event) => {event.preventDefault(); event.stopPropagation();} }
       style={{
         position: "fixed",
         inset: 0,

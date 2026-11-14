@@ -11,6 +11,7 @@ import {
 
 import type { Footprint, Pt, Placed, ModuleDef } from "../modules/module.types";
 import { MODULES } from "../modules/moduleDefinitions";
+import { useGameStore } from "../../store/useGameStore";
 // import windmillspriteIMG from "../assets/spritesheet.png";
 // import windmillspritejson from "../assets/spritesheet.json";
 
@@ -39,7 +40,7 @@ export class IsoScene extends Phaser.Scene {
   private placed = new Map<number, Placed>();
   private nextUid = 1;
   private hoveredModuleUid: number | null = null;
-  private selectedModuleUid: number | null = null;
+  private movingModuleUid: number | null = null;
 
   private gridOffsetX = 24;
   private gridOffsetY = -52;
@@ -76,6 +77,10 @@ export class IsoScene extends Phaser.Scene {
     //   this.nextUid,
     // );
     this.tryPlace(9, 8);
+    this.selected = null;
+
+    this.select("life_support");
+    this.tryPlace(11, 8);
     this.selected = null;
   }
 
@@ -183,6 +188,7 @@ export class IsoScene extends Phaser.Scene {
       if (this.textures.exists(key)) {
         this.textures.get(key).setFilter(Phaser.Textures.FilterMode.LINEAR);
       }
+
     }
 
     this.occ = Array.from({ length: GRID.cols }, () =>
@@ -205,23 +211,89 @@ export class IsoScene extends Phaser.Scene {
     this.input.on("wheel", this.onWheel, this);
 
     // Test keys: 1 = block, 2 = panel (2x2), 3 = windmill (tall 1x1), 4 = greenHouse (6x6), Esc = none
-    this.input.keyboard?.on("keydown-ONE", () => this.select("habitat"));
-    this.input.keyboard?.on("keydown-TWO", () => this.select("solar"));
-    this.input.keyboard?.on("keydown-THREE", () =>
-      this.select("communication"),
-    );
-    this.input.keyboard?.on("keydown-FOUR", () => this.select("greenhouse"));
-    this.input.keyboard?.on("keydown-FIVE", () => this.select("water"));
-    this.input.keyboard?.on("keydown-SIX", () => this.select("radar"));
-    this.input.keyboard?.on("keydown-SEVEN", () => this.select("storage"));
+    // this.input.keyboard?.on("keydown-ONE", () => this.select("sample_extractor"));
+    // this.input.keyboard?.on("keydown-TWO", () => this.select("beacon"));
+    // this.input.keyboard?.on("keydown-THREE", () =>
+    //   this.select("communication"),
+    // );
+    // this.input.keyboard?.on("keydown-FOUR", () => this.select("greenhouse"));
+    // this.input.keyboard?.on("keydown-FIVE", () => this.select("water"));
+    // this.input.keyboard?.on("keydown-SIX", () => this.select("communication"));
+    // this.input.keyboard?.on("keydown-SEVEN", () => this.select("radar"));
     this.input.keyboard?.on("keydown-ESC", () => this.select(null));
 
     // React -> Phaser:  game.events.emit("select-module", "panel")
     this.game.events.on("select-module", this.select, this);
+    this.game.events.on("begin-module-move", this.beginMove, this);
+    this.game.events.on("sync-modules", this.syncModules, this);
     this.events.once("shutdown", () =>
       this.game.events.off("select-module", this.select, this),
     );
-    this.initiateGameStateWithDefaultModules();
+    this.events.once("shutdown", () =>
+      this.game.events.off("begin-module-move", this.beginMove, this),
+    );
+    const savedModules = useGameStore.getState().placedModules;
+    if (savedModules.length > 0) {
+      this.syncModules(savedModules);
+    } else {
+      this.initiateGameStateWithDefaultModules();
+    }
+    this.time.delayedCall(0, () => {
+      const currentModules = useGameStore.getState().placedModules;
+      this.syncModules(currentModules);
+    });
+  }
+
+  private syncModules(
+    modules: Array<{
+      id: string;
+      instanceId?: string;
+      x: number;
+      y: number;
+      constructionHoursRemaining?: number;
+    }>,
+  ) {
+    for (const module of this.placed.values()) {
+      module.view.destroy();
+      module.label?.destroy();
+      module.ring?.destroy();
+    }
+    this.placed.clear();
+    this.occ = Array.from({ length: GRID.cols }, () =>
+      new Array<number>(GRID.rows).fill(0),
+    );
+    this.nextUid = 1;
+    this.movingModuleUid = null;
+    this.selected = null;
+
+    for (const savedModule of modules) {
+      const def = MODULES[savedModule.id];
+      const col = savedModule.y;
+      const row = savedModule.x;
+      if (!def || !this.canPlace(def, col, row)) continue;
+
+      const uid = this.nextUid++;
+      for (let occupiedCol = col; occupiedCol < col + def.w; occupiedCol++) {
+        for (let occupiedRow = row; occupiedRow < row + def.h; occupiedRow++) {
+          this.occ[occupiedCol][occupiedRow] = uid;
+        }
+      }
+      const created = this.createView(def, col, row);
+      const placedEntry: Placed = {
+        uid,
+        def,
+        col,
+        row,
+        instanceId: savedModule.instanceId,
+        constructionHoursRemaining: savedModule.constructionHoursRemaining,
+        view: created.view,
+        label: created.label,
+        ring: created.ring,
+      };
+      this.placed.set(uid, placedEntry);
+      this.attachModuleInteraction(placedEntry);
+    }
+    this.drawGhost();
   }
 
   /**----------------------------------------------------------------------------------------------------------------
@@ -229,6 +301,7 @@ export class IsoScene extends Phaser.Scene {
      * Prevents the camera from moving beyond the grid and its configured margins.
      ----------------------------------------------------------------------------------------------------------------*/
   update() {
+    this.syncConstructionStatus();
     const cam = this.cameras.main;
     const viewW = cam.width / cam.zoom;
     const viewH = cam.height / cam.zoom;
@@ -304,11 +377,18 @@ export class IsoScene extends Phaser.Scene {
 
   // ------------------------------------------ Input ---------------------------------------------------------------
 
+  private isOverlayOpen() {
+    return (
+      window as Window & { __tharsisOverlayOpen?: boolean }
+    ).__tharsisOverlayOpen === true;
+  }
+
   /**----------------------------------------------------------------------------------------------------------------
      * Records the pointer's starting position and updates the hovered grid tile.
      * Prepares the scene to distinguish a click from a camera drag.
      ----------------------------------------------------------------------------------------------------------------*/
   private onDown(p: Phaser.Input.Pointer) {
+    if (this.isOverlayOpen()) return;
     this.downX = p.x;
     this.downY = p.y;
     this.dragged = false;
@@ -320,6 +400,7 @@ export class IsoScene extends Phaser.Scene {
      * Updates the hovered tile and placement preview as the pointer moves.
      ----------------------------------------------------------------------------------------------------------------*/
   private onMove(p: Phaser.Input.Pointer) {
+    if (this.isOverlayOpen()) return;
     const cam = this.cameras.main;
     const { pointer1, pointer2 } = this.input;
 
@@ -364,13 +445,24 @@ export class IsoScene extends Phaser.Scene {
      * deselect the current module, or finish a camera gesture.
      ----------------------------------------------------------------------------------------------------------------*/
   private onUp(p: Phaser.Input.Pointer) {
+    if (this.isOverlayOpen()) return;
     if (!this.dragged && !this.pinching) {
       if (p.button === 2) {
-        this.select(null);
+        if (this.movingModuleUid !== null) {
+          this.cancelMove();
+        } else if (this.hoveredModuleUid === null) {
+          this.select(null);
+        }
+      } else if (this.hoveredModuleUid !== null) {
+        // Module interaction is limited to the sprite/placeholder itself.
+        // The hover ring and label are visual-only and must not affect placement.
+        this.drawGhost();
       } else if (this.selected) {
         this.updateHover(p);
         const a = this.anchor();
         if (a) this.tryPlace(a.col, a.row);
+        this.drawGhost();
+      } else {
         this.drawGhost();
       }
     }
@@ -390,6 +482,7 @@ export class IsoScene extends Phaser.Scene {
     _dx: number,
     dy: number,
   ) {
+    if (this.isOverlayOpen()) return;
     this.zoomAt(p.x, p.y, this.cameras.main.zoom * Math.exp(-dy * 0.001));
     this.updateHover(p);
   }
@@ -401,6 +494,10 @@ export class IsoScene extends Phaser.Scene {
   private updateHover(p: Phaser.Input.Pointer) {
     const w = this.screenToWorld(p.x, p.y);
     this.hoverTile = this.worldToTile(w.x, w.y);
+    const hoveredModule = this.hoverTile
+      ? this.getModuleAt(this.hoverTile.col, this.hoverTile.row)
+      : null;
+    this.hoveredModuleUid = hoveredModule?.uid ?? null;
     this.drawGhost();
   }
 
@@ -449,7 +546,11 @@ export class IsoScene extends Phaser.Scene {
       return false;
     for (let c = col; c < col + def.w; c++)
       for (let r = row; r < row + def.h; r++)
-        if (this.occ[c][r] !== 0) return false;
+        if (
+          this.occ[c][r] !== 0 &&
+          this.occ[c][r] !== this.movingModuleUid
+        )
+          return false;
     return true;
   }
 
@@ -459,6 +560,9 @@ export class IsoScene extends Phaser.Scene {
      * placement data, and emits a module-placed event on success.
      ----------------------------------------------------------------------------------------------------------------*/
   private tryPlace(col: number, row: number) {
+    if (this.movingModuleUid !== null) {
+      return this.tryMove(col, row);
+    }
     // console.log(this.selected, this.nextUid);
     const def = this.selected;
     if (!def || !this.canPlace(def, col, row)) return false;
@@ -476,18 +580,127 @@ export class IsoScene extends Phaser.Scene {
       view: created.view,
       label: created.label,
       ring: created.ring,
+      // instanceId
     };
 
     this.placed.set(uid, placedEntry);
     this.attachModuleInteraction(placedEntry);
 
     // console.log(this.selected, this.nextUid);
-    if (this.selected?.id !== "habitat") {
-      this.game.events.emit("module-placed", { uid, id: def.id, col, row });
-    }
+    // if (this.selected?.id !== "habitat") {
+    this.game.events.emit("module-placed", { uid, id: def.id, col, row });
+    // }
 
     this.select(null);
     return true;
+  }
+
+  private beginMove(uid: number) {
+    const module = this.placed.get(uid);
+    if (!module) return;
+
+    this.movingModuleUid = uid;
+    this.selected = module.def;
+    for (let c = module.col; c < module.col + module.def.w; c++) {
+      for (let r = module.row; r < module.row + module.def.h; r++) {
+        this.occ[c][r] = 0;
+      }
+    }
+    this.setModuleVisible(module.view, false);
+    module.label?.setVisible(false);
+    module.ring?.setVisible(false);
+    this.drawGhost();
+  }
+
+  private cancelMove() {
+    const module = this.movingModuleUid
+      ? this.placed.get(this.movingModuleUid)
+      : undefined;
+    if (!module) return;
+
+    for (let c = module.col; c < module.col + module.def.w; c++) {
+      for (let r = module.row; r < module.row + module.def.h; r++) {
+        this.occ[c][r] = module.uid;
+      }
+    }
+    this.setModuleVisible(module.view, true);
+    this.movingModuleUid = null;
+    this.selected = null;
+    this.drawGhost();
+  }
+
+  private tryMove(col: number, row: number) {
+    const uid = this.movingModuleUid;
+    if (uid === null) return false;
+    const module = this.placed.get(uid);
+    if (!module || !this.canPlace(module.def, col, row)) return false;
+
+    const oldView = module.view;
+    const oldLabel = module.label;
+    const oldRing = module.ring;
+    oldView.destroy();
+    oldLabel?.destroy();
+    oldRing?.destroy();
+
+    for (let c = col; c < col + module.def.w; c++) {
+      for (let r = row; r < row + module.def.h; r++) {
+        this.occ[c][r] = uid;
+      }
+    }
+    const created = this.createView(module.def, col, row);
+    const movedModule: Placed = {
+      ...module,
+      col,
+      row,
+      view: created.view,
+      label: created.label,
+      ring: created.ring,
+    };
+    this.placed.set(uid, movedModule);
+    this.attachModuleInteraction(movedModule);
+    this.game.events.emit("module-moved", {
+      id: module.def.id,
+      oldCol: module.col,
+      oldRow: module.row,
+      col,
+      row,
+    });
+    this.movingModuleUid = null;
+    this.selected = null;
+    this.drawGhost();
+    return true;
+  }
+
+  private setModuleVisible(
+    view: Phaser.GameObjects.GameObject,
+    visible: boolean,
+  ) {
+    const visibleView = view as Phaser.GameObjects.GameObject & {
+      setVisible: (value: boolean) => Phaser.GameObjects.GameObject;
+    };
+    visibleView.setVisible(visible);
+  }
+
+  private setModuleAlpha(
+    view: Phaser.GameObjects.GameObject,
+    alpha: number,
+  ) {
+    if (view instanceof Phaser.GameObjects.Container) {
+      view.list.forEach((child) => {
+        if (child instanceof Phaser.GameObjects.Text) {
+          child.setAlpha(1);
+        } else if ("setAlpha" in child) {
+          (child as Phaser.GameObjects.GameObject & {
+            setAlpha: (value: number) => Phaser.GameObjects.GameObject;
+          }).setAlpha(alpha);
+        }
+      });
+      return;
+    }
+    const alphaView = view as Phaser.GameObjects.GameObject & {
+      setAlpha: (value: number) => Phaser.GameObjects.GameObject;
+    };
+    alphaView.setAlpha(alpha);
   }
 
   /**----------------------------------------------------------------------------------------------------------------
@@ -603,50 +816,43 @@ export class IsoScene extends Phaser.Scene {
   }
 
   private updateRingState(module: Placed) {
-    const shouldShow =
-      module.uid === this.hoveredModuleUid ||
-      module.uid === this.selectedModuleUid;
-
+    
     if (module.ring) {
-      module.ring.setVisible(shouldShow);
-      if (shouldShow) {
-        const fp = this.footprint(module.col, module.row, module.def.w, module.def.h);
-        this.drawSelectionRing(module.ring, fp, module.def);
-      }
+      module.ring.setVisible(false);
     }
   }
 
   private attachModuleInteraction(module: Placed) {
     const target =
       module.view instanceof Phaser.GameObjects.Container
-        ? module.view.list.find(
+        ? (module.view.list.find(
             (child) =>
               child instanceof Phaser.GameObjects.Sprite ||
               child instanceof Phaser.GameObjects.Graphics,
-          ) ?? module.view
+          ) ?? module.view)
         : module.view;
 
     if (!(target instanceof Phaser.GameObjects.GameObject)) return;
 
     target.setInteractive({ useHandCursor: true });
-    target.on("pointerover", () => {
-      this.hoveredModuleUid = module.uid;
-      if (module.label) module.label.setVisible(true);
-      this.placed.forEach((placed) => this.updateRingState(placed));
-    });
-    target.on("pointerout", () => {
-      if (this.hoveredModuleUid === module.uid) {
-        this.hoveredModuleUid = null;
+    target.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
+      if (this.isOverlayOpen()) return;
+      if (pointer.button === 2) {
+        if (this.movingModuleUid !== null) {
+          this.cancelMove();
+          return;
+        }
+
+        this.game.events.emit("module-move-requested", {
+          uid: module.uid,
+          id: module.def.id,
+          col: module.col,
+          row: module.row,
+        });
+        return;
       }
-      if (this.selectedModuleUid === module.uid) {
-        this.selectedModuleUid = null;
-      }
-      if (module.label) module.label.setVisible(false);
       this.placed.forEach((placed) => this.updateRingState(placed));
-    });
-    target.on("pointerdown", () => {
-      this.selectedModuleUid = module.uid;
-      this.placed.forEach((placed) => this.updateRingState(placed));
+      this.drawGhost();
       this.game.events.emit("module-clicked", {
         uid: module.uid,
         id: module.def.id,
@@ -654,12 +860,37 @@ export class IsoScene extends Phaser.Scene {
         col: module.col,
         row: module.row,
       });
-      console.log("Module clicked:", module.def.name, {
-        uid: module.uid,
-        id: module.def.id,
-        col: module.col,
-        row: module.row,
-      });
+      // console.log("Module clicked:", module.def.name, {
+      //   uid: module.uid,
+      //   id: module.def.id,
+      //   col: module.col,
+      //   row: module.row,
+      // });
+    });
+  }
+
+  private syncConstructionStatus() {
+    const stateModules = useGameStore.getState().placedModules;
+    this.placed.forEach((module) => {
+      const stateModule = stateModules.find(
+        (candidate) =>
+          candidate.instanceId === module.instanceId ||
+          (candidate.id === module.def.id &&
+            candidate.x === module.row &&
+            candidate.y === module.col),
+      );
+      const remaining = stateModule?.constructionHoursRemaining ?? 0;
+      module.constructionHoursRemaining = remaining;
+      if (module.label) {
+        module.label.setText(
+          remaining > 0
+            ? `${module.def.name}\nIN CONSTRUCTION • ${remaining}h`
+            : module.def.name,
+        );
+        module.label.setVisible(
+          remaining > 0 || module.uid === this.hoveredModuleUid,
+        );
+      }
     });
   }
 
@@ -783,11 +1014,25 @@ export class IsoScene extends Phaser.Scene {
     g.clear();
     this.ghostImg.setVisible(false);
 
+    const highlightedUid =
+      this.movingModuleUid === null ? this.hoveredModuleUid : null;
+    this.placed.forEach((module) => {
+      const isHighlighted = module.uid === highlightedUid;
+      const isConstructing =
+        (module.constructionHoursRemaining ?? 0) > 0;
+      this.setModuleAlpha(
+        module.view,
+        isConstructing || isHighlighted ? 0.55 : 1,
+      );
+      module.label?.setVisible(isConstructing || isHighlighted);
+      this.updateRingState(module);
+    });
+
     if (!this.selected) {
-      if (this.hoverTile) {
-        const fp = this.footprint(this.hoverTile.col, this.hoverTile.row, 1, 1);
-        this.poly(g, [fp.top, fp.right, fp.bottom, fp.left], 0xffd166, 0.45);
-      }
+      // if (this.hoverTile) {
+      //   const fp = this.footprint(this.hoverTile.col, this.hoverTile.row, 1, 1);
+      //   this.poly(g, [fp.top, fp.right, fp.bottom, fp.left], 0xffd166, 0.45);
+      // }
       return;
     }
 
@@ -829,7 +1074,7 @@ export class IsoScene extends Phaser.Scene {
     const hw = GRID.tileW / 2;
     const hh = GRID.tileH / 2;
 
-    g.lineStyle(1, 0xffffff, 0);
+    g.lineStyle(1, 0xffffff, 0.2);
 
     for (let c = 0; c < GRID.cols; c++) {
       for (let r = 0; r < GRID.rows; r++) {

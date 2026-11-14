@@ -4,6 +4,7 @@ export const MODULES: Record<string, ModuleDef> = {
   // --- 1. LIFE SUPPORT & HABITAT ---
   habitat: {
     id: "habitat",
+    constructionHours: 4,
     name: "Crew Habitat",
     description:
       "The primary survival pod. Keeps the astronaut alive, processes meals, and saves progress.",
@@ -21,17 +22,17 @@ export const MODULES: Record<string, ModuleDef> = {
       { resource: "iron_plate", amount: 8 },
       { resource: "glass_panel", amount: 4 },
     ],
-    maxIntegrity: 150,
-    baseDecayRate: 2,
+    maxIntegrity: 100,
+    baseDecayRate: 4,
     powerDraw: -5, // Passive background drain
-    productionInputs: [
-      { resource: "water", amountPerTick: 1 },
-      { resource: "food", amountPerTick: 1 },
-    ],
+    // productionInputs: [{ resource: "water", amountPerTick: 1 }],
+    maxModules: 1, // Only one habitat can be built at a time
+    moduleCapacity: 200,
   },
   greenhouse: {
     id: "greenhouse",
-    name: "Hydroponic Greenhouse",
+    constructionHours: 4,
+    name: "Greenhouse",
     description:
       "Cultivates Martian crops using water and intensive artificial light configurations.",
     category: "life_support",
@@ -51,38 +52,40 @@ export const MODULES: Record<string, ModuleDef> = {
     maxIntegrity: 100,
     baseDecayRate: 5, // High wind vulnerability
     powerDraw: -12,
-    productionInputs: [{ resource: "water", amountPerTick: 2 }],
-    productionOutputs: [{ resource: "food", amountPerTick: 3 }],
+    maxModules: 1, // Only one greenhouse can be built at a time
   },
-  // radiation_filter: {
-  //   id: "radiation_filter",
-  //   name: "Radiation Filter Array",
-  //   description:
-  //     "Uses electromagnetic coils and lead shielding layers to mitigate ambient background radiation.",
-  //   category: "life_support",
-  //   isUnlockedByDefault: false, // Locked behind Laboratory research!
-  //   w: 1,
-  //   h: 1,
-  //   texture: "radiation_filter",
-  //   height: 45,
-  //   color: 0x4b0082,
-  //   anchor: "center",
-  //   originY: 0.8,
-  //   scale: 0.32,
-  //   buildCost: [
-  //     { resource: "iron_plate", amount: 6 },
-  //     { resource: "electronics", amount: 4 },
-  //   ],
-  //   maxIntegrity: 100,
-  //   baseDecayRate: 8, // Takes high wear protecting the base
-  //   powerDraw: -15,
-  // },
-
+  kitchen: {
+    id: "kitchen",
+    constructionHours: 4,
+    name: "Kitchen",
+    description:
+      "Prepares harvested ingredients into nutritious meals for the astronaut.",
+    category: "life_support",
+    isUnlockedByDefault: true,
+    w: 2,
+    h: 3,
+    texture: "kitchen",
+    height: 62,
+    color: 0xffd7a0,
+    anchor: "center",
+    originY: 0.64,
+    scale: 0.21,
+    buildCost: [
+      { resource: "iron_plate", amount: 6 },
+      { resource: "glass_panel", amount: 2 },
+      { resource: "electronics", amount: 2 },
+    ],
+    maxIntegrity: 100,
+    baseDecayRate: 3,
+    powerDraw: -8,
+    maxModules: 1,
+  },
   radiation_tower: {
     id: "radiation_tower",
-    name: "Aegis Rad-Shield Tower",
+    constructionHours: 4,
+    name: "Rad-Shield Tower",
     description:
-      "Generates a localized localized magnetic bubble that sweeps solar radiation fields. Requires active Radiation Filters loaded into its operations queue.",
+      "Generates a localized magnetic bubble that reduces continuous and wave radiation damage in the surrounding area.",
     category: "power", // Categorized under grid infrastructure
     isUnlockedByDefault: false, // Must be unlocked via Laboratory blueprints!
     w: 2,
@@ -94,22 +97,20 @@ export const MODULES: Record<string, ModuleDef> = {
     originY: 0.8,
     scale: 0.32,
     buildCost: [
-      { resource: "iron_plate", amount: 14 },
-      { resource: "electronics", amount: 8 },
+      { resource: "iron_plate", amount: 7 },
+      { resource: "electronics", amount: 5 },
     ],
-    maxIntegrity: 180,
+    maxIntegrity: 100,
     baseDecayRate: 8, // Heavily worn down by solar particle bombardments
-    powerDraw: -25, // Demands heavy baseline electrical routing to run the magnets
-    productionInputs: [
-      // Burns 1 high-grade Radiation Filter per operational tick to negate baseline player rad damage
-      { resource: "repair_kit", amountPerTick: 1 },
-    ],
+    powerDraw: -18, // Demands heavy baseline electrical routing to run the magnets
+    maxModules: 1, // Only one radiation tower can be built at a time
   },
 
   // --- CORE LIFE SUPPORT MODULE ---
   life_support: {
     id: "life_support",
-    name: "Atmospheric Life Support Node",
+    constructionHours: 4,
+    name: "Life Support",
     description:
       "Primary environmental system. Regulates internal air pressure, scrubs carbon dioxide, and pumps vital water reserves back through the base.",
     category: "life_support",
@@ -127,17 +128,19 @@ export const MODULES: Record<string, ModuleDef> = {
       { resource: "glass_panel", amount: 4 },
       { resource: "electronics", amount: 6 },
     ],
-    maxIntegrity: 150,
+    maxIntegrity: 100,
     baseDecayRate: 4,
     powerDraw: -12, // Critical core draw
-    productionInputs: [
+    /*productionInputs: [
       { resource: "water", amountPerTick: 1 }, // Recycles water into structural oxygen loops
-    ],
+    ],*/
+    maxModules: 1, // Only one life support node can be built at a time
   },
 
   // --- 2. RESOURCE GATHERING & PROCESSING ---
   water: {
     id: "water",
+    constructionHours: 4,
     name: "Water Extractor",
     description:
       "Melts and purifies deep subsurface regolith ice reserves into drinking water.",
@@ -155,14 +158,16 @@ export const MODULES: Record<string, ModuleDef> = {
       { resource: "iron_plate", amount: 5 },
       { resource: "electronics", amount: 2 },
     ],
-    maxIntegrity: 120,
+    maxIntegrity: 100,
     baseDecayRate: 4,
     powerDraw: -10,
     productionOutputs: [{ resource: "water", amountPerTick: 2 }],
+    maxModules: 2, // Only one water extractor can be built at a time
   },
   drill: {
     id: "drill",
-    name: "Regolith Extractor",
+    constructionHours: 4,
+    name: "Ore Extractor",
     description:
       "Heavy mechanical drill that extracts raw iron ore and high-density silicates.",
     category: "production",
@@ -186,10 +191,12 @@ export const MODULES: Record<string, ModuleDef> = {
       { resource: "iron_ore", amountPerTick: 3 },
       { resource: "silicates", amountPerTick: 2 },
     ],
+    maxModules: 2, // Only two drills can be built at a time
   },
   workshop: {
     id: "workshop",
-    name: "Automated Workshop",
+    constructionHours: 4,
+    name: "Workshop",
     description:
       "Refines raw elements into structural plates, glass panels, components, and tools.",
     category: "production",
@@ -203,18 +210,20 @@ export const MODULES: Record<string, ModuleDef> = {
     originY: 0.65,
     scale: 0.24,
     buildCost: [
-      { resource: "iron_plate", amount: 10 },
-      { resource: "electronics", amount: 5 },
+      { resource: "iron_plate", amount: 13 },
+      { resource: "electronics", amount: 7 },
     ],
-    maxIntegrity: 200,
+    maxIntegrity: 100,
     baseDecayRate: 3,
     powerDraw: -8, // Low background power, high when actively crafting items
+    maxModules: 1, // Only one workshop can be built at a time
   },
 
   // --- 3. POWER GENERATION & STORAGE ---
   solar: {
     id: "solar",
-    name: "Solar Array",
+    constructionHours: 3,
+    name: "Solar panel",
     description:
       "Generates renewable energy. Highly vulnerable to drop-offs during dust storm events.",
     category: "power",
@@ -232,12 +241,14 @@ export const MODULES: Record<string, ModuleDef> = {
       { resource: "glass_panel", amount: 4 },
       { resource: "electronics", amount: 2 },
     ],
-    maxIntegrity: 80,
+    maxIntegrity: 100,
     baseDecayRate: 4,
-    powerDraw: 25, // Positive value: generates 25 units of energy during standard daylight
+    powerDraw: 35, // Positive value: generates 25 units of energy during standard daylight
+    maxModules: 4, // Only four solar arrays can be built at a time
   },
   battery: {
     id: "battery",
+    constructionHours: 4,
     name: "Power Station Bank",
     description:
       "Stores power surpluses during peak generation cycles to keep life support operational overnight.",
@@ -255,15 +266,18 @@ export const MODULES: Record<string, ModuleDef> = {
       { resource: "iron_plate", amount: 6 },
       { resource: "electronics", amount: 6 },
     ],
-    maxIntegrity: 120,
+    maxIntegrity: 100,
     baseDecayRate: 2,
     powerDraw: 0, // Handles storage capacity changes through game context logic
+    maxModules: 2, // Only two battery banks can be built at a time
+    powerCapacity: 250,
   },
 
   // --- 4. TECHNOLOGY & TECH LOGS ---
   researchLab: {
     id: "researchLab",
-    name: "Research Laboratory",
+    constructionHours: 4,
+    name: "Research Lab",
     description:
       "Processes data logs to unlock advanced base defenses and radiation filters.",
     category: "tech",
@@ -277,17 +291,19 @@ export const MODULES: Record<string, ModuleDef> = {
     originY: 0.7,
     scale: 0.24,
     buildCost: [
-      { resource: "iron_plate", amount: 6 },
-      { resource: "glass_panel", amount: 6 },
-      { resource: "electronics", amount: 8 },
+      { resource: "iron_plate", amount: 3 },
+      { resource: "glass_panel", amount: 3 },
+      { resource: "electronics", amount: 5 },
     ],
-    maxIntegrity: 150,
+    maxIntegrity: 100,
     baseDecayRate: 3,
     powerDraw: -20,
+    maxModules: 1, // Only one research lab can be built at a time
   },
   radar: {
     id: "radar",
-    name: "Long-Range Comms Radar",
+    constructionHours: 4,
+    name: "Comms Radar",
     description:
       "Establishes structural signals back to Earth and scans adjacent Martian sectors for rescue assets.",
     category: "tech",
@@ -301,23 +317,25 @@ export const MODULES: Record<string, ModuleDef> = {
     originY: 0.76,
     scale: 0.29,
     buildCost: [
-      { resource: "iron_plate", amount: 4 },
-      { resource: "electronics", amount: 8 },
+      { resource: "iron_plate", amount: 2 },
+      { resource: "electronics", amount: 4 },
     ],
     maxIntegrity: 100,
     baseDecayRate: 5,
     powerDraw: -15,
+    maxModules: 1, // Only one radar can be built at a time
   },
   storage_small: {
     id: "storage_small",
-    name: "Supply Depot (S)",
+    constructionHours: 4,
+    name: "Small Storage (S)",
     description:
       "A compact secure locker. Increases your maximum resource inventory limits.",
     category: "storage",
     isUnlockedByDefault: true,
     w: 2,
     h: 2, // Compact footprint on the isometric grid
-    texture: "storage",
+    texture: "storage_small",
     height: 40,
     color: 0xdeb887,
     anchor: "center",
@@ -327,34 +345,41 @@ export const MODULES: Record<string, ModuleDef> = {
     maxIntegrity: 100,
     baseDecayRate: 2, // Low maintenance required
     powerDraw: 0, // Passively adds inventory capacity without consuming power
+    maxModules: 4, // Only four supply depots can be built at a time
+    moduleCapacity: 50, // Each small storage module can hold 50 units of resources
   },
   storage_large: {
     id: "storage_large",
-    name: "Automated Logistics Hub (L)",
+    constructionHours: 4,
+    name: "Large Storage (L)",
     description:
       "Advanced heavy vault equipped with climate-controlled tracking for vast stockpiles.",
     category: "storage",
     isUnlockedByDefault: false, // Must be researched in the Laboratory first!
     w: 2,
-    h: 3,
+    h: 2,
     texture: "storage_large",
     height: 75,
     color: 0xcd853f,
     anchor: "center",
-    originY: 0.62,
-    scale: 0.32,
+    originY: 0.65,
+    scale: 0.19,
+    // scale: 0.25,
     buildCost: [
-      { resource: "iron_plate", amount: 12 },
-      { resource: "electronics", amount: 4 },
+      { resource: "iron_plate", amount: 8 },
+      { resource: "electronics", amount: 3 },
     ],
-    maxIntegrity: 250, // Highly durable against winds
+    maxIntegrity: 100, // Highly durable against winds
     baseDecayRate: 3,
     powerDraw: -2, // Uses minimal power to run its internal automated conveyor systems
+    maxModules: 2, // Only two large storage hubs can be built at a time
+    moduleCapacity: 200, // Each large storage module can hold 200 units of resources
   },
 
   // --- COMMUNICATION MODULE ---
   communication: {
     id: "communication",
+    constructionHours: 4,
     name: "Mission Control Uplink",
     description:
       "Houses deep-space transmitter nodes. Essential for checking in with Earth and coordinating your Sol 30 rescue itinerary.",
@@ -369,13 +394,64 @@ export const MODULES: Record<string, ModuleDef> = {
     originY: 0.75,
     scale: 0.27,
     buildCost: [
-      { resource: "iron_plate", amount: 6 },
+      { resource: "iron_plate", amount: 4 },
       { resource: "glass_panel", amount: 2 },
-      { resource: "electronics", amount: 8 },
+      { resource: "electronics", amount: 4 },
     ],
-    maxIntegrity: 120,
+    maxIntegrity: 100,
     baseDecayRate: 4,
     powerDraw: -15, // Demands heavy baseline electrical infrastructure to punch through Martian storms
+    maxModules: 1, // Only one communication module can be built at a time
+  },
+  sample_extractor: {
+    id: "sample_extractor",
+    constructionHours: 4,
+    name: "Sample Extractor",
+    description: "Extracts and processes samples from the Martian environment.",
+    category: "tech",
+    isUnlockedByDefault: false,
+    w: 2,
+    h: 2,
+    texture: "sample_extractor",
+    height: 62,
+    color: 0x8b4513,
+    anchor: "center",
+    originY: 0.7,
+    scale: 0.19,
+    buildCost: [
+      { resource: "iron_plate", amount: 2 },
+      { resource: "glass_panel", amount: 3 },
+      { resource: "electronics", amount: 3 },
+    ],
+    maxIntegrity: 100,
+    baseDecayRate: 4,
+    powerDraw: -8, // Requires a moderate amount of power to operate
+    maxModules: 1, // Only one sample extractor can be built at a time
+  },
+  beacon: {
+    id: "beacon",
+    constructionHours: 4,
+    name: "Rescue Beacon",
+    description: "A signal beacon for navigation and communication.",
+    category: "tech",
+    isUnlockedByDefault: false,
+    w: 2,
+    h: 2,
+    texture: "beacon",
+    height: 62,
+    color: 0x8b4513,
+    anchor: "center",
+    originY: 0.76,
+    scale: 0.19,
+    buildCost: [
+      { resource: "iron_plate", amount: 4 },
+      { resource: "glass_panel", amount: 2 },
+      { resource: "electronics", amount: 3 },
+    ],
+    maxIntegrity: 100,
+    baseDecayRate: 4,
+    powerDraw: -8, // Requires a moderate amount of power to operate
+    maxModules: 1, // Only one beacon can be built at a time
   },
 };
 
