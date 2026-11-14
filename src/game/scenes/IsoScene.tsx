@@ -816,10 +816,7 @@ export class IsoScene extends Phaser.Scene {
   }
 
   private updateRingState(module: Placed) {
-    const shouldShow =
-      module.uid === this.hoveredModuleUid ||
-      module.uid === this.selectedModuleUid;
-
+    
     if (module.ring) {
       module.ring.setVisible(false);
     }

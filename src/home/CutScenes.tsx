@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Play, Pause, ArrowLeft, SkipForward } from "lucide-react";
+import { Play, ArrowLeft, SkipForward } from "lucide-react";
 import mars_video from "../assets/mars_final.mp4";
 
 interface CutScenesProps {

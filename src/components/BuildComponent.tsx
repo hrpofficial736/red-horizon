@@ -15,8 +15,6 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
   const inventory = useGameStore((state) => state.inventory);
   const placedModules = useGameStore((state) => state.placedModules);
   const unlockedModuleIds = useGameStore((state) => state.unlockedModuleIds);
-  const researchedNodeIds = useGameStore((state) => state.researchedNodeIds);
-  const isCommsEstablished = useGameStore((state) => state.isCommsEstablished);
   const stormAlertReceived = useGameStore((state) => state.stormAlertReceived);
   const hasBuilt = (moduleId: string) =>
     placedModules.some(
@@ -65,11 +63,6 @@ export const BuildComponent = ({ closeTab }: { closeTab: () => void }) => {
     (foodStockpileTaskStartDay !== null &&
       currentDay > foodStockpileTaskStartDay &&
       foodCount >= 7);
-  const extractorResearchComplete = researchedNodeIds.includes(
-    "tech_sample_extractor",
-  );
-  const hasSampleExtractor = hasBuilt("sample_extractor");
-  const hasBeacon = hasBuilt("beacon");
   const hasSample = (inventory.mars_sample ?? 0) >= 1;
   const hasRadiationTower = hasBuilt("radiation_tower");
   const towerTaskPassed2Days =

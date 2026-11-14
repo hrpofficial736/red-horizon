@@ -1,5 +1,5 @@
 import React from "react";
-import { Menu, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
 import { getPowerBankCapacity, useGameStore } from "../store/useGameStore";
 
 interface BaseStatusHUDProps {
@@ -14,12 +14,7 @@ export const BaseStatusHUD: React.FC<BaseStatusHUDProps> = ({ onOpenMenu }) => {
     const oxygenSpO2 = useGameStore((state) => state.oxygenSpO2);
     const fatigueLevel = useGameStore((state) => state.fatigueLevel);
     const sleepUntilMorning = useGameStore((state) => state.sleepUntilMorning);
-    const workOvertime = useGameStore((state) => state.workOvertime);
-    const overtimeHours = useGameStore((state) => state.overtimeHours);
     const isFainted = useGameStore((state) => state.isFainted);
-    const repairKitCount = useGameStore(
-        (state) => state.inventory.repair_kit || 0,
-    );
     const powerBankCharge = useGameStore((state) => state.powerBankCharge);
     const placedModules = useGameStore((state) => state.placedModules);
     const powerBankCapacity = getPowerBankCapacity(placedModules);

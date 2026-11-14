@@ -1,10 +1,6 @@
 import { useState } from "react";
 import {
-  CalendarDays,
-  Check,
   ChevronLeft,
-  Home,
-  RotateCcw,
   Trash,
   Trash2,
 } from "lucide-react";
@@ -49,7 +45,7 @@ export function SaveMenu({ onClose, onBackToHome }: SaveMenuProps) {
   const allSelected = saves.length > 0 && selectedDays.length === saves.length;
 
   return (
-    <div className="absolute inset-0 z-90 flex items-center bg-black/100 p-4 pointer-events-auto py-12">
+    <div className="absolute inset-0 z-90 flex items-center bg-black p-4 pointer-events-auto py-12">
       <section
         className={`w-full flex flex-col max-w-xl ${showSaves ? "justify-none" : "justify-between"}  h-full rounded-xl border-0 border-orange-500/40 bg-neutral-950/0 p-5  text-white shadow-2xl`}
       >

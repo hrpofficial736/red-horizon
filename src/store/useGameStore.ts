@@ -2257,7 +2257,7 @@ export const useGameStore = create<GameState>((set, get) => ({
     // Normal time advances one visible game minute per real-world second.
     const interval = setInterval(() => {
       const store = get();
-      let nextMinute = store.currentMinute + 1;
+      const nextMinute = store.currentMinute + 1;
 
       if (nextMinute >= 60) {
         // 60 minutes have passed! Advance the base automation engine by 1 full hour
@@ -2565,10 +2565,10 @@ export const useGameStore = create<GameState>((set, get) => ({
       const updatedInventory = { ...state.inventory };
       const logs = [...state.gameLogs];
       let workshopQueue = [...state.workshopQueue];
-      let kitchenQueue = [...state.kitchenQueue];
-      let greenhouseQueue = [...state.greenhouseQueue];
+      const kitchenQueue = [...state.kitchenQueue];
+      const greenhouseQueue = [...state.greenhouseQueue];
       let sampleExtractorQueue = [...state.sampleExtractorQueue];
-      let researchQueue = [...state.researchQueue];
+      const researchQueue = [...state.researchQueue];
       let powerBankCharge = state.powerBankCharge;
       const healthModifier = 0;
       let lastRadiationWaveDay = state.lastRadiationWaveDay;
