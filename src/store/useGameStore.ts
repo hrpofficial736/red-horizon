@@ -2532,13 +2532,13 @@ export const useGameStore = create<GameState>((set, get) => ({
     if (daysRemaining < RESCUE_MINIMUM_LEAD_DAYS) {
       set({
         gameFailed: true,
-        failureCause: `ARES-7 rescue failed. The mission was initialized with only ${Math.max(
+        failureCause: `HORIZON-1 rescue failed. The mission was initialized with only ${Math.max(
           0,
           daysRemaining,
         )} day(s) remaining before Sol ${RESCUE_DEADLINE_DAY}; at least ${RESCUE_MINIMUM_LEAD_DAYS} days are required for evacuation.`,
         gameLogs: [
           ...get().gameLogs,
-          "🚨 RESCUE FAILURE: The evacuation window was too short to launch ARES-7.",
+          "🚨 RESCUE FAILURE: The evacuation window was too short to launch HORIZON-1.",
         ],
       });
       get().stopPassiveTimer();
@@ -2549,7 +2549,7 @@ export const useGameStore = create<GameState>((set, get) => ({
       rescueMissionSuccessful: true,
       gameLogs: [
         ...state.gameLogs,
-        `🚀 ARES-7 RESCUE INITIALIZED: ${daysRemaining} days remain before Sol ${RESCUE_DEADLINE_DAY}. Evacuation is on schedule.`,
+        `🚀 HORIZON-1 RESCUE INITIALIZED: ${daysRemaining} days remain before Sol ${RESCUE_DEADLINE_DAY}. Evacuation is on schedule.`,
       ],
     }));
     return true;

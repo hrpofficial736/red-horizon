@@ -184,7 +184,7 @@ function App({ onBackToHome }: { onBackToHome: () => void }) {
                 <GameFailureOverlay
                     cause={
                         rescueMissionSuccessful
-                            ? "ARES-7 has enough lead time to reach the outpost before Sol 29. The astronaut has been cleared for evacuation."
+                            ? "HORIZON-1 has enough lead time to reach the outpost before Sol 29. The astronaut has been cleared for evacuation."
                             : failureCause ?? "The outpost could not complete the rescue mission."
                     }
                     onLoadGame={() => setShowSaveMenu(true)}
