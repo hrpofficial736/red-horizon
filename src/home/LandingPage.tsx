@@ -25,7 +25,7 @@ export default function LandingPage({ onStart }: { onStart: () => void }) {
                     <span className="text-orange-400 text-3xl">◈</span>
 
                     <span className="font-[Orbitron] text-sm md:text-lg font-bold tracking-[0.3em]">
-                        THE RED HORIZON
+                        RED HORIZON
                     </span>
                 </div>
 
